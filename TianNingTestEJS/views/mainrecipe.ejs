@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet"  type="text/css" href="/main.css" />
+    <title><%= title%></title>
+</head>
+<body>
+  <header>
+    <!-- Requirement: Settings Page, to include ESP32 Checking and Recipe Management-->
+    <h1>Hello Avan, Display all current Recipes here</h1>
+    <!-- Requirement: Redirect to <<Add Recipe Page>> Section-->
+    <form action="/settings/recipe/addrecipe" method="GET">
+      <button type="submit">Add New Recipe</button>
+    </form><br>
+    <!-- Requirement: Display all current Food items here! -->
+    <h1>Food Items</h1>
+
+    <% if (foods.length === 0) { %>
+        <p>No food items found.</p>
+    <% } else { %>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Food Name</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <% foods.forEach(food => { %>
+                    <tr>
+                        <td><%= food.food_id %></td>
+                        <td><%= food.food_name %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    <% } %>
+</body>
+</html>

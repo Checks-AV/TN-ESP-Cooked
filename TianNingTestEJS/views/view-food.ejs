@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <link rel="stylesheet" type="text/css" href="/main.css">
+</head>
+
+<body>
+    <h1>Food Items</h1>
+
+    <% if (foods.length === 0) { %>
+        <p>No food items found.</p>
+    <% } else { %>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Food ID</th>
+                    <th>Food Name</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <% foods.forEach(food => { %>
+                    <tr>
+                        <td><%= food.food_id %></td>
+                        <td><%= food.food_name %></td>
+                    </tr>
+                <% }) %>
+            </tbody>
+        </table>
+    <% } %>
+
+    <br>
+
+    <a href="/settings/recipe">Back to Recipe Page</a>
+</body>
+</html>

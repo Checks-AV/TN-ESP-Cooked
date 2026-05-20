@@ -1,0 +1,23 @@
+{
+  "name": "tianningtestejs",
+  "version": "1.0.0",
+  "description": "This is Avan's Frontend for Tian Ning's ESP32 Inspired OVERCOOKED",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean-db-win": "del database.db",
+    "build-db-win": "sqlite3 database.db < db_schema.sql",
+    "ngrok":"ngrok http 4000 --domain=unlit-dander-halt.ngrok-free.dev",
+    "start": "node index.js",
+    "dev": "npm run ngrok && npm run start"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ejs": "^5.0.1",
+    "express": "^5.2.1",
+    "sqlite3": "^6.0.1"
+  }
+}

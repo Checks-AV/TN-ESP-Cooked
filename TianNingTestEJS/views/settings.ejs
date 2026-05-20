@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet"  type="text/css" href="/main.css" />
+    <title><%= title%></title>
+</head>
+<body>
+  <header>
+    <!-- Requirement: Settings Page, to include ESP32 Checking and Recipe Management-->
+    <h1>Welcome Avan, Redirect to Stage Setting here</h1>
+    <!-- Requirement: Redirect to <<ESP32 Here>> Section-->
+    <form action="/settings/esp32" method="GET">
+      <button type="submit">ESP32 Setup</button>
+    </form><br>
+    <!-- Requirement: Redirect to <<Recipe Page>> Section-->
+    <form action="/settings/recipe" method="GET">
+      <button type="submit">Recipe Management</button>
+    </form><br>
+</body>
+</html>
