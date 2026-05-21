@@ -1,4 +1,4 @@
-// Avan Here, App Journey Starts here!
+// Avan Here, Settings Journey Starts here!
 // Main page router only for home page
 
 const express = require("express");
@@ -26,79 +26,9 @@ router.get("/esp32", (req, res, next) => {
     });
 });
 
-// Registering a ESP32 into the database
-router.post("/esp32/register", (req, res, next) => {
-    const mac = req.body.mac;
-    console.log(mac);
-
-    if (!mac) {
-        return res.status(400).json({
-            success: false,
-            message: "Missing MAC address"
-        });
-    }
-
-    const ip = req.socket.remoteAddress.replace("::ffff:", "");
-    const lastSeen = new Date().toISOString();
-
-    console.log("ESP32 Registered:");
-    console.log("MAC:", mac);
-    console.log("IP:", ip);
-    console.log("Last Seen:", lastSeen);
-
-    const sql = `
-        INSERT INTO ESP32Devices (device_mac, ip_address, last_seen)
-        VALUES (?, ?, ?)
-        ON CONFLICT(device_mac)
-        DO UPDATE SET
-            ip_address = excluded.ip_address,
-            last_seen = excluded.last_seen
-    `;
-
-    global.db.run(sql, [mac, ip, lastSeen], function (err) {
-        if (err) return next(err);
-
-        res.json({
-            success: true,
-            mac,
-            ip,
-            last_seen: lastSeen
-        });
-    });
-});
-
 router.post("/esp32/update", (req, res, next)=> {
     console.log(req.body);
     res.render("updateesp.ejs", {title: "Update EJS"});
-});
-
-// Sending a ESP32 with the located IP Addresses
-router.post("/esp32/send", async (req, res, next) => {
-    try {
-
-        const { ip_address, message } = req.body;
-
-        console.log("Sending to ESP32:");
-        console.log("IP:", ip_address);
-        console.log("Message:", message);
-
-        const response = await fetch(`http://${ip_address}/cmd`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "text/plain"
-            },
-            body: message
-        });
-
-        const reply = await response.text();
-
-        console.log("ESP32 replied:", reply);
-
-        res.send("Message sent successfully");
-
-    } catch (err) {
-        next(err);
-    }
 });
 
 // Main Recipe page
