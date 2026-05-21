@@ -32,6 +32,9 @@ app.use('/', appRoutes);
 const settingsRoutes = require('./routes/settings');
 app.use('/settings', settingsRoutes);
 
+const esp32Routes = require('./routes/esp32comms');
+app.use('/esp32comms',esp32Routes);
+
 app.use(express.text());
 /* app.post('/', (req, res) => {
 
