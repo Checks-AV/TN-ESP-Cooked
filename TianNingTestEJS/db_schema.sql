@@ -178,10 +178,13 @@ INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Chopped'); --8
 INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Burnt'); --9
 
 /* Insert your station actions here! */
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Toast');
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Cook');
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Boil');
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Fry');
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Slice');
 INSERT INTO preparation_method('preparation_method_name') VALUES ('Dice');
 INSERT INTO preparation_method('preparation_method_name') VALUES ('Chop');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Cook');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Fry');
 
 /* Dummy Tag Data here */
 INSERT INTO ESP32Devices('device_mac', 'ip_address', 'last_seen') VALUES (' 1C:DB:D4:40:35:38', '192.168.10.116', '2026-05-06T10:25:12.663Z');
