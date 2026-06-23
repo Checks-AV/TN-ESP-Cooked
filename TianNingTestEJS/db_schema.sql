@@ -202,5 +202,26 @@ INSERT INTO email_accounts ('email_address', 'user_id') VALUES ('simon@gmail.com
 INSERT INTO email_accounts ('email_address', 'user_id') VALUES ('simon@hotmail.com', 1); 
 INSERT INTO email_accounts ('email_address', 'user_id') VALUES ('dianne@yahoo.co.uk', 2);  */
 
+
+-- Replace your bare Orders table with this
+CREATE TABLE IF NOT EXISTS Orders (
+    orders_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    food_id         INTEGER NOT NULL,
+    order_number    TEXT NOT NULL UNIQUE,
+    order_status    TEXT DEFAULT 'pending',
+    order_time_started TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (food_id) REFERENCES food(food_id)
+);
+
+-- Append-only action log: ESP32 sends mac + action, server just writes it
+CREATE TABLE IF NOT EXISTS OrderActions (
+    action_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    orders_id       INTEGER NOT NULL,
+    tag_mac         TEXT NOT NULL,
+    action_name     TEXT NOT NULL,
+    action_time     TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (orders_id) REFERENCES Orders(orders_id)
+);
+
 COMMIT;
 
