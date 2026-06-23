@@ -1,76 +1,165 @@
-    function addStep(ingredientIndex) {
+// ─── CONFIG ──────────────────────────────────────────────────
+const MAX_INGREDIENTS = 10;
+let ingredientCount = 1;
 
-        const container =
-            document.getElementById(`steps-${ingredientIndex}`);
+// methods, ingredientsList, statusesList injected by EJS into the page
 
-        const stepNumber =
-            container.querySelectorAll(".step-row").length + 1;
+// ─── ADD INGREDIENT ──────────────────────────────────────────
+function addIngredient() {
+    if (ingredientCount >= MAX_INGREDIENTS) {
+        alert(`Maximum ${MAX_INGREDIENTS} ingredients allowed.`);
+        return;
+    }
 
-        // Create wrapper div
-        const div = document.createElement("div");
+    const idx = ingredientCount;
+    const container = document.getElementById("ingredients-container");
 
-        div.classList.add("step-row");
+    const block = document.createElement("div");
+    block.classList.add("ingredient-block");
+    block.id = `ingredient-block-${idx}`;
 
-        div.innerHTML = `
-            <label>
-                Preparation Step ${stepNumber}:
-            </label>
+    block.innerHTML = `
+        <hr>
+        <h2>Ingredient ${idx + 1}</h2>
 
-            <select
-                name="ingredients[${ingredientIndex}][preparation_steps]"
-            >
-                <option value="">
-                    -- None --
-                </option>
+        <button
+            type="button"
+            onclick="removeIngredient(${idx})"
+        >
+            Remove Ingredient
+        </button>
 
-                ${methods.map(method => `
-                    <option value="${method.preparation_method_id}">
-                        ${method.preparation_method_name}
+        <br><br>
+
+        <div>
+            <label>Ingredient:</label>
+            <select name="ingredients[${idx}][ingredients_id]" required>
+                <option value="">-- Select --</option>
+                ${window.ingredientsList.map(i => `
+                    <option value="${i.ingredients_id}">
+                        ${i.ingredients_name}
                     </option>
                 `).join("")}
-
             </select>
+        </div>
 
-            <button
-                type="button"
-                onclick="removeStep(this, ${ingredientIndex})"
+        <br>
+
+        <div>
+            <label>Final Status:</label>
+            <select name="ingredients[${idx}][ingredientstatus_id]" required>
+                <option value="">-- Select --</option>
+                ${window.statusesList.map(s => `
+                    <option value="${s.ingredientstatus_id}">
+                        ${s.ingredientstatus_name}
+                    </option>
+                `).join("")}
+            </select>
+        </div>
+
+        <br>
+
+        <div>
+            <label>Required Amount:</label>
+            <input
+                type="number"
+                name="ingredients[${idx}][required_amount]"
+                min="1"
+                value="1"
+                required
             >
-                Remove
-            </button>
+        </div>
 
-            <br><br>
-        `;
+        <br>
 
-        container.appendChild(div);
+        <div id="steps-${idx}">
+            <h3>Preparation Steps</h3>
+        </div>
 
-        renumberSteps(ingredientIndex);
-    }
+        <button
+            type="button"
+            onclick="addStep(${idx})"
+        >
+            + Add Step
+        </button>
+    `;
 
-    function removeStep(button, ingredientIndex) {
+    container.appendChild(block);
+    ingredientCount++;
+}
 
-        // Find the whole step row
-        const stepRow = button.parentElement;
+// ─── REMOVE INGREDIENT ───────────────────────────────────────
+function removeIngredient(idx) {
+    const block = document.getElementById(`ingredient-block-${idx}`);
+    block.remove();
+}
 
-        // Remove it
-        stepRow.remove();
+// ─── ADD STEP ────────────────────────────────────────────────
+function addStep(ingredientIndex) {
 
-        // Fix numbering
-        renumberSteps(ingredientIndex);
-    }
+    const container =
+        document.getElementById(`steps-${ingredientIndex}`);
 
-    function renumberSteps(ingredientIndex) {
+    const stepNumber =
+        container.querySelectorAll(".step-row").length + 1;
 
-        const container =
-            document.getElementById(`steps-${ingredientIndex}`);
+    const div = document.createElement("div");
+    div.classList.add("step-row");
 
-        const rows =
-            container.querySelectorAll(".step-row");
+    div.innerHTML = `
+        <label>
+            Preparation Step ${stepNumber}:
+        </label>
 
-        rows.forEach((row, index) => {
+        <select
+            name="ingredients[${ingredientIndex}][preparation_steps][]"
+        >
+            <option value="">
+                -- None --
+            </option>
 
-            const label = row.querySelector("label");
+            ${methods.map(method => `
+                <option value="${method.preparation_method_id}">
+                    ${method.preparation_method_name}
+                </option>
+            `).join("")}
 
-            label.textContent =
-                `Preparation Step ${index + 1}:`;
-        });
-    }
+        </select>
+
+        <button
+            type="button"
+            onclick="removeStep(this, ${ingredientIndex})"
+        >
+            Remove
+        </button>
+
+        <br><br>
+    `;
+
+    container.appendChild(div);
+    renumberSteps(ingredientIndex);
+}
+
+// ─── REMOVE STEP ─────────────────────────────────────────────
+function removeStep(button, ingredientIndex) {
+
+    const stepRow = button.parentElement;
+    stepRow.remove();
+    renumberSteps(ingredientIndex);
+}
+
+// ─── RENUMBER STEPS ──────────────────────────────────────────
+function renumberSteps(ingredientIndex) {
+
+    const container =
+        document.getElementById(`steps-${ingredientIndex}`);
+
+    const rows =
+        container.querySelectorAll(".step-row");
+
+    rows.forEach((row, index) => {
+
+        const label = row.querySelector("label");
+        label.textContent = `Preparation Step ${index + 1}:`;
+    });
+}
