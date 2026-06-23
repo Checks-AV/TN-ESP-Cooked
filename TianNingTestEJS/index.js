@@ -35,6 +35,9 @@ app.use('/settings', settingsRoutes);
 const esp32Routes = require('./routes/esp32comms');
 app.use('/esp32comms',esp32Routes);
 
+const stagesRoutes = require('./routes/stages');
+app.use('/stages', stagesRoutes);
+
 app.use(express.text());
 /* app.post('/', (req, res) => {
 
@@ -85,5 +88,3 @@ app.listen(port, () => console.log('Server running on port 4000'));
     console.log('==================================================\n');
 });*/
 
-const stagesRoutes = require('./routes/stages');
-app.use('/stages', stagesRoutes);
