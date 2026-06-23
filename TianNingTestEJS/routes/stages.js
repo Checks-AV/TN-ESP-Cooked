@@ -10,49 +10,85 @@ function generateOrderNumber() {
 // Render the game board with all pending orders
 router.get("/", (req, res, next) => {
     const orderSql = `
-        SELECT o.orders_id, o.order_number, o.order_status,
-               o.order_time_started, f.food_name, o.food_id
+        SELECT 
+            o.orders_id, 
+            o.order_number, 
+            o.order_status,
+            o.order_time_started, 
+            f.food_name, 
+            o.food_id
         FROM Orders o
-        JOIN food f ON o.food_id = f.food_id
+        JOIN food f 
+            ON o.food_id = f.food_id
         WHERE o.order_status = 'pending'
         ORDER BY o.order_time_started ASC
     `;
 
     global.db.all(orderSql, [], (err, orders) => {
         if (err) return next(err);
+
         if (orders.length === 0) {
-            return res.render("stages.ejs", { title: "Game", orders: [] });
+            return res.render("stages.ejs", {
+                title: "Game",
+                orders: []
+            });
         }
 
         let completed = 0;
         const result = new Array(orders.length);
 
         orders.forEach((order, idx) => {
-            // Get required ingredients + their target status for this food
             const ingSql = `
-                SELECT fi.food_ingredients_id,
-                       i.ingredients_name,
-                       i.ingredients_id,
-                       fi.required_amount,
-                       ist.ingredientstatus_name AS target_status,
-                       ed.device_mac AS tag_mac
+                SELECT 
+                    fi.food_ingredients_id,
+                    i.ingredients_name,
+                    i.ingredients_id,
+                    fi.required_amount,
+                    ed.device_mac AS tag_mac,
+
+                    (
+                        SELECT GROUP_CONCAT(pm.preparation_method_name, ',')
+                        FROM food_ingredient_preparation fip
+                        JOIN preparation_method pm
+                            ON fip.preparation_method_id = pm.preparation_method_id
+                        WHERE fip.food_ingredients_id = fi.food_ingredients_id
+                        ORDER BY fip.prep_step_order ASC
+                    ) AS required_steps
+
                 FROM food_ingredients fi
-                JOIN ingredients i ON fi.ingredients_id = i.ingredients_id
-                JOIN ingredientstatus ist ON fi.ingredientstatus_id = ist.ingredientstatus_id
-                LEFT JOIN ESP32Tags et ON et.ingredients_id = i.ingredients_id
-                LEFT JOIN ESP32Devices ed ON ed.device_id = et.device_id
+
+                JOIN ingredients i 
+                    ON fi.ingredients_id = i.ingredients_id
+
+                LEFT JOIN ESP32Tags et 
+                    ON et.ingredients_id = i.ingredients_id
+
+                LEFT JOIN ESP32Devices ed 
+                    ON ed.device_id = et.device_id
+
                 WHERE fi.food_id = ?
+
+                ORDER BY fi.food_ingredients_id ASC
             `;
 
             global.db.all(ingSql, [order.food_id], (err, ingredients) => {
                 if (err) return next(err);
 
                 if (ingredients.length === 0) {
-                    result[idx] = { ...order, ingredients: [] };
+                    result[idx] = {
+                        ...order,
+                        ingredients: []
+                    };
+
                     completed++;
+
                     if (completed === orders.length) {
-                        return res.render("stages.ejs", { title: "Game", orders: result });
+                        return res.render("stages.ejs", {
+                            title: "Game",
+                            orders: result
+                        });
                     }
+
                     return;
                 }
 
@@ -60,38 +96,89 @@ router.get("/", (req, res, next) => {
                 const ingredientsWithActions = new Array(ingredients.length);
 
                 ingredients.forEach((ing, ingIdx) => {
-                    // Get all actions logged for this tag mac in this order
-                    const actionSql = `
-                        SELECT action_name, tag_mac, action_time
-                        FROM OrderActions
-                        WHERE orders_id = ? AND tag_mac = ?
-                        ORDER BY action_time ASC
-                    `;
-
                     const tagMac = ing.tag_mac || null;
 
                     if (!tagMac) {
-                        ingredientsWithActions[ingIdx] = { ...ing, actions: [] };
+                        ingredientsWithActions[ingIdx] = {
+                            ...ing,
+                            requiredSteps: ing.required_steps
+                                ? ing.required_steps.split(",")
+                                : [],
+                            actualSteps: [],
+                            actions: [],
+                            isCompleted: false
+                        };
+
                         ingDone++;
+
                         if (ingDone === ingredients.length) {
-                            result[idx] = { ...order, ingredients: ingredientsWithActions };
+                            result[idx] = {
+                                ...order,
+                                ingredients: ingredientsWithActions
+                            };
+
                             completed++;
+
                             if (completed === orders.length) {
-                                return res.render("stages.ejs", { title: "Game", orders: result });
+                                return res.render("stages.ejs", {
+                                    title: "Game",
+                                    orders: result
+                                });
                             }
                         }
+
                         return;
                     }
 
+                    const actionSql = `
+                        SELECT 
+                            action_name, 
+                            tag_mac, 
+                            action_time
+                        FROM OrderActions
+                        WHERE orders_id = ? 
+                          AND tag_mac = ?
+                        ORDER BY action_time ASC
+                    `;
+
                     global.db.all(actionSql, [order.orders_id, tagMac], (err, actions) => {
                         if (err) return next(err);
-                        ingredientsWithActions[ingIdx] = { ...ing, actions };
+
+                        const requiredSteps = ing.required_steps
+                            ? ing.required_steps.split(",")
+                            : [];
+
+                        const actualSteps = actions.map(action => action.action_name);
+
+                        const isCompleted =
+                            requiredSteps.length === actualSteps.length &&
+                            requiredSteps.every((step, index) => {
+                                return step === actualSteps[index];
+                            });
+
+                        ingredientsWithActions[ingIdx] = {
+                            ...ing,
+                            requiredSteps,
+                            actualSteps,
+                            actions,
+                            isCompleted
+                        };
+
                         ingDone++;
+
                         if (ingDone === ingredients.length) {
-                            result[idx] = { ...order, ingredients: ingredientsWithActions };
+                            result[idx] = {
+                                ...order,
+                                ingredients: ingredientsWithActions
+                            };
+
                             completed++;
+
                             if (completed === orders.length) {
-                                return res.render("stages.ejs", { title: "Game", orders: result });
+                                return res.render("stages.ejs", {
+                                    title: "Game",
+                                    orders: result
+                                });
                             }
                         }
                     });
