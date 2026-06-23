@@ -10,21 +10,30 @@ router.get('/', (req, res, next) => {
 
 // Load the ESP32 setup page and table.
 router.get("/esp32", (req, res, next) => {
-    const sql = `
-        SELECT *
-        FROM ESP32Devices
-        ORDER BY last_seen DESC
-    `;
+    const sqlDevices     = `SELECT * FROM ESP32Devices ORDER BY last_seen DESC`;
+    const sqlIngredients = `SELECT * FROM ingredients ORDER BY ingredients_name`;
+    const sqlStations    = `SELECT * FROM station ORDER BY station_name`;
 
-    global.db.all(sql, [], (err, devices) => {
+    global.db.all(sqlDevices, [], (err, devices) => {
         if (err) return next(err);
 
-        res.render("esp32setup.ejs", {
-            title: "ESP32 Setup",
-            devices: devices
+        global.db.all(sqlIngredients, [], (err, ingredients) => {
+            if (err) return next(err);
+
+            global.db.all(sqlStations, [], (err, stations) => {
+                if (err) return next(err);
+
+                res.render("esp32setup.ejs", {
+                    title: "ESP32 Setup",
+                    devices,
+                    ingredients,
+                    stations
+                });
+            });
         });
     });
 });
+
 
 router.post("/esp32/update", (req, res, next)=> {
     console.log(req.body);
