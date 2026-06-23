@@ -2,124 +2,108 @@
 <html>
 <head>
     <title><%= title %></title>
+    <link rel="stylesheet" type="text/css" href="/main.css">
+
     <script>
-    const methods = <%- JSON.stringify(methods) %>;
+        const methods              = <%- JSON.stringify(methods) %>;
+        window.ingredientsList     = <%- JSON.stringify(ingredients) %>;
+        window.statusesList        = <%- JSON.stringify(statuses) %>;
     </script>
-    <script src="/scripts/addrecipe.js"></script>
 </head>
 <body>
-    <h1>Recipe Management</h1>
-    
-    <form action="/settings/recipe/addrecipe" method="POST">
 
-    <div>
-        <label>Food Name:</label>
-        <input type="text" name="food_name" required>
-    </div>
-
-    <hr>
-
-    <!-- INGREDIENT 1 -->
-    <h2>Ingredient 1</h2>
-
-    <div>
-        <label>Ingredient:</label>
-        <select name="ingredients[0][ingredients_id]" required>
-            <% ingredients.forEach(ingredient => { %>
-                <option value="<%= ingredient.ingredients_id %>">
-                    <%= ingredient.ingredients_name %>
-                </option>
-            <% }) %>
-        </select>
-    </div>
-
-    <!--<div>
-        <label>Final Status:</label>
-        <select name="ingredients[0][ingredientstatus_id]" required>
-            <% statuses.forEach(status => { %>
-                <option value="<%= status.ingredientstatus_id %>">
-                    <%= status.ingredientstatus_name %>
-                </option>
-            <% }) %>
-        </select>
-    </div>
-    -->
-    <div>
-        <label>Required Amount:</label>
-        <input
-            type="number"
-            name="ingredients[0][required_amount]"
-            min="1"
-            value="1"
-            required
-        >
-    </div>
-
-    <!-- DYNAMIC STEPS CONTAINER -->
-    <div id="steps-0">
-        <h3>Preparation Steps</h3>
-    </div>
-
-    <button type="button" onclick="addStep(0)">
-        Add Step
-    </button>
-
-    <hr>
-
-    <!-- INGREDIENT 2 -->
-    <h2>Ingredient 2</h2>
-
-    <div>
-        <label>Ingredient:</label>
-        <select name="ingredients[1][ingredients_id]">
-            <option value="">-- None --</option>
-
-            <% ingredients.forEach(ingredient => { %>
-                <option value="<%= ingredient.ingredients_id %>">
-                    <%= ingredient.ingredients_name %>
-                </option>
-            <% }) %>
-        </select>
-    </div>
-
-    <!--<div>
-        <label>Final Status:</label>
-        <select name="ingredients[0][ingredientstatus_id]" required>
-            <% statuses.forEach(status => { %>
-                <option value="<%= status.ingredientstatus_id %>">
-                    <%= status.ingredientstatus_name %>
-                </option>
-            <% }) %>
-        </select>
-    </div>
-    -->
-
-    <div>
-        <label>Required Amount:</label>
-        <input
-            type="number"
-            name="ingredients[1][required_amount]"
-            min="1"
-            value="1"
-        >
-    </div>
-
-    <!-- DYNAMIC STEPS CONTAINER -->
-    <div id="steps-1">
-        <h3>Preparation Steps</h3>
-    </div>
-
-    <button type="button" onclick="addStep(1)">
-        Add Step
-    </button>
+    <h1>Add New Recipe</h1>
+    <a href="/settings/recipe">← Back to Recipes</a>
 
     <br><br>
 
-    <button type="submit">
-        Save Recipe
-    </button>
-</form>
+    <form action="/settings/recipe/addrecipe" method="POST">
 
+        <!-- ─── FOOD NAME ──────────────────────────────────── -->
+        <div>
+            <label>Food Name:</label>
+            <input
+                type="text"
+                name="food_name"
+                placeholder="e.g. Chicken Sandwich"
+                required
+            >
+        </div>
+
+        <br>
+
+        <!-- ─── INGREDIENT BLOCKS ─────────────────────────── -->
+        <div id="ingredients-container">
+
+            <!-- First ingredient: static at index 0, no remove button -->
+            <div class="ingredient-block" id="ingredient-block-0">
+
+                <hr>
+                <h2>Ingredient 1</h2>
+
+                <div>
+                    <label>Ingredient:</label>
+                    <select name="ingredients[0][ingredients_id]" required>
+                        <option value="">-- Select --</option>
+                        <% ingredients.forEach(i => { %>
+                            <option value="<%= i.ingredients_id %>">
+                                <%= i.ingredients_name %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <br>
+
+                <div>
+                    <label>Required Amount:</label>
+                    <input
+                        type="number"
+                        name="ingredients[0][required_amount]"
+                        min="1"
+                        value="1"
+                        required
+                    >
+                </div>
+
+                <br>
+
+                <div id="steps-0">
+                    <h3>Preparation Steps</h3>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="addStep(0)"
+                >
+                    + Add Step
+                </button>
+
+            </div>
+            <!-- end ingredient-block-0 -->
+
+        </div>
+        <!-- end #ingredients-container -->
+
+        <br>
+
+        <button
+            type="button"
+            onclick="addIngredient()"
+        >
+            + Add Another Ingredient
+        </button>
+
+        <br><br>
+        <hr>
+
+        <button type="submit">
+            Save Recipe
+        </button>
+
+    </form>
+
+    <script src="/scripts/addrecipe.js"></script>
 
 </body>
 </html>

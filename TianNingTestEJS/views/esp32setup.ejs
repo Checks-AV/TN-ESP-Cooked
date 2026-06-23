@@ -46,6 +46,68 @@
     </tbody>
 </table>
 
+<!-- ─── REGISTER A NEW ESP32 ─────────────────────────── -->
+<h2>Register New ESP32</h2>
+<form action="/esp32comms/register" method="POST">
+    <label>MAC Address:</label>
+    <input type="text" name="device_mac" placeholder="AA:BB:CC:DD:EE:FF" required>
+
+    <label>Device Type:</label>
+    <select name="device_type">
+        <option value="">-- unset --</option>
+        <option value="tagger">Tagger (station scanner)</option>
+        <option value="tag">Tag (ingredient)</option>
+    </select>
+
+    <label>IP Address:</label>
+    <input type="text" name="ip_address" placeholder="192.168.1.x">
+
+    <button type="submit">Register</button>
+</form>
+
+<hr>
+
+<!-- ─── ASSIGN TAG → INGREDIENT ──────────────────────── -->
+<h2>Assign Tag to Ingredient</h2>
+<p>After registering a device as a <strong>tag</strong>, link it to an ingredient here.</p>
+<form action="/esp32comms/assign-tag" method="POST">
+    <label>Tag Device MAC:</label>
+    <input type="text" name="device_mac" placeholder="AA:BB:CC:DD:EE:FF" required>
+
+    <label>Ingredient:</label>
+    <select name="ingredients_id" required>
+        <!-- populated server-side, see settings.js update below -->
+        <% if (typeof ingredients !== 'undefined') { %>
+            <% ingredients.forEach(i => { %>
+                <option value="<%= i.ingredients_id %>"><%= i.ingredients_name %></option>
+            <% }) %>
+        <% } %>
+    </select>
+
+    <button type="submit">Assign</button>
+</form>
+
+<hr>
+
+<!-- ─── ASSIGN TAGGER → STATION ──────────────────────── -->
+<h2>Assign Tagger to Station</h2>
+<p>Link a <strong>tagger</strong> device to a cooking station.</p>
+<form action="/esp32comms/assign-tagger" method="POST">
+    <label>Tagger Device MAC:</label>
+    <input type="text" name="device_mac" placeholder="AA:BB:CC:DD:EE:FF" required>
+
+    <label>Station:</label>
+    <select name="station_id" required>
+        <% if (typeof stations !== 'undefined') { %>
+            <% stations.forEach(s => { %>
+                <option value="<%= s.station_id %>"><%= s.station_name %></option>
+            <% }) %>
+        <% } %>
+    </select>
+
+    <button type="submit">Assign</button>
+</form>
+
 <form action="/esp32comms/esp32/send" method="POST">
     <label>ESP32 IP:</label>
     <input type="text" name="ip_address">

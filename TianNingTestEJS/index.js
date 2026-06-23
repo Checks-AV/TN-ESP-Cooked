@@ -85,3 +85,5 @@ app.listen(port, () => console.log('Server running on port 4000'));
     console.log('==================================================\n');
 });*/
 
+const stagesRoutes = require('./routes/stages');
+app.use('/stages', stagesRoutes);
