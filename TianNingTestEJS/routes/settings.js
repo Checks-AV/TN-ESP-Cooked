@@ -99,7 +99,6 @@ router.post("/recipe/addrecipe", (req, res, next) => {
     // each object should look like:
     // {
     //   ingredients_id: "1",
-    //   ingredientstatus_id: "2",
     //   required_amount: "1",
     //   preparation_steps: ["1", "3"]
     // }
@@ -137,12 +136,11 @@ router.post("/recipe/addrecipe", (req, res, next) => {
 
                     global.db.run(
                         `INSERT INTO food_ingredients 
-                         (food_id, ingredients_id, ingredientstatus_id, required_amount)
-                         VALUES (?, ?, ?, ?)`,
+                         (food_id, ingredients_id, required_amount)
+                         VALUES (?, ?, ?)`,
                         [
                             foodId,
                             ing.ingredients_id,
-                            ing.ingredientstatus_id,
                             ing.required_amount
                         ],
                         function (err) {
@@ -168,7 +166,7 @@ router.post("/recipe/addrecipe", (req, res, next) => {
 
                                 global.db.run(
                                     `INSERT INTO food_ingredient_preparation
-                                     (food_ingredient_id, preparation_method_id, prep_step_order)
+                                     (food_ingredients_id, preparation_method_id, prep_step_order)
                                      VALUES (?, ?, ?)`,
                                     [
                                         foodIngredientId,
