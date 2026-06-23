@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <link rel="stylesheet" type="text/css" href="/main.css">
+
+    <script>
+        const methods = <%- JSON.stringify(methods) %>;
+        window.ingredientsList = <%- JSON.stringify(ingredients) %>;
+    </script>
+</head>
+<body>
+
+<h1>Edit Recipe</h1>
+<a href="/settings/recipe">← Back to Recipes</a>
+
+<br><br>
+
+<form action="/settings/recipe/<%= food.food_id %>/edit" method="POST">
+
+    <div>
+        <label>Food Name:</label>
+        <input
+            type="text"
+            name="food_name"
+            value="<%= food.food_name %>"
+            required
+        >
+    </div>
+
+    <br>
+
+    <div id="ingredients-container">
+
+        <% recipeIngredients.forEach((recipeIngredient, index) => { %>
+
+            <div class="ingredient-block" id="ingredient-block-<%= index %>">
+
+                <hr>
+                <h2>Ingredient <%= index + 1 %></h2>
+
+                <% if (index !== 0) { %>
+                    <button type="button" onclick="removeIngredient(this)">
+                        Remove Ingredient
+                    </button>
+                <% } %>
+
+                <div>
+                    <label>Ingredient:</label>
+                    <select name="ingredients[<%= index %>][ingredients_id]" required>
+                        <option value="">-- Select --</option>
+
+                        <% ingredients.forEach(i => { %>
+                            <option
+                                value="<%= i.ingredients_id %>"
+                                <%= i.ingredients_id === recipeIngredient.ingredients_id ? "selected" : "" %>
+                            >
+                                <%= i.ingredients_name %>
+                            </option>
+                        <% }) %>
+                    </select>
+                </div>
+
+                <br>
+
+                <div>
+                    <label>Required Amount:</label>
+                    <input
+                        type="number"
+                        name="ingredients[<%= index %>][required_amount]"
+                        min="1"
+                        value="<%= recipeIngredient.required_amount %>"
+                        required
+                    >
+                </div>
+
+                <br>
+
+                <div id="steps-<%= index %>">
+                    <h3>Preparation Steps</h3>
+
+                    <% recipeIngredient.preparation_steps.forEach((stepId, stepIndex) => { %>
+                        <div class="step-row">
+                            <label>Preparation Step <%= stepIndex + 1 %>:</label>
+
+                            <select name="ingredients[<%= index %>][preparation_steps]">
+                                <option value="">-- None --</option>
+
+                                <% methods.forEach(method => { %>
+                                    <option
+                                        value="<%= method.preparation_method_id %>"
+                                        <%= method.preparation_method_id === stepId ? "selected" : "" %>
+                                    >
+                                        <%= method.preparation_method_name %>
+                                    </option>
+                                <% }) %>
+                            </select>
+
+                            <button type="button" onclick="removeStep(this, <%= index %>)">
+                                Remove
+                            </button>
+                        </div>
+                    <% }) %>
+                </div>
+
+                <button type="button" onclick="addStep(<%= index %>)">
+                    + Add Step
+                </button>
+
+            </div>
+
+        <% }) %>
+
+    </div>
+
+    <br>
+
+    <button type="button" onclick="addIngredient()">
+        + Add Another Ingredient
+    </button>
+
+    <br><br>
+    <hr>
+
+    <button type="submit">Save Changes</button>
+
+</form>
+
+<script src="/scripts/addrecipe.js"></script>
+
+</body>
+</html>

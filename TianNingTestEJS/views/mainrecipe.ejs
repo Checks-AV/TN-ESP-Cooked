@@ -14,6 +14,7 @@
     <form action="/settings/recipe/addrecipe" method="GET">
       <button type="submit">Add New Recipe</button>
     </form><br>
+
     <!-- Requirement: Display all current Food items here! -->
     <h1>Food Items</h1>
 
@@ -25,6 +26,8 @@
                 <tr>
                     <th>ID</th>
                     <th>Food Name</th>
+                    <th>Delete</th>
+                    <th>Edit</th>
                 </tr>
             </thead>
 
@@ -33,6 +36,18 @@
                     <tr>
                         <td><%= food.food_id %></td>
                         <td><%= food.food_name %></td>
+                        <td>
+                            <form action="/settings/recipe/<%= food.food_id %>/delete" method="POST">
+                                <button type="submit" onclick="return confirm('Delete this recipe?')">
+                                    Delete
+                                </button>
+                            </form>
+                        </td>     
+                        <td>
+                            <form action="/settings/recipe/<%= food.food_id %>/edit" method="GET">
+                                <button type="submit">Edit</button>
+                            </form>
+                        </td>                   
                     </tr>
                 <% }) %>
             </tbody>

@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS food_ingredients (
     food_id INTEGER NOT NULL,
     ingredients_id INTEGER NOT NULL,
     required_amount INTEGER NOT NULL, 
-    FOREIGN KEY (food_id) REFERENCES food(food_id),
+    FOREIGN KEY (food_id) REFERENCES food(food_id) ON DELETE CASCADE,
     FOREIGN KEY (ingredients_id) REFERENCES ingredients(ingredients_id)
     -- ingredientstatus_id INTEGER, -- TO REMOVE
     -- FOREIGN KEY (ingredientstatus_id) REFERENCES ingredientstatus(ingredientstatus_id), -- TO REMOVE
