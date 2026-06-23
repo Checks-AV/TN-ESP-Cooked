@@ -46,20 +46,6 @@ function addIngredient() {
         <br>
 
         <div>
-            <label>Final Status:</label>
-            <select name="ingredients[${idx}][ingredientstatus_id]" required>
-                <option value="">-- Select --</option>
-                ${window.statusesList.map(s => `
-                    <option value="${s.ingredientstatus_id}">
-                        ${s.ingredientstatus_name}
-                    </option>
-                `).join("")}
-            </select>
-        </div>
-
-        <br>
-
-        <div>
             <label>Required Amount:</label>
             <input
                 type="number"
