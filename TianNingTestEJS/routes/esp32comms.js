@@ -2,10 +2,13 @@
 // All ESP32 functions to be put HERE
 // Use Javascript!
 
+// PUT EVERYTHING COMMUNICATING TO HERE
+// Then you just let your esp32 be the pretty hardware 
+
 const express = require("express");
 const router = express.Router();
 
-// Registering a ESP32 into the database
+// Registering a ESP32 into the database, ESP32 to communicate to the server here
 router.post("/esp32/register", (req, res, next) => {
     const mac = req.body.mac;
     console.log(mac);

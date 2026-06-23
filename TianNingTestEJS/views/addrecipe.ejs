@@ -33,7 +33,7 @@
         </select>
     </div>
 
-    <div>
+    <!--<div>
         <label>Final Status:</label>
         <select name="ingredients[0][ingredientstatus_id]" required>
             <% statuses.forEach(status => { %>
@@ -43,7 +43,7 @@
             <% }) %>
         </select>
     </div>
-
+    -->
     <div>
         <label>Required Amount:</label>
         <input
@@ -82,11 +82,9 @@
         </select>
     </div>
 
-    <div>
+    <!--<div>
         <label>Final Status:</label>
-        <select name="ingredients[1][ingredientstatus_id]">
-            <option value="">-- None --</option>
-
+        <select name="ingredients[0][ingredientstatus_id]" required>
             <% statuses.forEach(status => { %>
                 <option value="<%= status.ingredientstatus_id %>">
                     <%= status.ingredientstatus_name %>
@@ -94,6 +92,7 @@
             <% }) %>
         </select>
     </div>
+    -->
 
     <div>
         <label>Required Amount:</label>

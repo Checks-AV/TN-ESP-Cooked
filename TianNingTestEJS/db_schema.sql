@@ -27,16 +27,18 @@ CREATE TABLE IF NOT EXISTS station (
 -- Ingredients here
 CREATE TABLE IF NOT EXISTS ingredients (
     ingredients_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ingredients_name TEXT NOT NULL UNIQUE -- Rice, Beef, Chicken, Fish, etc
+    ingredients_name TEXT NOT NULL UNIQUE -- Ingredients must not be the same. Eg: Rice, Beef, Chicken, Fish, etc
 );
 
 -- Food here
+-- Menu Item
 CREATE TABLE IF NOT EXISTS food (
     food_id INTEGER PRIMARY KEY AUTOINCREMENT, 
     food_name TEXT NOT NULL UNIQUE -- Food Menu items here //Chicken Burger, Cooked Rice, Sashimi... etc
 );
 
 -- FOR MULTIPLE FOOD STATUS FOR ONE INGREDIENT
+-- TO REMOVE 
 CREATE TABLE IF NOT EXISTS ingredientstatus(
     ingredientstatus_id INTEGER PRIMARY KEY AUTOINCREMENT,
     ingredientstatus_name TEXT NOT NULL UNIQUE -- status of ingredients here // Cooked, Sliced, Baked, Default... etc
@@ -52,20 +54,20 @@ CREATE TABLE IF NOT EXISTS preparation_method (
 -- JOIN TABLE BETWEEN FOOD AND INGREDIENTS
 -- Food (1,M) Food_Ingredients
 -- Example 
--- 1 -- Chicken Burger (1) -- Bread -- Sliced  -- 1
--- 2 -- Chicken Burger (1) -- Chicken -- Fried -- 1
--- 3 -- Chicken Burger (1) -- Cheese -- Default -- 1
--- 4 -- Chicken Burger (1) -- Lettuce -- Sliced -- 1
--- 5 -- Sashimi (2) -- Fish -- Sliced -- 2
+-- 1 -- Chicken Burger (1) -- Bread  -- 1
+-- 2 -- Chicken Burger (1) -- Chicken -- 1
+-- 3 -- Chicken Burger (1) -- Cheese  -- 1
+-- 4 -- Chicken Burger (1) -- Lettuce -- 1
+-- 5 -- Sashimi (2) -- Fish -- 2
 CREATE TABLE IF NOT EXISTS food_ingredients (
     food_ingredients_id INTEGER PRIMARY KEY AUTOINCREMENT,
     food_id INTEGER NOT NULL,
     ingredients_id INTEGER NOT NULL,
-    ingredientstatus_id INTEGER NOT NULL,
     required_amount INTEGER NOT NULL, 
     FOREIGN KEY (food_id) REFERENCES food(food_id),
-    FOREIGN KEY (ingredientstatus_id) REFERENCES ingredientstatus(ingredientstatus_id),
     FOREIGN KEY (ingredients_id) REFERENCES ingredients(ingredients_id)
+    -- ingredientstatus_id INTEGER, -- TO REMOVE
+    -- FOREIGN KEY (ingredientstatus_id) REFERENCES ingredientstatus(ingredientstatus_id), -- TO REMOVE
     -- UNIQUE(food_id, ingredients_id) -- To consider if this is needed
     -- ingredient_order INTEGER NOT NULL, // No longer needed
     -- UNIQUE(food_id, ingredient_order) // Constraint // NO LONGER NEEDED
@@ -124,10 +126,9 @@ CREATE TABLE IF NOT EXISTS ESP32Tags (
     tag_id INTEGER PRIMARY KEY AUTOINCREMENT,
     ingredients_id INTEGER NOT NULL,
     device_id INTEGER NOT NULL UNIQUE,
-    current_status_id INTEGER NOT NULL DEFAULT 1,
+    current_status TEXT DEFAULT 'Default',
     FOREIGN KEY (device_id) REFERENCES ESP32Devices(device_id),
-    FOREIGN KEY (ingredients_id) REFERENCES ingredients(ingredients_id),
-    FOREIGN KEY (current_status_id) REFERENCES ingredientstatus(ingredientstatus_id)
+    FOREIGN KEY (ingredients_id) REFERENCES ingredients(ingredients_id)
 );
 
 
@@ -136,8 +137,8 @@ CREATE TABLE IF NOT EXISTS ESP32Tags (
 CREATE TABLE IF NOT EXISTS Orders (
     orders_id INTEGER, --Order Number
     food_id INTEGER, -- Type of Food
-    order_status TEXT,
-    order_time_started TEXT,
+    order_status TEXT, -- ONGOING? EXPIRED? 
+    order_time_started TEXT, -- TIME HERE
     FOREIGN KEY (food_id) REFERENCES food(food_id)
 );
 
