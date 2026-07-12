@@ -272,3 +272,37 @@ router.post("/assign-tagger", (req, res, next) => {
     );
 });
 module.exports = router;
+
+// Add this route to handle the update submission from the modal
+router.post("/update", (req, res, next) => {
+    const { esp32_id, device_mac, ip_address, device_type } = req.body;
+    
+    if (!esp32_id || !device_mac) {
+        return res.status(400).send("Device ID and MAC address are required");
+    }
+    
+    // Check if device exists
+    global.db.get(
+        `SELECT * FROM ESP32Devices WHERE esp32_id = ?`,
+        [esp32_id],
+        (err, device) => {
+            if (err) return next(err);
+            if (!device) return res.status(404).send("Device not found");
+            
+            // Update the device
+            global.db.run(
+                `UPDATE ESP32Devices 
+                 SET device_mac = ?, 
+                     ip_address = ?, 
+                     device_type = ?
+                 WHERE esp32_id = ?`,
+                [device_mac, ip_address || null, device_type || null, esp32_id],
+                function(err) {
+                    if (err) return next(err);
+                    console.log(`[UPDATE] Device ${esp32_id} updated successfully`);
+                    res.redirect("/settings"); // or wherever your settings page is
+                }
+            );
+        }
+    );
+});
