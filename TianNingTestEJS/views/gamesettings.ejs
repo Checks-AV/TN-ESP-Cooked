@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Rail — Control Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at top, #363c40 0%, #24282b 60%);
+      font-family: 'Inter', sans-serif;
+      color: #e9e6de;
+      padding: 20px 32px 40px;
+    }
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: 16px;
+      margin-bottom: 24px;
+    }
+    .brand h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 32px;
+      letter-spacing: 3px;
+      margin: 0;
+      color: #f5f2ea;
+    }
+    .brand span.sub {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #6b6558;
+      text-transform: uppercase;
+    }
+    .panel-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 800px) {
+      .panel-grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 20px 24px;
+      backdrop-filter: blur(2px);
+    }
+    .card h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      letter-spacing: 1px;
+      margin: 0 0 16px 0;
+      color: #f0ede4;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding-bottom: 8px;
+    }
+    .control-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 24px;
+      align-items: center;
+    }
+    .control-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .control-item label {
+      color: #b5aea0;
+      font-weight: 500;
+      min-width: 70px;
+    }
+    .control-item input[type="range"] {
+      width: 200px;
+      accent-color: #4a9d6e;
+      background: #2f3438;
+      height: 4px;
+      border-radius: 2px;
+    }
+    .control-item input[type="number"] {
+      width: 72px;
+      background: #1e2124;
+      border: 1px solid #3d4347;
+      color: #f5f2ea;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 14px;
+    }
+    .control-item .value-badge {
+      background: #1e2124;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 13px;
+      color: #b5aea0;
+      min-width: 60px;
+      text-align: center;
+    }
+    .preset-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .preset-btn {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #e9e6de;
+      padding: 6px 16px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-btn:hover {
+      background: rgba(74, 157, 110, 0.2);
+      border-color: #4a9d6e;
+    }
+    .stat-row {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      background: rgba(0,0,0,0.2);
+      border-radius: 40px;
+      padding: 8px 20px;
+      margin-top: 6px;
+    }
+    .stat-item {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-size: 13px;
+      color: #b5aea0;
+    }
+    .stat-item .num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 26px;
+      color: #f5f2ea;
+      letter-spacing: 0.5px;
+    }
+    .stat-item .num.warn { color: #dfa62e; }
+    .stat-item .num.danger { color: #d9463c; }
+    .toggle-btn {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #f5f2ea;
+      padding: 10px 24px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .toggle-btn.active {
+      background: #4a9d6e;
+      border-color: #4a9d6e;
+      color: #12241a;
+    }
+    .toggle-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .toggle-btn:active { transform: scale(0.96); }
+    .footnote {
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      color: #6b6558;
+      margin-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      padding-top: 16px;
+      text-align: center;
+    }
+    .live-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #4a9d6e;
+      margin-right: 8px;
+      box-shadow: 0 0 8px #4a9d6e;
+      transition: 0.2s;
+    }
+    .live-indicator.paused { background: #dfa62e; box-shadow: 0 0 8px #dfa62e; }
+    .live-indicator.off { background: #6b6558; box-shadow: none; }
+
+    .mini-rail {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      overflow-x: auto;
+      min-height: 60px;
+      align-items: center;
+    }
+    .mini-ticket {
+      background: #f3ecd8;
+      color: #26241f;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 11px;
+      white-space: nowrap;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transform: rotate(var(--tilt, 0deg));
+      flex: 0 0 auto;
+    }
+    .mini-ticket .dish { font-weight: 700; font-size: 13px; }
+    .mini-ticket .time { color: #6b6558; font-size: 10px; }
+    .empty-rail-mini {
+      color: #6b6558;
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      padding: 12px 0;
+    }
+    .connection-status {
+      padding: 8px 16px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.3);
+      font-size: 12px;
+      font-family: 'Courier Prime', monospace;
+      display: inline-block;
+    }
+    .connection-status.connected { border-left: 3px solid #4a9d6e; }
+    .connection-status.disconnected { border-left: 3px solid #d9463c; }
+    .nav-link {
+      color: #b5aea0;
+      text-decoration: none;
+      font-size: 13px;
+      padding: 6px 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      transition: 0.15s;
+    }
+    .nav-link:hover {
+      background: rgba(255,255,255,0.05);
+      color: #f5f2ea;
+    }
+  </style>
+</head>
+<body>
+
+<div class="brand">
+  <h1>Ticket Rail</h1>
+  <span class="sub">Control Dashboard</span>
+  <span style="margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <a href="/game" class="nav-link">🎮 Go to Game</a>
+    <span class="connection-status connected" id="connectionStatus">✅ Game connected</span>
+    <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #b5aea0;">
+      <span class="live-indicator off" id="liveDot"></span>
+      <span id="liveLabel">idle</span>
+    </span>
+  </span>
+</div>
+
+<div class="panel-grid">
+  <!-- TIMING & FREQUENCY -->
+  <div class="card">
+    <h2>⏱ Timing & frequency</h2>
+    <div class="control-group">
+      <div class="control-item">
+        <label>Order min</label>
+        <input type="range" id="spawnMin" min="1" max="60" value="6" step="0.5">
+        <span class="value-badge" id="spawnMinVal">6s</span>
+      </div>
+      <div class="control-item">
+        <label>Order max</label>
+        <input type="range" id="spawnMax" min="2" max="120" value="11" step="0.5">
+        <span class="value-badge" id="spawnMaxVal">11s</span>
+      </div>
+    </div>
+    <div class="control-group" style="margin-top: 12px;">
+      <div class="control-item">
+        <label>Prep time</label>
+        <input type="range" id="prepTime" min="5" max="300" value="22" step="1">
+        <span class="value-badge" id="prepTimeVal">22s</span>
+      </div>
+      <div class="control-item">
+        <label>Ramp factor</label>
+        <input type="range" id="rampFactor" min="0.5" max="1.0" value="0.92" step="0.02">
+        <span class="value-badge" id="rampFactorVal">0.92</span>
+      </div>
+    </div>
+    <div class="control-group" style="margin-top: 12px;">
+      <div class="control-item" style="flex: 1;">
+        <label style="min-width: 100px;">Total service time</label>
+        <input type="range" id="totalTime" min="60" max="3600" value="300" step="30">
+        <span class="value-badge" id="totalTimeVal">5:00</span>
+      </div>
+    </div>
+    <div class="preset-row">
+      <button class="preset-btn" data-preset="quick">Quick (2 min)</button>
+      <button class="preset-btn" data-preset="normal">Normal (5 min)</button>
+      <button class="preset-btn" data-preset="long">Long (15 min)</button>
+      <button class="preset-btn" data-preset="marathon">Marathon (30 min)</button>
+      <button class="preset-btn" data-preset="endurance">Endurance (60 min)</button>
+    </div>
+    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
+      <button class="toggle-btn" id="sendParamsBtn" style="width:100%;">📤 Send Parameters to Game</button>
+    </div>
+  </div>
+
+  <!-- SERVICE CONTROLS + STATS -->
+  <div class="card">
+    <h2>🎛 Service controls</h2>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+      <button class="toggle-btn" id="startBtn">▶ Start</button>
+      <button class="toggle-btn" id="pauseBtn" disabled>⏸ Pause</button>
+      <button class="toggle-btn" id="resetBtn">⟳ Reset</button>
+    </div>
+    <div class="stat-row">
+      <div class="stat-item"><span class="num" id="statScore">0</span> score</div>
+      <div class="stat-item"><span class="num" id="statServed">0</span> served</div>
+      <div class="stat-item"><span class="num" id="statMissed">0</span> missed</div>
+    </div>
+    <div style="margin-top: 16px; display: flex; align-items: center; gap: 16px;">
+      <span style="font-size:13px; color:#b5aea0;">Service clock</span>
+      <span style="font-family:'Bebas Neue',sans-serif; font-size:24px;" id="serviceTime">05:00</span>
+      <div style="flex:1; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
+        <div id="serviceFill" style="height:100%; width:100%; background:linear-gradient(90deg,#4a9d6e,#dfa62e 70%,#d9463c); transition:width 0.5s;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RAIL PREVIEW (mini) -->
+<div class="card" style="margin-bottom: 24px;">
+  <h2>🚄 Active orders (preview)</h2>
+  <div class="mini-rail" id="miniRail">
+    <div class="empty-rail-mini">No orders — start service to see them appear.</div>
+  </div>
+</div>
+
+<div class="footnote">
+  This dashboard controls timing & frequency. Use the "Send Parameters" button to update the game.
+  The game page shows the full ticket rail.
+</div>
+
+<script>
+  /* =========================================================
+     CONTROL DASHBOARD — Extended timing controls
+     ========================================================= */
+
+  // ----- state -----
+  let running = false;
+  let paused = false;
+  let score = 0, served = 0, missed = 0;
+  let serviceRemaining = 300;
+  let totalServiceTime = 300;
+  let orderCounter = 0;
+
+  // timing parameters
+  let params = {
+    spawnMin: 6,
+    spawnMax: 11,
+    prepTime: 22,
+    rampFactor: 0.92,
+    totalTime: 300,
+  };
+
+  // active orders (for preview)
+  let activeOrders = [];
+
+  // DOM refs
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const sendParamsBtn = document.getElementById('sendParamsBtn');
+  const liveDot = document.getElementById('liveDot');
+  const liveLabel = document.getElementById('liveLabel');
+  const connectionStatus = document.getElementById('connectionStatus');
+
+  const spawnMinInput = document.getElementById('spawnMin');
+  const spawnMaxInput = document.getElementById('spawnMax');
+  const prepTimeInput = document.getElementById('prepTime');
+  const rampFactorInput = document.getElementById('rampFactor');
+  const totalTimeInput = document.getElementById('totalTime');
+  const spawnMinVal = document.getElementById('spawnMinVal');
+  const spawnMaxVal = document.getElementById('spawnMaxVal');
+  const prepTimeVal = document.getElementById('prepTimeVal');
+  const rampFactorVal = document.getElementById('rampFactorVal');
+  const totalTimeVal = document.getElementById('totalTimeVal');
+
+  const statScore = document.getElementById('statScore');
+  const statServed = document.getElementById('statServed');
+  const statMissed = document.getElementById('statMissed');
+  const serviceTimeEl = document.getElementById('serviceTime');
+  const serviceFillEl = document.getElementById('serviceFill');
+  const miniRail = document.getElementById('miniRail');
+
+  // ----- BroadcastChannel for communication -----
+  const channel = new BroadcastChannel('ticket-rail-control');
+
+  // Listen for messages from the game
+  channel.onmessage = (event) => {
+    const msg = event.data;
+    if (!msg) return;
+
+    console.log('📨 Dashboard received:', msg);
+
+    switch (msg.type) {
+      case 'game-ready':
+        connectionStatus.textContent = '✅ Game connected';
+        connectionStatus.className = 'connection-status connected';
+        break;
+
+      case 'game-started':
+        running = true;
+        paused = false;
+        updateUI();
+        break;
+
+      case 'game-paused':
+        paused = msg.payload.paused;
+        updateUI();
+        break;
+
+      case 'game-reset':
+        running = false;
+        paused = false;
+        score = 0; served = 0; missed = 0;
+        serviceRemaining = totalServiceTime;
+        activeOrders = [];
+        updateUI();
+        break;
+
+      case 'state-report':
+        const state = msg.payload;
+        running = state.running;
+        paused = state.paused;
+        score = state.score;
+        served = state.served;
+        missed = state.missed;
+        if (state.serviceRemaining !== undefined) {
+          serviceRemaining = state.serviceRemaining;
+        }
+        if (state.totalServiceTime) {
+          totalServiceTime = state.totalServiceTime;
+        }
+        updateUI();
+        break;
+
+      default:
+        console.log('📨 unknown message:', msg);
+    }
+  };
+
+  // ----- UI updates -----
+  function updateUI() {
+    // Update live indicator
+    if (running && !paused) {
+      liveDot.className = 'live-indicator';
+      liveLabel.textContent = 'running';
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      pauseBtn.textContent = '⏸ Pause';
+    } else if (running && paused) {
+      liveDot.className = 'live-indicator paused';
+      liveLabel.textContent = 'paused';
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      pauseBtn.textContent = '▶ Resume';
+    } else {
+      liveDot.className = 'live-indicator off';
+      liveLabel.textContent = 'idle';
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      pauseBtn.textContent = '⏸ Pause';
+    }
+
+    // Stats
+    statScore.textContent = score;
+    statServed.textContent = served;
+    statMissed.textContent = missed;
+
+    // Service clock
+    const m = Math.floor(Math.max(0, serviceRemaining) / 60).toString().padStart(2, '0');
+    const s = Math.floor(Math.max(0, serviceRemaining) % 60).toString().padStart(2, '0');
+    serviceTimeEl.textContent = `${m}:${s}`;
+    serviceFillEl.style.width = Math.max(0, (serviceRemaining / totalServiceTime) * 100) + '%';
+  }
+
+  function renderMiniRail() {
+    if (!activeOrders.length) {
+      miniRail.innerHTML = `<div class="empty-rail-mini">No orders — start service to see them appear.</div>`;
+      return;
+    }
+    miniRail.innerHTML = activeOrders.map((o, i) => {
+      const tilt = (Math.random() * 3 - 1.5).toFixed(1) + 'deg';
+      return `<div class="mini-ticket" style="--tilt:${tilt}">
+        <span class="dish">${o.dish}</span>
+        <span class="time">${Math.ceil(o.remaining)}s</span>
+      </div>`;
+    }).join('');
+  }
+
+  // ----- Read params from UI -----
+  function readParamsFromUI() {
+    params.spawnMin = parseFloat(spawnMinInput.value);
+    params.spawnMax = parseFloat(spawnMaxInput.value);
+    params.prepTime = parseFloat(prepTimeInput.value);
+    params.rampFactor = parseFloat(rampFactorInput.value);
+    params.totalTime = parseFloat(totalTimeInput.value);
+    
+    spawnMinVal.textContent = params.spawnMin + 's';
+    spawnMaxVal.textContent = params.spawnMax + 's';
+    prepTimeVal.textContent = params.prepTime + 's';
+    rampFactorVal.textContent = params.rampFactor.toFixed(2);
+    
+    const mins = Math.floor(params.totalTime / 60);
+    const secs = Math.floor(params.totalTime % 60);
+    totalTimeVal.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  spawnMinInput.addEventListener('input', readParamsFromUI);
+  spawnMaxInput.addEventListener('input', readParamsFromUI);
+  prepTimeInput.addEventListener('input', readParamsFromUI);
+  rampFactorInput.addEventListener('input', readParamsFromUI);
+  totalTimeInput.addEventListener('input', readParamsFromUI);
+
+  // ----- Send params to game -----
+  function sendParamsToGame() {
+    readParamsFromUI();
+    channel.postMessage({
+      type: 'params',
+      payload: { ...params }
+    });
+    // Also update local state
+    totalServiceTime = params.totalTime;
+    if (!running && serviceRemaining <= 0) {
+      serviceRemaining = totalServiceTime;
+    }
+    updateUI();
+    connectionStatus.textContent = '📤 Params sent!';
+    setTimeout(() => {
+      connectionStatus.textContent = '✅ Game connected';
+    }, 2000);
+  }
+
+  sendParamsBtn.addEventListener('click', sendParamsToGame);
+
+  // ----- Presets -----
+  document.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const preset = btn.dataset.preset;
+      let min, max, prep, ramp, total;
+      switch (preset) {
+        case 'quick':    min=3; max=8; prep=15; ramp=0.95; total=120; break;   // 2 min
+        case 'normal':   min=6; max=11; prep=22; ramp=0.92; total=300; break;   // 5 min
+        case 'long':     min=8; max=15; prep=25; ramp=0.88; total=900; break;   // 15 min
+        case 'marathon': min=10; max=20; prep=30; ramp=0.85; total=1800; break; // 30 min
+        case 'endurance': min=12; max=25; prep=35; ramp=0.80; total=3600; break; // 60 min
+        default: return;
+      }
+      spawnMinInput.value = min;
+      spawnMaxInput.value = max;
+      prepTimeInput.value = prep;
+      rampFactorInput.value = ramp;
+      totalTimeInput.value = total;
+      readParamsFromUI();
+      // Auto-send params when preset is selected
+      sendParamsToGame();
+    });
+  });
+
+  // ----- Service controls -----
+  function startService() {
+    channel.postMessage({ type: 'start' });
+    startBtn.disabled = true;
+  }
+
+  function togglePause() {
+    channel.postMessage({ type: 'pause' });
+  }
+
+  function resetService() {
+    channel.postMessage({ type: 'reset' });
+  }
+
+  startBtn.addEventListener('click', startService);
+  pauseBtn.addEventListener('click', togglePause);
+  resetBtn.addEventListener('click', resetService);
+
+  // ----- Request state from game on load -----
+  setTimeout(() => {
+    channel.postMessage({ type: 'state' });
+  }, 500);
+
+  // Also request state every 5 seconds to keep sync
+  setInterval(() => {
+    channel.postMessage({ type: 'state' });
+  }, 5000);
+
+  // ----- Init -----
+  readParamsFromUI();
+  updateUI();
+  renderMiniRail();
+
+  // Send initial params
+  setTimeout(() => {
+    sendParamsToGame();
+  }, 1000);
+
+  console.log('🎛 Ticket Rail Controller ready with extended controls.');
+</script>
+</body>
+</html>

@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Rail — Game</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --steel-dark: #24282b;
+      --steel: #2f3438;
+      --ticket: #f3ecd8;
+      --ticket-shadow: #d8cfb2;
+      --ink: #26241f;
+      --ink-faint: #6b6558;
+      --heat-cool: #4a9d6e;
+      --heat-warm: #dfa62e;
+      --heat-hot: #d9463c;
+      --bell-red: #c9392f;
+      --line: rgba(255,255,255,0.08);
+    }
+    * { box-sizing: border-box; }
+
+    body{
+      margin:0;
+      min-height:100vh;
+      background: radial-gradient(ellipse at top, #363c40 0%, var(--steel-dark) 60%);
+      font-family:'Inter', sans-serif;
+      color: #e9e6de;
+      padding-bottom: 40px;
+      overflow-x:hidden;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent);
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .brand{ display:flex; align-items:baseline; gap:12px; }
+    .brand h1{
+      font-family:'Bebas Neue', sans-serif;
+      font-size: 32px;
+      letter-spacing: 3px;
+      margin:0;
+      color:#f5f2ea;
+    }
+    .brand span.sub{
+      font-size:11px;
+      letter-spacing:2px;
+      color: var(--ink-faint);
+      text-transform:uppercase;
+    }
+
+    .service-bar-wrap{
+      padding: 16px 32px 0;
+    }
+    .service-row{
+      display:flex; justify-content:space-between; align-items:baseline;
+      font-family:'Courier Prime', monospace;
+      font-size:12px;
+      color: var(--ink-faint);
+      margin-bottom:6px;
+      text-transform:uppercase;
+      letter-spacing:1px;
+    }
+    .service-time{
+      font-family:'Bebas Neue', sans-serif;
+      font-size:22px;
+      color:#f5f2ea;
+      letter-spacing:1px;
+    }
+    .service-track{
+      height:10px;
+      background: rgba(255,255,255,0.08);
+      border-radius:5px;
+      overflow:hidden;
+    }
+    .service-fill{
+      height:100%; width:100%;
+      background: linear-gradient(90deg, #4a9d6e, #dfa62e 70%, #d9463c);
+      transition: width 1s linear;
+    }
+
+    .stat-strip{
+      display:flex; padding: 16px 32px; border-bottom: 1px solid var(--line); flex-wrap:wrap;
+    }
+    .stat{ flex:1; min-width:110px; padding: 0 24px; border-right: 1px solid var(--line); }
+    .stat:last-child{ border-right:none; }
+    .stat .num{ font-family:'Bebas Neue', sans-serif; font-size: 30px; color:#f5f2ea; letter-spacing: 1px; }
+    .stat .label{ font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color: var(--ink-faint); }
+
+    .rail-wrap{ position:relative; padding: 46px 32px 20px; }
+    .rail-bar{
+      position:absolute; top: 34px; left: 32px; right: 32px; height: 6px;
+      background: linear-gradient(180deg, #55595c, #1c1f21);
+      border-radius: 3px; box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+    }
+    .rail-bar::before, .rail-bar::after{
+      content:''; position:absolute; top:-5px; width:16px;height:16px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, #6b6f72, #16181a);
+    }
+    .rail-bar::before{ left:-6px; }
+    .rail-bar::after{ right:-6px; }
+
+    .rail{
+      display:flex; gap: 34px; overflow-x:auto; padding: 10px 4px 30px; scrollbar-width: thin; min-height: 210px;
+    }
+    .rail::-webkit-scrollbar{ height:8px; }
+    .rail::-webkit-scrollbar-thumb{ background:#4a5054; border-radius:4px; }
+
+    .empty-rail{
+      font-family:'Courier Prime', monospace; color: var(--ink-faint);
+      padding: 60px 10px; text-align:center; width:100%;
+    }
+
+    .ticket{
+      flex: 0 0 240px; position:relative; padding-top: 22px;
+      animation: dropIn .35s cubic-bezier(.2,.9,.3,1.2);
+    }
+    @keyframes dropIn{
+      from{ transform: translateY(-26px) rotate(-3deg); opacity:0; }
+      to{ transform: translateY(0) rotate(var(--tilt)); opacity:1; }
+    }
+    @keyframes missedShake{
+      0%,100%{ transform: translateY(0) rotate(var(--tilt)); }
+      20%{ transform: translateX(-6px) rotate(var(--tilt)); }
+      40%{ transform: translateX(6px) rotate(var(--tilt)); }
+      60%{ transform: translateX(-4px) rotate(var(--tilt)); }
+      80%{ transform: translateX(4px) rotate(var(--tilt)); }
+    }
+    .ticket.missed .ticket-body{ animation: missedShake .4s; filter: grayscale(0.6); }
+
+    .clip{
+      position:absolute; top: -6px; left: 50%; transform: translateX(-50%);
+      width: 30px; height: 16px;
+      background: linear-gradient(180deg,#8a8f92,#4d5254);
+      border-radius: 3px; box-shadow: 0 2px 3px rgba(0,0,0,0.5); z-index:2;
+    }
+    .clip::after{
+      content:''; position:absolute; left:50%; top:50%; width:6px;height:6px;
+      background:#2a2d2f; border-radius:50%; transform:translate(-50%,-50%);
+    }
+
+    .ticket-body{
+      background: var(--ticket); color: var(--ink); border-radius: 3px;
+      box-shadow: 0 10px 18px rgba(0,0,0,0.35), 0 2px 0 var(--ticket-shadow) inset;
+      transform: rotate(var(--tilt));
+      position:relative;
+      font-family:'Courier Prime', monospace;
+    }
+    .ticket-body::before{
+      content:''; position:absolute; top:-1px; left:0; right:0; height:8px;
+      background-image: radial-gradient(circle at 6px 4px, transparent 3px, var(--ticket) 3.5px);
+      background-size: 12px 8px; background-repeat: repeat-x;
+    }
+
+    .ticket-head{
+      display:flex; justify-content:space-between; align-items:flex-start;
+      padding: 16px 14px 8px; border-bottom: 1px dashed #b8ad8c;
+    }
+    .order-no{ font-family:'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 1px; line-height:1; }
+    .order-no .hash{ color:#9a8f6f; font-size:16px; }
+    .status-badge{
+      font-size:10px; text-transform:uppercase; letter-spacing:1px;
+      padding: 3px 7px; border-radius: 3px; font-family:'Inter', sans-serif; font-weight:600;
+      white-space:nowrap;
+    }
+    .status-badge.cooking{ background:#e3ddc6; color:#5a5334; }
+    .status-badge.late{ background: var(--bell-red); color:#fff; animation: blink 1s infinite; }
+    .status-badge.missed{ background:#5a5334; color:#e3ddc6; }
+    @keyframes blink{ 50%{ opacity:.4; } }
+
+    .dish-name{ padding: 10px 14px 4px; font-size: 18px; font-weight: 700; line-height:1.25; }
+    .points-tag{ font-size:11px; color:#5a7a54; font-weight:700; padding: 0 14px 4px; }
+    .ingredients{ padding: 2px 14px 10px; font-size: 12px; color: var(--ink-faint); line-height:1.6; }
+    .ingredients span{ display:block; }
+    .ingredients span::before{ content:'– '; }
+
+    .timer-zone{ padding: 6px 14px 14px; }
+    .timer-row{ display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; font-weight:700; }
+    .heat-gauge{
+      height: 10px; width:100%; background: #e3ddc6; border-radius: 5px;
+      overflow:hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.3);
+    }
+    .heat-fill{ height:100%; width:100%; background: var(--heat-cool); transition: width 1s linear, background .4s; }
+
+    .ticket-foot{ display:flex; border-top: 1px dashed #b8ad8c; }
+    .plate-btn{
+      flex:1; border:none; background: transparent; padding: 10px 0;
+      font-family:'Inter', sans-serif; font-weight:700; font-size:12px; letter-spacing:1px;
+      text-transform:uppercase; color:#4a5c47; cursor:pointer; transition: background .15s;
+    }
+    .plate-btn:hover{ background: rgba(74,157,110,0.12); }
+    .plate-btn:active{ background: rgba(74,157,110,0.25); }
+
+    .toast{
+      position:fixed; top: 90px; left:50%; transform: translateX(-50%);
+      font-family:'Bebas Neue', sans-serif; font-size: 22px; letter-spacing:1px;
+      padding: 8px 18px; border-radius: 6px; z-index:50;
+      opacity:0; pointer-events:none;
+    }
+    .toast.show{ animation: toastPop 1s ease forwards; }
+    @keyframes toastPop{
+      0%{ opacity:0; transform: translate(-50%, 6px) scale(.9); }
+      15%{ opacity:1; transform: translate(-50%, 0) scale(1); }
+      80%{ opacity:1; }
+      100%{ opacity:0; transform: translate(-50%, -14px) scale(1); }
+    }
+    .toast.good{ background: var(--heat-cool); color:#12241a; }
+    .toast.bad{ background: var(--bell-red); color:#fff; }
+
+    .overlay{
+      position:fixed; inset:0; background: rgba(15,17,18,0.88);
+      display:none; align-items:center; justify-content:center; z-index:100;
+      padding: 20px;
+    }
+    .overlay.show{ display:flex; }
+    .overlay-card{
+      background: var(--ticket); color: var(--ink); border-radius: 8px;
+      padding: 36px 40px; text-align:center; max-width: 380px; width:100%;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+    }
+    .overlay-card h2{ font-family:'Bebas Neue', sans-serif; font-size:36px; letter-spacing:2px; margin:0 0 4px; }
+    .overlay-card .stars{ font-size:30px; letter-spacing:6px; margin: 10px 0 18px; }
+    .overlay-stats{ font-family:'Courier Prime', monospace; font-size:13px; text-align:left; line-height:2; color:#4a453a; margin-bottom: 22px; }
+    .overlay-stats b{ float:right; }
+
+    .status-msg{
+      font-family:'Courier Prime', monospace;
+      font-size:11px;
+      color: var(--ink-faint);
+      padding: 8px 20px;
+      text-align:center;
+      border-top: 1px solid var(--line);
+      margin-top: 8px;
+    }
+
+    .controller-btn {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #f5f2ea;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .controller-btn:hover { background: rgba(255,255,255,0.08); }
+    .controller-btn.active { background: #4a9d6e; border-color: #4a9d6e; color: #12241a; }
+    .controller-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .nav-link {
+      color: #b5aea0;
+      text-decoration: none;
+      font-size: 13px;
+      padding: 6px 14px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      transition: 0.15s;
+    }
+    .nav-link:hover {
+      background: rgba(255,255,255,0.05);
+      color: #f5f2ea;
+    }
+
+    @media (max-width: 640px){
+      header{ flex-direction:column; align-items:flex-start; }
+      .stat{ flex: 1 1 40%; border-right:none; margin-bottom:10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>Ticket Rail</h1>
+    <span class="sub">Game</span>
+  </div>
+  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <a href="/gamesettings" class="nav-link">⚙️ Go to Controls</a>
+    <span id="controllerStatus" style="font-size:12px; color:var(--ink-faint);">⏸ waiting for controller</span>
+    <button class="controller-btn" id="manualStartBtn">▶ Start</button>
+    <button class="controller-btn" id="manualPauseBtn" disabled>⏸ Pause</button>
+  </div>
+</header>
+
+<div class="service-bar-wrap">
+  <div class="service-row">
+    <span>Service clock</span>
+    <span class="service-time" id="serviceTime">03:00</span>
+  </div>
+  <div class="service-track"><div class="service-fill" id="serviceFill"></div></div>
+</div>
+
+<div class="stat-strip">
+  <div class="stat"><div class="num" id="statScore">0</div><div class="label">Score</div></div>
+  <div class="stat"><div class="num" id="statServed">0</div><div class="label">Served</div></div>
+  <div class="stat"><div class="num" id="statMissed">0</div><div class="label">Missed</div></div>
+</div>
+
+<div class="rail-wrap">
+  <div class="rail-bar"></div>
+  <div class="rail" id="rail">
+    <div class="empty-rail" id="emptyMsg">Waiting for controller to start service...</div>
+  </div>
+</div>
+
+<div class="status-msg" id="statusMsg">🔄 Connect to the control dashboard to begin.</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <h2>Service Over</h2>
+    <div class="stars" id="overlayStars">☆☆☆</div>
+    <div class="overlay-stats">
+      <div>Final score <b id="ovScore">0</b></div>
+      <div>Orders served <b id="ovServed">0</b></div>
+      <div>Orders missed <b id="ovMissed">0</b></div>
+    </div>
+    <button class="controller-btn" id="playAgainBtn" style="width:100%; background:#4a9d6e; border:none; padding:12px; border-radius:6px; font-weight:700; font-size:14px; cursor:pointer; color:#12241a;">Reset &amp; Wait for Controller</button>
+  </div>
+</div>
+
+<script>
+  /* =========================================================
+     TICKET RAIL — GAME PAGE
+     ========================================================= */
+
+  // ----- state -----
+  let recipes = [];
+  let orderCounter = 0;
+  let activeOrders = [];
+  let score = 0, served = 0, missed = 0;
+  let running = false, paused = false;
+  let serviceRemaining = 300; // Default 5 minutes
+  let totalServiceTime = 300; // Store total for percentage
+  let spawnTimeout = null;
+  let mainTickInterval = null;
+
+  // timing params (from controller)
+  let params = {
+    spawnMin: 6,
+    spawnMax: 11,
+    prepTime: 22,
+    rampFactor: 0.92,
+    totalTime: 300, // 5 minutes default
+  };
+
+  const rail = document.getElementById('rail');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const statusMsg = document.getElementById('statusMsg');
+  const serviceTimeEl = document.getElementById('serviceTime');
+  const serviceFillEl = document.getElementById('serviceFill');
+  const toastEl = document.getElementById('toast');
+  const overlay = document.getElementById('overlay');
+  const controllerStatus = document.getElementById('controllerStatus');
+  const manualStartBtn = document.getElementById('manualStartBtn');
+  const manualPauseBtn = document.getElementById('manualPauseBtn');
+  const playAgainBtn = document.getElementById('playAgainBtn');
+
+  // recipe data
+  const FALLBACK_RECIPES = [
+    { id: 'f1', name: 'Cheeseburger', prepTimeSeconds: 22, ingredients: ['Bun','Beef Patty','Cheddar','Lettuce','Tomato'] },
+    { id: 'f2', name: 'Margherita Pizza', prepTimeSeconds: 30, ingredients: ['Dough','Tomato Sauce','Mozzarella','Basil'] },
+    { id: 'f3', name: 'Chicken Ramen', prepTimeSeconds: 34, ingredients: ['Noodles','Broth','Chicken','Egg','Scallion'] },
+    { id: 'f4', name: 'Caesar Salad', prepTimeSeconds: 16, ingredients: ['Romaine','Croutons','Parmesan','Dressing'] },
+    { id: 'f5', name: 'Beef Tacos', prepTimeSeconds: 18, ingredients: ['Tortilla','Ground Beef','Salsa','Cheese'] },
+    { id: 'f6', name: 'Pad Thai', prepTimeSeconds: 26, ingredients: ['Rice Noodles','Shrimp','Egg','Peanuts','Lime'] },
+    { id: 'f7', name: 'Mushroom Risotto', prepTimeSeconds: 32, ingredients: ['Arborio Rice','Mushroom','Stock','Parmesan'] },
+  ];
+  recipes = FALLBACK_RECIPES;
+
+  // ----- helpers -----
+  function showToast(text, kind) {
+    toastEl.textContent = text;
+    toastEl.className = 'toast ' + kind;
+    void toastEl.offsetWidth;
+    toastEl.classList.add('show');
+    setTimeout(() => toastEl.classList.remove('show'), 1000);
+  }
+
+  function nextOrderNumber() {
+    orderCounter += 1;
+    return 'K-' + String(orderCounter).padStart(3, '0');
+  }
+
+  function updateServiceClock() {
+    const m = Math.floor(Math.max(0, serviceRemaining) / 60).toString().padStart(2, '0');
+    const s = Math.floor(Math.max(0, serviceRemaining) % 60).toString().padStart(2, '0');
+    serviceTimeEl.textContent = `${m}:${s}`;
+    serviceFillEl.style.width = Math.max(0, (serviceRemaining / totalServiceTime) * 100) + '%';
+  }
+
+  function updateStats() {
+    document.getElementById('statScore').textContent = score;
+    document.getElementById('statServed').textContent = served;
+    document.getElementById('statMissed').textContent = missed;
+  }
+
+  // ----- spawn orders -----
+  function spawnOrder() {
+    if (!running || paused) return;
+    if (!recipes.length) return;
+
+    const recipe = recipes[Math.floor(Math.random() * recipes.length)];
+    const orderNo = nextOrderNumber();
+    const duration = params.prepTime || 22;
+    const tilt = (Math.random() * 5 - 2.5).toFixed(1) + 'deg';
+    const points = Math.round(duration * 4);
+
+    const el = document.createElement('div');
+    el.className = 'ticket';
+    el.style.setProperty('--tilt', tilt);
+    el.innerHTML = `
+      <div class="clip"></div>
+      <div class="ticket-body">
+        <div class="ticket-head">
+          <div class="order-no"><span class="hash">#</span>${orderNo}</div>
+          <div class="status-badge cooking">Cooking</div>
+        </div>
+        <div class="dish-name">${recipe.name}</div>
+        <div class="points-tag">+${points} pts</div>
+        <div class="ingredients">${recipe.ingredients.map(i => `<span>${i}</span>`).join('')}</div>
+        <div class="timer-zone">
+          <div class="timer-row"><span>Time left</span><span class="time-left">${duration}s</span></div>
+          <div class="heat-gauge"><div class="heat-fill"></div></div>
+        </div>
+        <div class="ticket-foot"><button class="plate-btn">Plate Up ✓</button></div>
+      </div>
+    `;
+    rail.appendChild(el);
+    emptyMsg.style.display = 'none';
+
+    const order = {
+      orderNo,
+      recipe,
+      duration,
+      points,
+      endsAt: Date.now() + duration * 1000,
+      el,
+      late: false,
+      missed: false,
+      createdAt: Date.now(),
+    };
+    activeOrders.push(order);
+
+    el.querySelector('.plate-btn').addEventListener('click', () => completeOrder(order));
+    updateStats();
+    scheduleNextSpawn();
+  }
+
+  function scheduleNextSpawn() {
+    if (spawnTimeout) clearTimeout(spawnTimeout);
+    if (!running || paused) return;
+
+    const min = params.spawnMin || 6;
+    const max = params.spawnMax || 11;
+    const progress = 1 - (serviceRemaining / totalServiceTime);
+    const ramp = 1 - progress * (1 - (params.rampFactor || 0.92));
+    const delayMin = Math.max(1, min * ramp);
+    const delayMax = Math.max(2, max * ramp);
+    const delay = (delayMin + Math.random() * (delayMax - delayMin)) * 1000;
+
+    spawnTimeout = setTimeout(() => {
+      spawnOrder();
+    }, delay);
+  }
+
+  // ----- complete / miss -----
+  function completeOrder(order) {
+    if (order.missed) return;
+    const now = Date.now();
+    const remainingMs = Math.max(0, order.endsAt - now);
+    const remainingFrac = remainingMs / (order.duration * 1000);
+    const earned = Math.max(Math.round(order.points * (0.4 + 0.6 * remainingFrac)), Math.round(order.points * 0.2));
+    score += earned;
+    served += 1;
+    showToast('+' + earned, 'good');
+    removeTicket(order);
+    // Send state update to controller
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({ type: 'state-report', payload: getState() });
+    } catch(e) {}
+  }
+
+  function missOrder(order) {
+    order.missed = true;
+    const badge = order.el.querySelector('.status-badge');
+    badge.textContent = 'Missed';
+    badge.className = 'status-badge missed';
+    order.el.classList.add('missed');
+    missed += 1;
+    showToast('Order missed', 'bad');
+    setTimeout(() => removeTicket(order), 900);
+    // Send state update to controller
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({ type: 'state-report', payload: getState() });
+    } catch(e) {}
+  }
+
+  function removeTicket(order) {
+    order.el.style.transition = 'opacity .3s, transform .3s';
+    order.el.style.opacity = '0';
+    order.el.style.transform = 'translateY(-14px) rotate(var(--tilt))';
+    setTimeout(() => {
+      order.el.remove();
+      activeOrders = activeOrders.filter(o => o !== order);
+      if (!activeOrders.length && !running) emptyMsg.style.display = 'block';
+      if (!activeOrders.length && running) emptyMsg.style.display = 'none';
+      updateStats();
+    }, 280);
+  }
+
+  // ----- tick -----
+  function tick() {
+    if (!running || paused) return;
+    const now = Date.now();
+
+    for (let i = activeOrders.length - 1; i >= 0; i--) {
+      const order = activeOrders[i];
+      if (order.missed) continue;
+      const remainingMs = order.endsAt - now;
+      const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+      const pct = Math.max(0, Math.min(100, (remainingMs / (order.duration * 1000)) * 100));
+      const fill = order.el.querySelector('.heat-fill');
+      const timeLeftLabel = order.el.querySelector('.time-left');
+      const badge = order.el.querySelector('.status-badge');
+
+      fill.style.width = pct + '%';
+      if (remainingMs <= 0) {
+        missOrder(order);
+      } else {
+        timeLeftLabel.textContent = remainingSec + 's';
+        if (pct > 50) {
+          fill.style.background = 'var(--heat-cool)';
+          badge.className = 'status-badge cooking';
+          badge.textContent = 'Cooking';
+        } else if (pct > 20) {
+          fill.style.background = 'var(--heat-warm)';
+          badge.className = 'status-badge cooking';
+          badge.textContent = 'Hurry';
+        } else {
+          fill.style.background = 'var(--heat-hot)';
+          badge.className = 'status-badge late';
+          badge.textContent = 'Almost Late';
+        }
+      }
+    }
+
+    serviceRemaining -= 1;
+    updateServiceClock();
+    if (serviceRemaining <= 0) endService('time-up');
+    updateStats();
+    
+    // Send state update to controller every 5 ticks
+    if (Math.floor(serviceRemaining) % 5 === 0) {
+      try {
+        const channel = new BroadcastChannel('ticket-rail-control');
+        channel.postMessage({ type: 'state-report', payload: getState() });
+      } catch(e) {}
+    }
+  }
+
+  function getState() {
+    return {
+      running,
+      paused,
+      activeOrders: activeOrders.length,
+      score,
+      served,
+      missed,
+      serviceRemaining,
+      totalServiceTime,
+    };
+  }
+
+  // ----- service lifecycle -----
+  function startService() {
+    if (running) return;
+    
+    // Reset if service has ended
+    if (serviceRemaining <= 0) {
+      resetService();
+    }
+    
+    running = true;
+    paused = false;
+    emptyMsg.style.display = 'none';
+    statusMsg.textContent = '🟢 Service running — plate orders before time runs out!';
+    controllerStatus.textContent = '▶ running';
+    manualStartBtn.disabled = true;
+    manualStartBtn.textContent = '▶ Running';
+    manualPauseBtn.disabled = false;
+    manualPauseBtn.textContent = '⏸ Pause';
+    
+    // Broadcast to controller that we started
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({ type: 'game-started', payload: { running: true } });
+      channel.postMessage({ type: 'state-report', payload: getState() });
+    } catch(e) {}
+    
+    scheduleNextSpawn();
+    mainTickInterval = setInterval(tick, 1000);
+    // spawn first order quickly
+    setTimeout(() => { if (running && !paused) spawnOrder(); }, 300);
+  }
+
+  function togglePause() {
+    if (!running) return;
+    paused = !paused;
+    statusMsg.textContent = paused ? '⏸ Paused — waiting for resume' : '▶ Resumed';
+    controllerStatus.textContent = paused ? '⏸ paused' : '▶ running';
+    manualPauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+    
+    // Broadcast to controller
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({ type: 'game-paused', payload: { paused } });
+      channel.postMessage({ type: 'state-report', payload: getState() });
+    } catch(e) {}
+    
+    if (!paused) scheduleNextSpawn();
+  }
+
+  function endService(reason) {
+    running = false;
+    paused = false;
+    if (spawnTimeout) clearTimeout(spawnTimeout);
+    if (mainTickInterval) clearInterval(mainTickInterval);
+    statusMsg.textContent = '⏹ Service ended — reset to start again';
+    controllerStatus.textContent = '⏹ ended';
+    manualStartBtn.disabled = false;
+    manualStartBtn.textContent = '▶ Start';
+    manualPauseBtn.disabled = true;
+    manualPauseBtn.textContent = '⏸ Pause';
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({ type: 'state-report', payload: getState() });
+    } catch(e) {}
+    showGameOver();
+  }
+
+  function resetService() {
+    running = false;
+    paused = false;
+    if (spawnTimeout) clearTimeout(spawnTimeout);
+    if (mainTickInterval) clearInterval(mainTickInterval);
+    activeOrders.forEach(o => o.el.remove());
+    activeOrders = [];
+    score = 0; served = 0; missed = 0;
+    serviceRemaining = totalServiceTime;
+    orderCounter = 0;
+    emptyMsg.style.display = 'block';
+    emptyMsg.textContent = 'Waiting for controller to start service...';
+    statusMsg.textContent = '🔄 Connected to controller. Start service from the dashboard.';
+    controllerStatus.textContent = '⏸ idle';
+    manualStartBtn.disabled = false;
+    manualStartBtn.textContent = '▶ Start';
+    manualPauseBtn.disabled = true;
+    manualPauseBtn.textContent = '⏸ Pause';
+    updateServiceClock();
+    updateStats();
+    overlay.classList.remove('show');
+    
+    // Broadcast reset
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({ type: 'game-reset' });
+      channel.postMessage({ type: 'state-report', payload: getState() });
+    } catch(e) {}
+  }
+
+  function showGameOver() {
+    document.getElementById('ovScore').textContent = score;
+    document.getElementById('ovServed').textContent = served;
+    document.getElementById('ovMissed').textContent = missed;
+    const ratio = served / Math.max(1, served + missed);
+    let stars = '☆☆☆';
+    if (ratio >= 0.9 && missed <= 1) stars = '★★★';
+    else if (ratio >= 0.7) stars = '★★☆';
+    else if (ratio >= 0.4) stars = '★☆☆';
+    document.getElementById('overlayStars').textContent = stars;
+    overlay.classList.add('show');
+  }
+
+  // ----- controller communication (BroadcastChannel) -----
+  const channel = new BroadcastChannel('ticket-rail-control');
+
+  channel.onmessage = (event) => {
+    const msg = event.data;
+    if (!msg) return;
+
+    console.log('📨 Game received:', msg);
+
+    switch (msg.type) {
+      case 'params':
+        params = { ...params, ...msg.payload };
+        // Update total time if provided
+        if (msg.payload.totalTime) {
+          totalServiceTime = msg.payload.totalTime;
+          if (!running && serviceRemaining <= 0) {
+            serviceRemaining = totalServiceTime;
+          }
+        }
+        statusMsg.textContent = `📡 Params updated: min ${params.spawnMin}s, max ${params.spawnMax}s, prep ${params.prepTime}s, time ${totalServiceTime}s`;
+        updateServiceClock();
+        break;
+
+      case 'start':
+        startService();
+        break;
+
+      case 'pause':
+        togglePause();
+        break;
+
+      case 'reset':
+        resetService();
+        break;
+
+      case 'state':
+        // controller asking for state
+        try {
+          channel.postMessage({
+            type: 'state-report',
+            payload: getState()
+          });
+        } catch(e) {}
+        break;
+
+      default:
+        console.log('📨 unknown message:', msg);
+    }
+  };
+
+  // ----- manual controls -----
+  manualStartBtn.addEventListener('click', startService);
+  manualPauseBtn.addEventListener('click', togglePause);
+  playAgainBtn.addEventListener('click', resetService);
+
+  // ----- init -----
+  resetService();
+  statusMsg.textContent = '🔄 Ready. Click "Start" or use the control dashboard.';
+  controllerStatus.textContent = '⏸ idle';
+
+  // broadcast that this game page is ready
+  try {
+    channel.postMessage({ type: 'game-ready' });
+  } catch(e) {}
+
+  console.log('🎮 Ticket Rail Game ready.');
+</script>
+</body>
+</html>
