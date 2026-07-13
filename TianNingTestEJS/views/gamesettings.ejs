@@ -23,6 +23,7 @@
       border-bottom: 1px solid rgba(255,255,255,0.08);
       padding-bottom: 16px;
       margin-bottom: 24px;
+      flex-wrap: wrap;
     }
     .brand h1 {
       font-family: 'Bebas Neue', sans-serif;
@@ -248,6 +249,79 @@
       background: rgba(255,255,255,0.05);
       color: #f5f2ea;
     }
+
+    /* Logs Section */
+    .logs-container {
+      max-height: 300px;
+      overflow-y: auto;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      padding: 12px;
+      font-family: 'Courier Prime', monospace;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .logs-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    .logs-container::-webkit-scrollbar-thumb {
+      background: #4a5054;
+      border-radius: 3px;
+    }
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+    }
+    .log-time {
+      color: #6b6558;
+      font-size: 10px;
+      min-width: 80px;
+    }
+    .log-type {
+      font-size: 10px;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      min-width: 70px;
+      text-align: center;
+    }
+    .log-type.info { background: #1a3a5c; color: #6cb4ee; }
+    .log-type.success { background: #1a4a2a; color: #4a9d6e; }
+    .log-type.error { background: #4a1a1a; color: #d9463c; }
+    .log-type.esp { background: #4a3a1a; color: #dfa62e; }
+    .log-type.match { background: #1a3a3a; color: #4ad6d6; }
+    .log-type.submit { background: #3a1a4a; color: #c96ad6; }
+    .log-message { color: #e9e6de; word-break: break-all; }
+
+    .esp-status-indicator {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .esp-status-indicator.online { background: #1a4a2a; color: #4a9d6e; }
+    .esp-status-indicator.offline { background: #4a1a1a; color: #d9463c; }
+    .esp-status-indicator.waiting { background: #4a3a1a; color: #dfa62e; }
+
+    .clear-logs-btn {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #b5aea0;
+      padding: 4px 16px;
+      border-radius: 20px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: 0.15s;
+      font-family: 'Inter', sans-serif;
+    }
+    .clear-logs-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: #f5f2ea;
+    }
   </style>
 </head>
 <body>
@@ -332,6 +406,13 @@
         <div id="serviceFill" style="height:100%; width:100%; background:linear-gradient(90deg,#4a9d6e,#dfa62e 70%,#d9463c); transition:width 0.5s;"></div>
       </div>
     </div>
+    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span style="font-size:12px; color:#b5aea0;">ESP Status:</span>
+        <span class="esp-status-indicator waiting" id="espStatus">⏳ Waiting</span>
+        <button class="clear-logs-btn" id="refreshEspBtn">🔄 Refresh</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -343,14 +424,32 @@
   </div>
 </div>
 
+<!-- LOGS SECTION -->
+<div class="card" style="margin-bottom: 24px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <h2 style="margin:0;">📋 System Logs</h2>
+    <div style="display: flex; gap: 8px;">
+      <button class="clear-logs-btn" id="clearLogsBtn">🗑 Clear</button>
+      <button class="clear-logs-btn" id="toggleLogsBtn">⬇ Auto-scroll</button>
+    </div>
+  </div>
+  <div class="logs-container" id="logsContainer">
+    <div class="log-entry">
+      <span class="log-time">System</span>
+      <span class="log-type info">info</span>
+      <span class="log-message">🔄 Dashboard initialized. Waiting for game connection...</span>
+    </div>
+  </div>
+</div>
+
 <div class="footnote">
   This dashboard controls timing & frequency. Use the "Send Parameters" button to update the game.
-  The game page shows the full ticket rail.
+  The game page shows the full ticket rail. ESP messages and order validation are logged here.
 </div>
 
 <script>
   /* =========================================================
-     CONTROL DASHBOARD — Extended timing controls
+     CONTROL DASHBOARD — Extended timing controls with Logs
      ========================================================= */
 
   // ----- state -----
@@ -360,6 +459,7 @@
   let serviceRemaining = 300;
   let totalServiceTime = 300;
   let orderCounter = 0;
+  let autoScroll = true;
 
   // timing parameters
   let params = {
@@ -381,6 +481,7 @@
   const liveDot = document.getElementById('liveDot');
   const liveLabel = document.getElementById('liveLabel');
   const connectionStatus = document.getElementById('connectionStatus');
+  const espStatus = document.getElementById('espStatus');
 
   const spawnMinInput = document.getElementById('spawnMin');
   const spawnMaxInput = document.getElementById('spawnMax');
@@ -399,6 +500,46 @@
   const serviceTimeEl = document.getElementById('serviceTime');
   const serviceFillEl = document.getElementById('serviceFill');
   const miniRail = document.getElementById('miniRail');
+  const logsContainer = document.getElementById('logsContainer');
+
+  // ----- Logging -----
+  function addLog(type, message, data) {
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    
+    let typeLabel = type;
+    let typeClass = 'info';
+    switch(type) {
+      case 'ESP Received': typeClass = 'esp'; break;
+      case 'ESP Submit': typeClass = 'submit'; break;
+      case 'Match Check': typeClass = 'match'; break;
+      case '✅ Success': typeClass = 'success'; break;
+      case '❌ Error': typeClass = 'error'; break;
+      default: typeClass = 'info';
+    }
+    
+    let displayMessage = message;
+    if (data) {
+      displayMessage += ' ' + JSON.stringify(data, null, 0);
+    }
+    
+    entry.innerHTML = `
+      <span class="log-time">${time}</span>
+      <span class="log-type ${typeClass}">${type}</span>
+      <span class="log-message">${displayMessage}</span>
+    `;
+    logsContainer.appendChild(entry);
+    
+    if (autoScroll) {
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+    
+    // Keep last 500 logs
+    while (logsContainer.children.length > 500) {
+      logsContainer.removeChild(logsContainer.firstChild);
+    }
+  }
 
   // ----- BroadcastChannel for communication -----
   const channel = new BroadcastChannel('ticket-rail-control');
@@ -414,16 +555,19 @@
       case 'game-ready':
         connectionStatus.textContent = '✅ Game connected';
         connectionStatus.className = 'connection-status connected';
+        addLog('info', '✅ Game connected');
         break;
 
       case 'game-started':
         running = true;
         paused = false;
+        addLog('info', '▶ Game started');
         updateUI();
         break;
 
       case 'game-paused':
         paused = msg.payload.paused;
+        addLog('info', paused ? '⏸ Game paused' : '▶ Game resumed');
         updateUI();
         break;
 
@@ -433,6 +577,7 @@
         score = 0; served = 0; missed = 0;
         serviceRemaining = totalServiceTime;
         activeOrders = [];
+        addLog('info', '⟳ Game reset');
         updateUI();
         break;
 
@@ -452,6 +597,53 @@
         updateUI();
         break;
 
+      // ESP Message Logs from Game
+      case 'esp-action':
+        addLog('ESP Received', `📡 ${msg.payload.tag_mac} → ${msg.payload.action_name}`, {
+          tagger: msg.payload.tagger_mac,
+          order: msg.payload.order_number || 'no order'
+        });
+        break;
+
+      case 'esp-submit':
+        addLog('ESP Submit', `📤 Order ${msg.payload.order_number} submitted`, {
+          device: msg.payload.device_mac,
+          result: msg.payload.result
+        });
+        break;
+
+      case 'esp-match-check':
+        addLog('Match Check', `🔍 ${msg.payload.ingredient}: expected "${msg.payload.expected}" got "${msg.payload.got}"`, {
+          pass: msg.payload.pass
+        });
+        break;
+
+      case 'esp-submit-result':
+        if (msg.payload.success) {
+          addLog('✅ Success', `🎉 Order ${msg.payload.order_number} COMPLETED!`, {
+            score: msg.payload.score_earned,
+            food: msg.payload.food
+          });
+        } else {
+          addLog('❌ Error', `❌ Order ${msg.payload.order_number} FAILED`, {
+            reason: msg.payload.reason
+          });
+        }
+        break;
+
+      case 'esp-status':
+        const status = msg.payload;
+        if (status.online) {
+          espStatus.textContent = '✅ ESP Online';
+          espStatus.className = 'esp-status-indicator online';
+          addLog('info', '✅ ESP device is online');
+        } else {
+          espStatus.textContent = '❌ ESP Offline';
+          espStatus.className = 'esp-status-indicator offline';
+          addLog('info', '❌ No ESP devices online');
+        }
+        break;
+
       default:
         console.log('📨 unknown message:', msg);
     }
@@ -459,7 +651,6 @@
 
   // ----- UI updates -----
   function updateUI() {
-    // Update live indicator
     if (running && !paused) {
       liveDot.className = 'live-indicator';
       liveLabel.textContent = 'running';
@@ -480,12 +671,10 @@
       pauseBtn.textContent = '⏸ Pause';
     }
 
-    // Stats
     statScore.textContent = score;
     statServed.textContent = served;
     statMissed.textContent = missed;
 
-    // Service clock
     const m = Math.floor(Math.max(0, serviceRemaining) / 60).toString().padStart(2, '0');
     const s = Math.floor(Math.max(0, serviceRemaining) % 60).toString().padStart(2, '0');
     serviceTimeEl.textContent = `${m}:${s}`;
@@ -537,13 +726,13 @@
       type: 'params',
       payload: { ...params }
     });
-    // Also update local state
     totalServiceTime = params.totalTime;
     if (!running && serviceRemaining <= 0) {
       serviceRemaining = totalServiceTime;
     }
     updateUI();
     connectionStatus.textContent = '📤 Params sent!';
+    addLog('info', '📤 Parameters sent to game', params);
     setTimeout(() => {
       connectionStatus.textContent = '✅ Game connected';
     }, 2000);
@@ -557,11 +746,11 @@
       const preset = btn.dataset.preset;
       let min, max, prep, ramp, total;
       switch (preset) {
-        case 'quick':    min=3; max=8; prep=15; ramp=0.95; total=120; break;   // 2 min
-        case 'normal':   min=6; max=11; prep=22; ramp=0.92; total=300; break;   // 5 min
-        case 'long':     min=8; max=15; prep=25; ramp=0.88; total=900; break;   // 15 min
-        case 'marathon': min=10; max=20; prep=30; ramp=0.85; total=1800; break; // 30 min
-        case 'endurance': min=12; max=25; prep=35; ramp=0.80; total=3600; break; // 60 min
+        case 'quick':    min=3; max=8; prep=15; ramp=0.95; total=120; break;
+        case 'normal':   min=6; max=11; prep=22; ramp=0.92; total=300; break;
+        case 'long':     min=8; max=15; prep=25; ramp=0.88; total=900; break;
+        case 'marathon': min=10; max=20; prep=30; ramp=0.85; total=1800; break;
+        case 'endurance': min=12; max=25; prep=35; ramp=0.80; total=3600; break;
         default: return;
       }
       spawnMinInput.value = min;
@@ -570,8 +759,8 @@
       rampFactorInput.value = ramp;
       totalTimeInput.value = total;
       readParamsFromUI();
-      // Auto-send params when preset is selected
       sendParamsToGame();
+      addLog('info', `📋 Preset loaded: ${preset}`, { min, max, prep, ramp, total });
     });
   });
 
@@ -579,6 +768,7 @@
   function startService() {
     channel.postMessage({ type: 'start' });
     startBtn.disabled = true;
+    addLog('info', '▶ Start command sent');
   }
 
   function togglePause() {
@@ -587,15 +777,60 @@
 
   function resetService() {
     channel.postMessage({ type: 'reset' });
+    addLog('info', '⟳ Reset command sent');
   }
 
   startBtn.addEventListener('click', startService);
   pauseBtn.addEventListener('click', togglePause);
   resetBtn.addEventListener('click', resetService);
 
+  // ----- ESP Status Check -----
+  async function checkESPStatus() {
+    try {
+      const response = await fetch('/api/esp/status');
+      const data = await response.json();
+      
+      if (data.online) {
+        espStatus.textContent = '✅ ESP Online';
+        espStatus.className = 'esp-status-indicator online';
+        addLog('info', '✅ ESP device is online');
+      } else {
+        espStatus.textContent = '⚠️ ESP Offline';
+        espStatus.className = 'esp-status-indicator offline';
+        addLog('info', '⚠️ No ESP devices online');
+      }
+      
+      // Also send to game
+      channel.postMessage({
+        type: 'esp-status',
+        payload: { online: data.online }
+      });
+      
+    } catch (error) {
+      espStatus.textContent = '❌ ESP Error';
+      espStatus.className = 'esp-status-indicator offline';
+      addLog('❌ Error', `ESP status check failed: ${error.message}`);
+    }
+  }
+
+  document.getElementById('refreshEspBtn').addEventListener('click', checkESPStatus);
+
+  // ----- Log controls -----
+  document.getElementById('clearLogsBtn').addEventListener('click', () => {
+    logsContainer.innerHTML = '';
+    addLog('info', '🗑 Logs cleared');
+  });
+
+  document.getElementById('toggleLogsBtn').addEventListener('click', () => {
+    autoScroll = !autoScroll;
+    document.getElementById('toggleLogsBtn').textContent = autoScroll ? '⬇ Auto-scroll' : '⬆ Manual';
+    addLog('info', autoScroll ? '⬇ Auto-scroll enabled' : '⬆ Auto-scroll disabled');
+  });
+
   // ----- Request state from game on load -----
   setTimeout(() => {
     channel.postMessage({ type: 'state' });
+    addLog('info', '🔄 Requesting game state...');
   }, 500);
 
   // Also request state every 5 seconds to keep sync
@@ -611,9 +846,14 @@
   // Send initial params
   setTimeout(() => {
     sendParamsToGame();
+    checkESPStatus();
   }, 1000);
 
-  console.log('🎛 Ticket Rail Controller ready with extended controls.');
+  // Refresh ESP status every 30 seconds
+  setInterval(checkESPStatus, 30000);
+
+  console.log('🎛 Ticket Rail Controller ready with extended controls and logging.');
+  addLog('info', '🚀 Dashboard initialized');
 </script>
 </body>
 </html>

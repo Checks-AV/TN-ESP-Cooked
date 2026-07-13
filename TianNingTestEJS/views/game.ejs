@@ -124,6 +124,9 @@
     .empty-rail.loading{
       color: #dfa62e;
     }
+    .empty-rail.success{
+      color: #4a9d6e;
+    }
     .empty-rail .retry-btn{
       background: rgba(255,255,255,0.1);
       border: 1px solid rgba(255,255,255,0.2);
@@ -195,6 +198,7 @@
     .status-badge.cooking{ background:#e3ddc6; color:#5a5334; }
     .status-badge.late{ background: var(--bell-red); color:#fff; animation: blink 1s infinite; }
     .status-badge.missed{ background:#5a5334; color:#e3ddc6; }
+    .status-badge.completed{ background:#4a9d6e; color:#12241a; }
     @keyframes blink{ 50%{ opacity:.4; } }
 
     .dish-name{ padding: 10px 14px 4px; font-size: 18px; font-weight: 700; line-height:1.25; }
@@ -217,8 +221,9 @@
       font-family:'Inter', sans-serif; font-weight:700; font-size:12px; letter-spacing:1px;
       text-transform:uppercase; color:#4a5c47; cursor:pointer; transition: background .15s;
     }
-    .plate-btn:hover{ background: rgba(74,157,110,0.12); }
-    .plate-btn:active{ background: rgba(74,157,110,0.25); }
+    .plate-btn:hover:not(:disabled){ background: rgba(74,157,110,0.12); }
+    .plate-btn:active:not(:disabled){ background: rgba(74,157,110,0.25); }
+    .plate-btn:disabled{ opacity:0.4; cursor:not-allowed; }
 
     .toast{
       position:fixed; top: 90px; left:50%; transform: translateX(-50%);
@@ -279,7 +284,7 @@
       transition: 0.15s;
       font-family: 'Inter', sans-serif;
     }
-    .controller-btn:hover { background: rgba(255,255,255,0.08); }
+    .controller-btn:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
     .controller-btn.active { background: #4a9d6e; border-color: #4a9d6e; color: #12241a; }
     .controller-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
@@ -311,8 +316,8 @@
     <span class="sub">Game</span>
   </div>
   <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-    <a href="/gamesettings" class="nav-link">⚙️ Go to Controls</a>
-    <span id="controllerStatus" style="font-size:12px; color:var(--ink-faint);">⏸ waiting for controller</span>
+    <a href="/game/settings" class="nav-link">⚙️ Controls</a>
+    <span id="controllerStatus" style="font-size:12px; color:var(--ink-faint);">⏸ waiting</span>
     <button class="controller-btn" id="manualStartBtn" disabled>▶ Start</button>
     <button class="controller-btn" id="manualPauseBtn" disabled>⏸ Pause</button>
   </div>
@@ -360,7 +365,7 @@
 
 <script>
   /* =========================================================
-     TICKET RAIL — GAME PAGE (No Fallback Recipes)
+     TICKET RAIL — GAME PAGE
      ========================================================= */
 
   // ----- state -----
@@ -376,7 +381,7 @@
   let recipesLoaded = false;
   let recipesLoading = false;
 
-  // timing params (from controller)
+  // timing params
   let params = {
     spawnMin: 6,
     spawnMax: 11,
@@ -398,7 +403,7 @@
   const playAgainBtn = document.getElementById('playAgainBtn');
 
   // ============================================
-  // LOAD RECIPES FROM DATABASE (NO FALLBACK)
+  // LOAD RECIPES FROM DATABASE
   // ============================================
   
   async function loadRecipesFromDB() {
@@ -406,7 +411,6 @@
     recipesLoading = true;
     
     try {
-      // Show loading state
       emptyMsg.className = 'empty-rail loading';
       emptyMsg.innerHTML = '⏳ Loading recipes from database...';
       statusMsg.textContent = '🔄 Loading recipes from database...';
@@ -425,12 +429,11 @@
         throw new Error('No recipes found in database');
       }
       
-      // Transform to game format
       recipes = data.map(recipe => ({
         id: recipe.id,
         name: recipe.name,
         prepTimeSeconds: recipe.prepTimeSeconds || 30,
-        ingredients: recipe.ingredients || [],
+        ingredients: recipe.ingredients || ['No ingredients listed'],
         prepMethods: recipe.prepMethods || []
       }));
       
@@ -439,14 +442,13 @@
       
       console.log(`✅ Loaded ${recipes.length} recipes from database`);
       
-      // Show success state
-      emptyMsg.className = 'empty-rail';
-      emptyMsg.innerHTML = `✅ Loaded ${recipes.length} recipes! Click "Start" to begin service.`;
+      emptyMsg.className = 'empty-rail success';
+      emptyMsg.innerHTML = `✅ Loaded ${recipes.length} recipes!<br><small style="color: var(--ink-faint);">${recipes.map(r => r.name).join(', ')}</small><br><br>Click "Start" to begin service.`;
       statusMsg.textContent = `✅ Loaded ${recipes.length} recipes from database`;
       statusMsg.className = 'status-msg success';
       manualStartBtn.disabled = false;
+      manualStartBtn.textContent = '▶ Start';
       
-      // Enable start button
       return true;
       
     } catch (error) {
@@ -454,7 +456,6 @@
       recipesLoaded = false;
       recipesLoading = false;
       
-      // Show error state with retry button
       emptyMsg.className = 'empty-rail error';
       emptyMsg.innerHTML = `
         ❌ Failed to load recipes from database<br>
@@ -469,16 +470,18 @@
     }
   }
 
-  // Make retry function globally accessible
   window.loadRecipesFromDB = loadRecipesFromDB;
 
-  // ----- helpers -----
+  // ============================================
+  // GAME HELPERS
+  // ============================================
+  
   function showToast(text, kind) {
     toastEl.textContent = text;
     toastEl.className = 'toast ' + kind;
     void toastEl.offsetWidth;
     toastEl.classList.add('show');
-    setTimeout(() => toastEl.classList.remove('show'), 1000);
+    setTimeout(() => toastEl.classList.remove('show'), 1500);
   }
 
   function nextOrderNumber() {
@@ -499,7 +502,10 @@
     document.getElementById('statMissed').textContent = missed;
   }
 
-  // ----- spawn orders -----
+  // ============================================
+  // SPAWN ORDERS
+  // ============================================
+  
   function spawnOrder() {
     if (!running || paused) return;
     if (!recipes.length) {
@@ -530,7 +536,9 @@
           <div class="timer-row"><span>Time left</span><span class="time-left">${duration}s</span></div>
           <div class="heat-gauge"><div class="heat-fill"></div></div>
         </div>
-        <div class="ticket-foot"><button class="plate-btn">Plate Up ✓</button></div>
+        <div class="ticket-foot">
+          <button class="plate-btn" data-order="${orderNo}">Complete ✓</button>
+        </div>
       </div>
     `;
     rail.appendChild(el);
@@ -545,13 +553,28 @@
       el,
       late: false,
       missed: false,
+      completed: false,
       createdAt: Date.now(),
     };
     activeOrders.push(order);
 
-    el.querySelector('.plate-btn').addEventListener('click', () => completeOrder(order));
+    el.querySelector('.plate-btn').addEventListener('click', () => {
+      if (!order.completed && !order.missed) {
+        completeOrder(order);
+      }
+    });
+
     updateStats();
     scheduleNextSpawn();
+    
+    // Send to dashboard
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({ 
+        type: 'state-report', 
+        payload: getState() 
+      });
+    } catch(e) {}
   }
 
   function scheduleNextSpawn() {
@@ -571,36 +594,65 @@
     }, delay);
   }
 
-  // ----- complete / miss -----
+  // ============================================
+  // COMPLETE / MISS ORDERS
+  // ============================================
+  
   function completeOrder(order) {
-    if (order.missed) return;
+    if (order.missed || order.completed) return;
+    order.completed = true;
+    
     const now = Date.now();
     const remainingMs = Math.max(0, order.endsAt - now);
     const remainingFrac = remainingMs / (order.duration * 1000);
     const earned = Math.max(Math.round(order.points * (0.4 + 0.6 * remainingFrac)), Math.round(order.points * 0.2));
     score += earned;
     served += 1;
-    showToast('+' + earned, 'good');
-    removeTicket(order);
+    
+    const badge = order.el.querySelector('.status-badge');
+    badge.textContent = 'Served ✓';
+    badge.className = 'status-badge completed';
+    order.el.querySelector('.plate-btn').disabled = true;
+    
+    showToast('+' + earned + ' pts', 'good');
+    updateStats();
+    
+    // Send to dashboard
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
-      channel.postMessage({ type: 'state-report', payload: getState() });
+      channel.postMessage({ 
+        type: 'state-report', 
+        payload: getState() 
+      });
     } catch(e) {}
+    
+    setTimeout(() => removeTicket(order), 800);
   }
 
   function missOrder(order) {
+    if (order.missed) return;
     order.missed = true;
+    
     const badge = order.el.querySelector('.status-badge');
     badge.textContent = 'Missed';
     badge.className = 'status-badge missed';
+    order.el.querySelector('.plate-btn').disabled = true;
     order.el.classList.add('missed');
     missed += 1;
+    
     showToast('Order missed', 'bad');
-    setTimeout(() => removeTicket(order), 900);
+    updateStats();
+    
+    // Send to dashboard
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
-      channel.postMessage({ type: 'state-report', payload: getState() });
+      channel.postMessage({ 
+        type: 'state-report', 
+        payload: getState() 
+      });
     } catch(e) {}
+    
+    setTimeout(() => removeTicket(order), 900);
   }
 
   function removeTicket(order) {
@@ -612,22 +664,26 @@
       activeOrders = activeOrders.filter(o => o !== order);
       if (!activeOrders.length && !running) {
         emptyMsg.style.display = 'block';
-        emptyMsg.className = 'empty-rail';
-        emptyMsg.innerHTML = 'No active orders. Waiting for new orders...';
+        emptyMsg.className = 'empty-rail success';
+        emptyMsg.innerHTML = `✅ ${recipes.length} recipes loaded. Click "Start" to begin service.`;
       }
       if (!activeOrders.length && running) emptyMsg.style.display = 'none';
       updateStats();
     }, 280);
   }
 
-  // ----- tick -----
+  // ============================================
+  // TICK
+  // ============================================
+  
   function tick() {
     if (!running || paused) return;
     const now = Date.now();
 
     for (let i = activeOrders.length - 1; i >= 0; i--) {
       const order = activeOrders[i];
-      if (order.missed) continue;
+      if (order.missed || order.completed) continue;
+      
       const remainingMs = order.endsAt - now;
       const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
       const pct = Math.max(0, Math.min(100, (remainingMs / (order.duration * 1000)) * 100));
@@ -660,13 +716,6 @@
     updateServiceClock();
     if (serviceRemaining <= 0) endService('time-up');
     updateStats();
-    
-    if (Math.floor(serviceRemaining) % 5 === 0) {
-      try {
-        const channel = new BroadcastChannel('ticket-rail-control');
-        channel.postMessage({ type: 'state-report', payload: getState() });
-      } catch(e) {}
-    }
   }
 
   function getState() {
@@ -682,7 +731,10 @@
     };
   }
 
-  // ----- service lifecycle -----
+  // ============================================
+  // SERVICE LIFECYCLE
+  // ============================================
+  
   function startService() {
     if (running) return;
     
@@ -713,9 +765,10 @@
     manualPauseBtn.disabled = false;
     manualPauseBtn.textContent = '⏸ Pause';
     
+    // Send to dashboard
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
-      channel.postMessage({ type: 'game-started', payload: { running: true } });
+      channel.postMessage({ type: 'game-started' });
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
     
@@ -732,6 +785,7 @@
     controllerStatus.textContent = paused ? '⏸ paused' : '▶ running';
     manualPauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause';
     
+    // Send to dashboard
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'game-paused', payload: { paused } });
@@ -753,10 +807,13 @@
     manualStartBtn.textContent = '▶ Start';
     manualPauseBtn.disabled = true;
     manualPauseBtn.textContent = '⏸ Pause';
+    
+    // Send to dashboard
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
+    
     showGameOver();
   }
 
@@ -773,7 +830,7 @@
     
     if (recipesLoaded && recipes.length > 0) {
       emptyMsg.style.display = 'block';
-      emptyMsg.className = 'empty-rail';
+      emptyMsg.className = 'empty-rail success';
       emptyMsg.innerHTML = `✅ ${recipes.length} recipes loaded. Click "Start" to begin service.`;
     }
     
@@ -788,6 +845,7 @@
     updateStats();
     overlay.classList.remove('show');
     
+    // Send to dashboard
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'game-reset' });
@@ -808,14 +866,12 @@
     overlay.classList.add('show');
   }
 
-  // ----- controller communication (BroadcastChannel) -----
+  // ----- BroadcastChannel for communication -----
   const channel = new BroadcastChannel('ticket-rail-control');
 
   channel.onmessage = (event) => {
     const msg = event.data;
     if (!msg) return;
-
-    console.log('📨 Game received:', msg);
 
     switch (msg.type) {
       case 'params':
@@ -826,7 +882,7 @@
             serviceRemaining = totalServiceTime;
           }
         }
-        statusMsg.textContent = `📡 Params updated: min ${params.spawnMin}s, max ${params.spawnMax}s, prep ${params.prepTime}s`;
+        statusMsg.textContent = `📡 Params updated`;
         statusMsg.className = 'status-msg';
         updateServiceClock();
         break;
@@ -852,6 +908,10 @@
         } catch(e) {}
         break;
 
+      case 'esp-status':
+        // Just forward to dashboard
+        break;
+
       default:
         console.log('📨 unknown message:', msg);
     }
@@ -870,16 +930,14 @@
     controllerStatus.textContent = '⏸ loading...';
     manualStartBtn.disabled = true;
     
-    // Load recipes from database
     await loadRecipesFromDB();
     
-    // If recipes loaded successfully, enable start button
     if (recipesLoaded && recipes.length > 0) {
       manualStartBtn.disabled = false;
       controllerStatus.textContent = '⏸ ready';
     }
     
-    // Broadcast that game is ready
+    // Notify dashboard
     try {
       channel.postMessage({ type: 'game-ready' });
     } catch(e) {}
@@ -887,7 +945,6 @@
     console.log('🎮 Ticket Rail Game ready.');
   }
 
-  // Start the initialization
   init();
 </script>
 </body>

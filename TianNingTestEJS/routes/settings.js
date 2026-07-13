@@ -8,11 +8,11 @@ router.get('/', (req, res, next) => {
     res.render("settings.ejs", {title: "Settings"});
 });
 
-// Load the ESP32 setup page and table.
+// ─── LOAD ESP32 SETUP PAGE ──────────────────────────────────────
 router.get("/esp32", (req, res, next) => {
-    const sqlDevices     = `SELECT * FROM ESP32Devices ORDER BY last_seen DESC`;
+    const sqlDevices = `SELECT * FROM ESP32Devices WHERE device_type IN ('tagger', 'counter') OR device_type IS NULL ORDER BY last_seen DESC`;
     const sqlIngredients = `SELECT * FROM ingredients ORDER BY ingredients_name`;
-    const sqlStations    = `SELECT * FROM station ORDER BY station_name`;
+    const sqlStations = `SELECT * FROM station ORDER BY station_name`;
 
     global.db.all(sqlDevices, [], (err, devices) => {
         if (err) return next(err);
@@ -23,22 +23,174 @@ router.get("/esp32", (req, res, next) => {
             global.db.all(sqlStations, [], (err, stations) => {
                 if (err) return next(err);
 
-                res.render("esp32setup.ejs", {
-                    title: "ESP32 Setup",
-                    devices,
-                    ingredients,
-                    stations
+                // Get tag assignments with ingredient names
+                const sqlAssignments = `
+                    SELECT et.tag_id, et.device_id, et.ingredients_id, et.current_status,
+                           ed.device_mac, i.ingredients_name
+                    FROM ESP32Tags et
+                    JOIN ESP32Devices ed ON et.device_id = ed.device_id
+                    JOIN ingredients i ON et.ingredients_id = i.ingredients_id
+                    ORDER BY et.tag_id DESC
+                `;
+
+                global.db.all(sqlAssignments, [], (err, tagAssignments) => {
+                    if (err) return next(err);
+
+                    res.render("esp32setup.ejs", {
+                        title: "ESP32 Setup",
+                        devices,
+                        ingredients,
+                        stations,
+                        tagAssignments: tagAssignments || []
+                    });
                 });
             });
         });
     });
 });
 
-
-router.post("/esp32/update", (req, res, next)=> {
-    console.log(req.body);
-    res.render("updateesp.ejs", {title: "Update EJS"});
+// ─── UPDATE ESP32 DEVICE ──────────────────────────────────────
+router.post("/esp32/update", (req, res, next) => {
+    const { esp32_id, device_mac, ip_address, device_type } = req.body;
+    
+    if (!esp32_id || !device_mac) {
+        return res.status(400).send("Device ID and MAC address are required");
+    }
+    
+    global.db.get(
+        `SELECT * FROM ESP32Devices WHERE esp32_id = ?`,
+        [esp32_id],
+        (err, device) => {
+            if (err) return next(err);
+            if (!device) return res.status(404).send("Device not found");
+            
+            global.db.run(
+                `UPDATE ESP32Devices 
+                 SET device_mac = ?, 
+                     ip_address = ?, 
+                     device_type = ?
+                 WHERE esp32_id = ?`,
+                [device_mac, ip_address || null, device_type || null, esp32_id],
+                function(err) {
+                    if (err) return next(err);
+                    console.log(`[UPDATE] Device ${esp32_id} updated successfully`);
+                    res.redirect("/settings/esp32");
+                }
+            );
+        }
+    );
 });
+
+// ─── ASSIGN TAG TO INGREDIENT ──────────────────────────────────
+router.post("/esp32/assign-tag", (req, res, next) => {
+    const { device_mac, ingredients_id } = req.body;
+
+    if (!device_mac || !ingredients_id) {
+        return res.status(400).send("MAC address and ingredient are required");
+    }
+
+    // Check if the tag device exists (it should be in ESP32Devices as a passive tag)
+    global.db.get(
+        `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
+        [device_mac],
+        (err, device) => {
+            if (err) return next(err);
+            if (!device) {
+                return res.status(404).send("Tag MAC not found. Please register the tag first.");
+            }
+
+            // Check if this tag is already assigned
+            global.db.get(
+                `SELECT tag_id FROM ESP32Tags WHERE device_id = ?`,
+                [device.device_id],
+                (err, existing) => {
+                    if (err) return next(err);
+                    if (existing) {
+                        // Update existing assignment
+                        global.db.run(
+                            `UPDATE ESP32Tags 
+                             SET ingredients_id = ?, current_status = 'Default'
+                             WHERE device_id = ?`,
+                            [ingredients_id, device.device_id],
+                            function(err) {
+                                if (err) return next(err);
+                                console.log(`[ASSIGN-TAG] Updated: ${device_mac} → ingredient ${ingredients_id}`);
+                                res.redirect("/settings/esp32");
+                            }
+                        );
+                    } else {
+                        // Create new assignment
+                        global.db.run(
+                            `INSERT INTO ESP32Tags (device_id, ingredients_id, current_status)
+                             VALUES (?, ?, 'Default')`,
+                            [device.device_id, ingredients_id],
+                            function(err) {
+                                if (err) return next(err);
+                                console.log(`[ASSIGN-TAG] Created: ${device_mac} → ingredient ${ingredients_id}`);
+                                res.redirect("/settings/esp32");
+                            }
+                        );
+                    }
+                }
+            );
+        }
+    );
+});
+
+// ─── UPDATE TAG ASSIGNMENT ─────────────────────────────────────
+router.post("/esp32/update-tag-assignment", (req, res, next) => {
+    const { tag_id, device_mac, ingredients_id } = req.body;
+    
+    if (!tag_id || !device_mac || !ingredients_id) {
+        return res.status(400).send("Missing required fields");
+    }
+    
+    // Get the device_id from the MAC
+    global.db.get(
+        `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
+        [device_mac],
+        (err, device) => {
+            if (err) return next(err);
+            if (!device) {
+                return res.status(404).send("Device MAC not found. Register it first.");
+            }
+            
+            // Update the assignment
+            global.db.run(
+                `UPDATE ESP32Tags 
+                 SET device_id = ?, ingredients_id = ?
+                 WHERE tag_id = ?`,
+                [device.device_id, ingredients_id, tag_id],
+                function(err) {
+                    if (err) return next(err);
+                    console.log(`[UPDATE-TAG-ASSIGNMENT] Updated assignment ${tag_id}`);
+                    res.redirect("/settings/esp32");
+                }
+            );
+        }
+    );
+});
+
+// ─── DELETE TAG ASSIGNMENT ─────────────────────────────────────
+router.post("/esp32/delete-tag-assignment", (req, res, next) => {
+    const { tag_id } = req.body;
+    
+    if (!tag_id) {
+        return res.status(400).json({ error: "Missing tag_id" });
+    }
+    
+    global.db.run(
+        `DELETE FROM ESP32Tags WHERE tag_id = ?`,
+        [tag_id],
+        function(err) {
+            if (err) return next(err);
+            console.log(`[DELETE-TAG-ASSIGNMENT] Deleted assignment ${tag_id}`);
+            res.json({ success: true, message: "Assignment deleted successfully" });
+        }
+    );
+});
+
+// ─── RECIPE MANAGEMENT ─────────────────────────────────────────
 
 // Main Recipe page
 router.get("/recipe", (req, res, next) => {
@@ -53,9 +205,7 @@ router.get("/recipe", (req, res, next) => {
             console.error(err);
             return res.status(500).send("Database error");
         }
-        // console.log(foods);
-        res.render('mainrecipe.ejs', 
-        {
+        res.render('mainrecipe.ejs', {
             title: 'Recipe Management',
             foods: foods
         });
@@ -67,7 +217,7 @@ router.get("/recipe/addrecipe", (req, res, next) => {
     const sqlIngredients = `SELECT * FROM ingredients ORDER BY ingredients_name`;
     const sqlStatuses = `SELECT * FROM ingredientstatus ORDER BY ingredientstatus_name`;
     const sqlMethods = `SELECT * FROM preparation_method ORDER BY preparation_method_name`;
-    const sqlFoods = `SELECT food_id, food_name FROM food ORDER BY food_id DESC`;
+    
     global.db.all(sqlIngredients, [], (err, ingredients) => {
         if (err) {
             console.log(err);
@@ -95,14 +245,7 @@ router.get("/recipe/addrecipe", (req, res, next) => {
 router.post("/recipe/addrecipe", (req, res, next) => {
     const { food_name, ingredients } = req.body;
     console.log(req.body);
-    // ingredients is expected to be an array of objects
-    // each object should look like:
-    // {
-    //   ingredients_id: "1",
-    //   required_amount: "1",
-    //   preparation_steps: ["1", "3"]
-    // }
-
+    
     if (!food_name || !ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
         return res.status(400).send("Invalid recipe data.");
     }
@@ -115,17 +258,16 @@ router.post("/recipe/addrecipe", (req, res, next) => {
             [food_name],
             function (err) {
                 if (err) {
-                    db.run("ROLLBACK");
+                    global.db.run("ROLLBACK");
                     return next(err);
                 }
 
                 const foodId = this.lastID;
-
                 let ingredientIndex = 0;
 
                 function insertNextIngredient() {
                     if (ingredientIndex >= ingredients.length) {
-                        db.run("COMMIT", (err) => {
+                        global.db.run("COMMIT", (err) => {
                             if (err) return next(err);
                             res.redirect("/settings/recipe");
                         });
@@ -145,7 +287,7 @@ router.post("/recipe/addrecipe", (req, res, next) => {
                         ],
                         function (err) {
                             if (err) {
-                                db.run("ROLLBACK");
+                                global.db.run("ROLLBACK");
                                 return next(err);
                             }
 
@@ -175,7 +317,7 @@ router.post("/recipe/addrecipe", (req, res, next) => {
                                     ],
                                     (err) => {
                                         if (err) {
-                                            db.run("ROLLBACK");
+                                            global.db.run("ROLLBACK");
                                             return next(err);
                                         }
 
@@ -286,7 +428,6 @@ router.post("/recipe/:id/edit", (req, res) => {
     global.db.serialize(() => {
         global.db.run("BEGIN TRANSACTION");
 
-        // 1. Update food name
         global.db.run(
             `
             UPDATE food
@@ -301,9 +442,6 @@ router.post("/recipe/:id/edit", (req, res) => {
                     return res.status(500).send("Error updating food");
                 }
 
-                // 2. Delete old ingredient rows
-                // food_ingredient_preparation should delete automatically
-                // if ON DELETE CASCADE is set correctly
                 global.db.run(
                     `
                     DELETE FROM food_ingredients
@@ -317,7 +455,6 @@ router.post("/recipe/:id/edit", (req, res) => {
                             return res.status(500).send("Error deleting old ingredients");
                         }
 
-                        // 3. Insert updated ingredients
                         let ingredientIndex = 0;
 
                         function insertNextIngredient() {
@@ -328,7 +465,6 @@ router.post("/recipe/:id/edit", (req, res) => {
 
                             const ingredient = ingredients[ingredientIndex];
 
-                            // skip empty ingredient rows
                             if (!ingredient.ingredients_id) {
                                 ingredientIndex++;
                                 return insertNextIngredient();
@@ -412,10 +548,3 @@ router.post("/recipe/:id/edit", (req, res) => {
 });
 
 module.exports = router;
-// Communications to Database HERE
-
-/* router.post('/recipe',(req, res, next)) => {
-    
-    }; */
-
-
