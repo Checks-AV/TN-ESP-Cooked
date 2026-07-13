@@ -154,8 +154,11 @@ INSERT INTO station('station_name') VALUES ('Counter');
 INSERT INTO station('station_name') VALUES ('Toaster');
 
 /* Insert your food here */
-INSERT INTO food('food_name') VALUES ('Chicken Sandwich');
-INSERT INTO food('food_name') VALUES ('Fish Sushi');
+INSERT INTO food('food_name') VALUES ('Fried rice');
+INSERT INTO food('food_name') VALUES ('Sushi');
+INSERT INTO food('food_name') VALUES ('Western');
+INSERT INTO food('food_name') VALUES ('Curry chicken rice');
+INSERT INTO food('food_name') VALUES ('Fish soup rice');
 
 /* Insert your ingredients here */
 INSERT INTO ingredients('ingredients_name') VALUES ('Chicken'); --1
@@ -166,6 +169,10 @@ INSERT INTO ingredients('ingredients_name') VALUES ('Bread'); --5
 INSERT INTO ingredients('ingredients_name') VALUES ('Rice'); --6 
 INSERT INTO ingredients('ingredients_name') VALUES ('Cabbage'); --7 
 INSERT INTO ingredients('ingredients_name') VALUES ('Fish'); --8
+INSERT INTO ingredients('ingredients_name') VALUES ('Seaweed'); --9
+INSERT INTO ingredients('ingredients_name') VALUES ('Egg'); --10
+INSERT INTO ingredients('ingredients_name') VALUES ('Mushroom'); --11
+INSERT INTO ingredients('ingredients_name') VALUES ('Potato'); --12
 
 /* Insert your INGREDIENT statuses here! */
 INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Default'); --1 

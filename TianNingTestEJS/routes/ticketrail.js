@@ -345,7 +345,7 @@ function executeAction(ordersId, tagId, tagMac, actionName, res) {
 }
 
 // ============================================
-// VIEW ROUTES
+// VIEW ROUTES - UPDATED
 // ============================================
 
 router.get('/game', (req, res) => {
@@ -355,7 +355,8 @@ router.get('/game', (req, res) => {
     });
 });
 
-router.get('/gamesettings', (req, res) => {
+// CHANGED: This route now matches your HTML href="/game/settings"
+router.get('/game/settings', (req, res) => {
     console.log('⚙️ Rendering game settings page');
     res.render('gamesettings', {
         title: 'Ticket Rail - Controls'
