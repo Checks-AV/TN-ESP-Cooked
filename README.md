@@ -49,3 +49,22 @@ curl http://localhost:3000/api/ingredients
 
 # Get stations
 curl http://localhost:3000/api/stations
+
+
+{
+  type: 'esp-order',
+  payload: {
+    order_number: "01",
+    device_mac: "AA:BB:CC:DD:EE:FF",
+    tag_macs: ["11:22:33:44:55:66", "77:88:99:AA:BB:CC", "DD:EE:FF:00:11:22"]
+  }
+}
+{
+  type: 'esp-order',
+  payload: {
+    order_number: "01",
+    device_mac: "AA:BB:CC:DD:EE:FF",
+    device_type: "counter",  // Required for validation
+    tag_macs: ["11:22:33:44:55:66", "77:88:99:AA:BB:CC", "DD:EE:FF:00:11:22"]
+  }
+}

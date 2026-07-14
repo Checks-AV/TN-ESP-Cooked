@@ -388,8 +388,7 @@
 
 <script>
   /* =========================================================
-     TICKET RAIL — GAME PAGE (Display Only)
-     Server handles all ESP listening and validation
+     TICKET RAIL — GAME PAGE (Full ESP Order Validation)
      ========================================================= */
 
   // ----- state -----
@@ -583,7 +582,7 @@
           <div class="heat-gauge"><div class="heat-fill"></div></div>
         </div>
         <div class="ticket-foot">
-          <span class="status-text waiting">⏳ Waiting for Counter ESP...</span>
+          <span class="status-text waiting">⏳ Waiting for ESP32...</span>
         </div>
       </div>
     `;
@@ -640,29 +639,76 @@
   }
 
   // ============================================
-  // PROCESS ORDER COMPLETE FROM SERVER
+  // PROCESS ESP32 ORDER MESSAGE
   // ============================================
   
-  function processOrderComplete(orderNumber, result) {
+  async function processESPOrder(orderNumber, tagMacs) {
     // Find the order
     const order = activeOrders.find(o => o.orderNo === orderNumber);
     if (!order) {
       console.warn(`Order ${orderNumber} not found`);
+      showToast(`Order ${orderNumber} not found`, 'bad');
       return;
     }
     
     if (order.completed || order.missed || order.failed) return;
     
-    // Mark as received and validated
+    // Mark as received
     order.received = true;
-    order.validated = true;
     
-    if (result.success) {
-      // ✅ Order completed!
-      completeOrder(order, result);
-    } else {
-      // ❌ Order failed
-      failOrder(order, result);
+    // Update UI - show validating
+    const badge = order.el.querySelector('.status-badge');
+    badge.textContent = 'Validating';
+    badge.className = 'status-badge validating';
+    
+    const foot = order.el.querySelector('.ticket-foot .status-text');
+    if (foot) {
+      foot.textContent = '🔍 Checking with server...';
+      foot.className = 'status-text validating';
+    }
+    
+    // Send to server for validation
+    try {
+      const response = await fetch('/api/esp/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          order_number: orderNumber.replace('K-', ''), // Send as 2-digit
+          device_mac: tagMacs.device_mac || 'GAME_CLIENT',
+          tag_macs: tagMacs.tags || []
+        })
+      });
+      
+      const result = await response.json();
+      console.log('Validation result:', result);
+      
+      // Send to dashboard
+      try {
+        const channel = new BroadcastChannel('ticket-rail-control');
+        channel.postMessage({
+          type: 'esp-submit',
+          payload: {
+            order_number: orderNumber,
+            device_mac: tagMacs.device_mac || 'GAME_CLIENT',
+            result: result.success ? 'PASS' : 'FAIL'
+          }
+        });
+      } catch(e) {}
+      
+      if (result.success) {
+        // ✅ Order completed!
+        completeOrder(order, result);
+      } else {
+        // ❌ Order failed
+        failOrder(order, result);
+      }
+      
+    } catch (error) {
+      console.error('Error validating order:', error);
+      showToast('❌ Server error', 'bad');
+      failOrder(order, { message: 'Server error: ' + error.message });
     }
   }
 
@@ -673,6 +719,7 @@
   function completeOrder(order, result) {
     if (order.missed || order.completed || order.failed) return;
     order.completed = true;
+    order.validated = true;
     
     const now = Date.now();
     const remainingMs = Math.max(0, order.endsAt - now);
@@ -736,6 +783,7 @@
   function failOrder(order, result) {
     if (order.missed || order.completed || order.failed) return;
     order.failed = true;
+    order.validated = true;
     failed += 1;
     
     const badge = order.el.querySelector('.status-badge');
@@ -938,7 +986,7 @@
     running = true;
     paused = false;
     emptyMsg.style.display = 'none';
-    statusMsg.textContent = '🟢 Service running — Counter ESPs are submitting orders!';
+    statusMsg.textContent = '🟢 Service running — ESP32s are preparing orders!';
     statusMsg.className = 'status-msg success';
     controllerStatus.textContent = '▶ running';
     manualStartBtn.disabled = true;
@@ -1049,7 +1097,7 @@
   }
 
   // ============================================
-  // BROADCAST CHANNEL - Listen for Server Updates
+  // BROADCAST CHANNEL
   // ============================================
   
   const channel = new BroadcastChannel('ticket-rail-control');
@@ -1093,12 +1141,22 @@
         } catch(e) {}
         break;
 
-      case 'esp-order-complete':
-        // Server sends order completion result
+      case 'esp-order':
+        // ESP sends: { order_number: "01", tag_macs: ["AA:BB:CC:DD:EE:FF", ...] }
         const payload = msg.payload;
-        if (payload.order_number) {
-          console.log(`📨 Order complete: ${payload.order_number}`, payload.success ? '✅' : '❌');
-          processOrderComplete(payload.order_number, payload);
+        if (payload.order_number && payload.tag_macs) {
+          // Format order number
+          const orderNumber = payload.order_number.startsWith('K-') 
+            ? payload.order_number 
+            : 'K-' + String(payload.order_number).padStart(3, '0');
+          
+          console.log(`📨 ESP Order: ${orderNumber}, Tags: ${payload.tag_macs.join(', ')}`);
+          
+          // Process the order
+          processESPOrder(orderNumber, {
+            device_mac: payload.device_mac || 'GAME_CLIENT',
+            tags: payload.tag_macs
+          });
         }
         break;
 
@@ -1137,7 +1195,7 @@
       channel.postMessage({ type: 'game-ready' });
     } catch(e) {}
     
-    console.log('🎮 Ticket Rail Game ready. Waiting for Counter ESP orders...');
+    console.log('🎮 Ticket Rail Game ready.');
   }
 
   init();

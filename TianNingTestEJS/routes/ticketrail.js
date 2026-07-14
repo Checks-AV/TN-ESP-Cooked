@@ -11,14 +11,39 @@ console.log('📦 Loading ticketrail routes...');
 // ============================================
 
 // Use the existing global.db connection from app.js
-// This avoids creating a new connection
+
+// ============================================
+// HELPER: Logging function
+// ============================================
+
+function logMessage(type, message, data = null) {
+    const timestamp = new Date().toISOString();
+    const logEntry = {
+        timestamp,
+        type,
+        message,
+        data
+    };
+    console.log(`[${timestamp}] [${type}] ${message}`, data || '');
+    
+    // Broadcast to dashboard
+    try {
+        const channel = new BroadcastChannel('ticket-rail-control');
+        channel.postMessage({
+            type: 'server-log',
+            payload: logEntry
+        });
+    } catch(e) {
+        // Ignore broadcast errors
+    }
+}
 
 // ============================================
 // TEST ENDPOINT
 // ============================================
 
 router.get('/api/test', (req, res) => {
-    console.log('✅ /api/test endpoint called');
+    logMessage('info', '✅ /api/test endpoint called');
     res.json({ 
         status: 'ok', 
         message: 'Ticket rail API is working!',
@@ -27,26 +52,24 @@ router.get('/api/test', (req, res) => {
 });
 
 // ============================================
-// RECIPE API ENDPOINTS - FIXED
+// RECIPE API ENDPOINTS
 // ============================================
 
 // Get all recipes from database
 router.get('/api/recipes', (req, res) => {
-    console.log('📡 /api/recipes endpoint called');
+    logMessage('info', '📡 /api/recipes endpoint called');
     
-    // Check if global.db exists
     if (!global.db) {
-        console.error('❌ global.db is not available');
+        logMessage('error', '❌ global.db is not available');
         return res.status(500).json({ 
             error: 'Database not available',
             message: 'The database connection is not initialized.'
         });
     }
     
-    // First, check if the food table exists
     global.db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='food'", (err, tableExists) => {
         if (err) {
-            console.error('Error checking table:', err);
+            logMessage('error', 'Error checking table:', err);
             return res.status(500).json({ 
                 error: 'Database error',
                 details: err.message
@@ -54,14 +77,13 @@ router.get('/api/recipes', (req, res) => {
         }
         
         if (!tableExists) {
-            console.error('❌ "food" table does not exist in database');
+            logMessage('error', '❌ "food" table does not exist in database');
             return res.status(404).json({ 
                 error: 'No recipes found',
                 message: 'The "food" table does not exist in the database.'
             });
         }
         
-        // Get all food items with their ingredients
         const query = `
             SELECT 
                 f.food_id as id,
@@ -76,26 +98,25 @@ router.get('/api/recipes', (req, res) => {
         
         global.db.all(query, (err, rows) => {
             if (err) {
-                console.error('Database query error:', err);
+                logMessage('error', 'Database query error:', err);
                 return res.status(500).json({ 
                     error: 'Database query error', 
                     details: err.message 
                 });
             }
             
-            console.log(`✅ Found ${rows.length} recipes in database`);
+            logMessage('info', `✅ Found ${rows.length} recipes in database`);
             
             if (rows.length === 0) {
+                logMessage('warn', 'No recipes found in database');
                 return res.status(404).json({ 
                     error: 'No recipes found',
                     message: 'The database has no food items. Please add some recipes first.'
                 });
             }
             
-            // Transform to game format
             const recipes = rows.map(row => {
                 const ingredients = row.ingredients_list ? row.ingredients_list.split(', ') : [];
-                // Get preparation methods for each ingredient
                 return {
                     id: row.id,
                     name: row.name,
@@ -105,6 +126,7 @@ router.get('/api/recipes', (req, res) => {
                 };
             });
             
+            logMessage('success', `✅ Returning ${recipes.length} recipes to client`);
             res.json(recipes);
         });
     });
@@ -113,18 +135,20 @@ router.get('/api/recipes', (req, res) => {
 // Get single recipe by ID
 router.get('/api/recipes/:id', (req, res) => {
     const { id } = req.params;
-    console.log(`📡 /api/recipes/${id} endpoint called`);
+    logMessage('info', `📡 /api/recipes/${id} endpoint called`);
     
     if (!global.db) {
+        logMessage('error', '❌ global.db is not available');
         return res.status(500).json({ error: 'Database not available' });
     }
     
     global.db.get('SELECT food_id as id, food_name as name FROM food WHERE food_id = ?', [id], (err, food) => {
         if (err) {
-            console.error('Database error:', err);
+            logMessage('error', 'Database error:', err);
             return res.status(500).json({ error: 'Database error' });
         }
         if (!food) {
+            logMessage('warn', `Recipe ${id} not found`);
             return res.status(404).json({ error: 'Recipe not found' });
         }
         
@@ -140,7 +164,7 @@ router.get('/api/recipes/:id', (req, res) => {
         
         global.db.all(ingredientQuery, [id], (err, ingredientRows) => {
             if (err) {
-                console.error('Error getting ingredients:', err);
+                logMessage('error', 'Error getting ingredients:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
             
@@ -154,6 +178,7 @@ router.get('/api/recipes/:id', (req, res) => {
                 }))
             };
             
+            logMessage('success', `✅ Recipe ${id} (${food.name}) returned`);
             res.json(recipe);
         });
     });
@@ -164,13 +189,13 @@ router.get('/api/recipes/:id', (req, res) => {
 // ============================================
 
 router.get('/api/esp/status', (req, res) => {
-    console.log('📡 /api/esp/status endpoint called');
+    logMessage('info', '📡 /api/esp/status endpoint called');
     
     if (!global.db) {
+        logMessage('error', '❌ global.db is not available');
         return res.json({ online: false, error: 'Database not available' });
     }
     
-    // Check if any ESP32 devices are registered and recently seen
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
     global.db.get(
@@ -180,10 +205,12 @@ router.get('/api/esp/status', (req, res) => {
         [fiveMinutesAgo],
         (err, row) => {
             if (err) {
-                console.error('Error checking ESP status:', err);
+                logMessage('error', 'Error checking ESP status:', err);
                 return res.json({ online: false });
             }
-            res.json({ online: !!row });
+            const online = !!row;
+            logMessage('info', `ESP status: ${online ? 'Online ✅' : 'Offline ❌'}`);
+            res.json({ online: online });
         }
     );
 });
@@ -193,56 +220,127 @@ router.get('/api/esp/status', (req, res) => {
 // ============================================
 
 router.post('/api/esp/submit', (req, res) => {
-    console.log('📡 /api/esp/submit endpoint called (COUNTER ESP)');
-    const { order_number, device_mac } = req.body;
+    const { order_number, device_mac, tag_macs } = req.body;
     
+    logMessage('esp', '📡 /api/esp/submit endpoint called (COUNTER ESP)', {
+        order_number,
+        device_mac: device_mac || 'GAME_CLIENT',
+        tag_count: tag_macs ? tag_macs.length : 0,
+        tags: tag_macs || []
+    });
+    
+    // Validate required fields
     if (!order_number) {
+        logMessage('error', '❌ Missing order_number');
         return res.status(400).json({ 
             error: 'Missing order_number',
             message: 'order_number is required'
         });
     }
     
+    if (!tag_macs || !Array.isArray(tag_macs)) {
+        logMessage('error', '❌ Missing tag_macs or not an array');
+        return res.status(400).json({ 
+            error: 'Missing tag_macs',
+            message: 'tag_macs array is required'
+        });
+    }
+    
+    if (tag_macs.length === 0) {
+        logMessage('error', '❌ Empty tag_macs array');
+        return res.status(400).json({ 
+            error: 'Empty tag_macs',
+            message: 'At least one tag MAC is required'
+        });
+    }
+    
     console.log(`📝 Processing submission: Order ${order_number} from device ${device_mac || 'GAME_CLIENT'}`);
+    console.log(`📋 Tags received: ${tag_macs.join(', ')}`);
     
     if (!global.db) {
+        logMessage('error', '❌ global.db is not available');
         return res.status(500).json({ 
             error: 'Database not available',
             message: 'The database connection is not initialized.'
         });
     }
     
-    // STEP 1: Find the pending order
+    // STEP 1: If device_mac is provided, verify it's a counter ESP
+    if (device_mac) {
+        logMessage('info', `🔍 Verifying device: ${device_mac}`);
+        global.db.get(
+            `SELECT device_id, device_type FROM ESP32Devices WHERE device_mac = ?`,
+            [device_mac],
+            (err, device) => {
+                if (err) {
+                    logMessage('error', 'Error finding device:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                if (!device) {
+                    logMessage('error', `⚠️ Device ${device_mac} not found`);
+                    return res.status(404).json({ 
+                        error: 'Device not found',
+                        message: 'This ESP32 is not registered.'
+                    });
+                }
+                if (device.device_type !== 'counter') {
+                    logMessage('error', `⚠️ Device ${device_mac} is type ${device.device_type}, not counter`);
+                    return res.status(403).json({ 
+                        error: 'Invalid device type',
+                        message: 'Only counter ESPs can submit orders'
+                    });
+                }
+                logMessage('success', `✅ Device ${device_mac} verified as counter`);
+                // Device is valid, proceed to find order
+                findOrderAndValidate(order_number, tag_macs, res);
+            }
+        );
+    } else {
+        // No device_mac provided - allow for game client testing
+        logMessage('warn', '⚠️ No device_mac provided - allowing game client submission');
+        findOrderAndValidate(order_number, tag_macs, res);
+    }
+});
+
+// ============================================
+// INTERNAL: Find Order and Validate
+// ============================================
+
+function findOrderAndValidate(order_number, tag_macs, res) {
+    // Format order number if needed (K-001 format)
+    const formattedOrder = order_number.startsWith('K-') ? order_number : 'K-' + String(order_number).padStart(3, '0');
+    logMessage('info', `🔍 Looking for order: ${formattedOrder}`);
+    
+    // STEP 2: Find the pending order
     global.db.get(
         `SELECT o.orders_id, o.food_id, f.food_name
          FROM Orders o
          JOIN food f ON o.food_id = f.food_id
          WHERE o.order_number = ? AND o.order_status = 'pending'`,
-        [order_number],
+        [formattedOrder],
         (err, order) => {
             if (err) {
-                console.error('Error finding order:', err);
+                logMessage('error', 'Error finding order:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
             if (!order) {
-                console.log(`⚠️ Order ${order_number} not found or not pending`);
+                logMessage('error', `⚠️ Order ${formattedOrder} not found or not pending`);
                 return res.status(404).json({ 
                     error: 'Order not found',
                     message: 'Order number not found or already submitted'
                 });
             }
             
-            console.log(`📋 Found order: ${order_number} (${order.food_name})`);
+            logMessage('success', `📋 Found order: ${formattedOrder} (${order.food_name})`);
+            logMessage('info', `📋 Tags received: ${tag_macs.join(', ')}`);
             
-            // STEP 2: Get all required ingredients with their preparation methods
-            // AND get the current_status from ESP32Tags
+            // STEP 3: Get all required ingredients with their preparation methods and tag assignments
             const recipeSql = `
                 SELECT 
                     i.ingredients_id,
                     i.ingredients_name,
                     pm.preparation_method_name AS required_action,
                     ed.device_mac AS tag_mac,
-                    et.tag_id,
                     et.current_status
                 FROM food_ingredients fi
                 JOIN ingredients i ON fi.ingredients_id = i.ingredients_id
@@ -256,37 +354,42 @@ router.post('/api/esp/submit', (req, res) => {
             
             global.db.all(recipeSql, [order.food_id], (err, recipe) => {
                 if (err) {
-                    console.error('Error getting recipe:', err);
+                    logMessage('error', 'Error getting recipe:', err);
                     return res.status(500).json({ error: 'Database error' });
                 }
                 
                 if (recipe.length === 0) {
+                    logMessage('error', `❌ Recipe for ${order.food_name} has no ingredients defined`);
                     return res.status(400).json({ 
                         error: 'Invalid recipe',
                         message: 'This food has no ingredients defined'
                     });
                 }
                 
-                console.log(`📋 Recipe requires ${recipe.length} ingredients`);
+                logMessage('info', `📋 Recipe requires ${recipe.length} ingredients`);
                 
-                // STEP 3: Check each ingredient's current_status against required action
+                // STEP 4: Check each ingredient against the ESP tag_macs
                 const results = [];
                 let allPass = true;
+                let missingTags = [];
+                let wrongStatus = [];
                 
                 // Check if any ingredients have tags assigned
                 const hasAnyTag = recipe.some(ing => ing.tag_mac !== null);
                 if (!hasAnyTag) {
-                    console.log(`❌ No tags assigned to any ingredients`);
+                    logMessage('error', '❌ No tags assigned to any ingredients');
                     return res.status(400).json({
                         error: 'No tags assigned',
-                        message: 'None of the ingredients have tags assigned. Please assign tags first.'
+                        message: 'None of the ingredients have tags assigned.'
                     });
                 }
                 
-                // Build the expected status chain for each ingredient
+                // Build expected status map for each ingredient
                 const expectedStatusMap = {};
+                const ingredientTagMap = {};
                 
                 recipe.forEach((ing) => {
+                    ingredientTagMap[ing.ingredients_name] = ing.tag_mac;
                     if (!expectedStatusMap[ing.ingredients_id]) {
                         expectedStatusMap[ing.ingredients_id] = {
                             name: ing.ingredients_name,
@@ -298,9 +401,18 @@ router.post('/api/esp/submit', (req, res) => {
                     expectedStatusMap[ing.ingredients_id].required_actions.push(ing.required_action);
                 });
                 
-                // Now check each ingredient
+                // Log ingredient requirements
                 Object.values(expectedStatusMap).forEach((ing) => {
-                    // Build the expected full status chain
+                    let expectedStatus = 'Default';
+                    ing.required_actions.forEach(action => {
+                        expectedStatus += ' → ' + action;
+                    });
+                    logMessage('info', `📋 ${ing.name}: requires tag ${ing.tag_mac || 'NOT ASSIGNED'}, expected status: ${expectedStatus}`);
+                });
+                
+                // Check each ingredient
+                Object.values(expectedStatusMap).forEach((ing) => {
+                    // Build expected status chain
                     let expectedStatus = 'Default';
                     ing.required_actions.forEach(action => {
                         expectedStatus += ' → ' + action;
@@ -311,7 +423,18 @@ router.post('/api/esp/submit', (req, res) => {
                     // Check if the actual status matches the expected status exactly
                     const pass = actualStatus === expectedStatus;
                     
-                    if (!pass) allPass = false;
+                    if (!pass) {
+                        allPass = false;
+                        if (ing.tag_mac === null) {
+                            missingTags.push(ing.name);
+                        } else {
+                            wrongStatus.push({
+                                ingredient: ing.name,
+                                expected: expectedStatus,
+                                got: actualStatus
+                            });
+                        }
+                    }
                     
                     results.push({
                         ingredient: ing.name,
@@ -320,36 +443,125 @@ router.post('/api/esp/submit', (req, res) => {
                         pass: pass
                     });
                     
-                    console.log(`  ${ing.name}: expected "${expectedStatus}", got "${actualStatus}" → ${pass ? '✅' : '❌'}`);
+                    logMessage('match', `${ing.name}: expected "${expectedStatus}", got "${actualStatus}" → ${pass ? '✅' : '❌'}`);
                 });
                 
-                // STEP 4: Finalise the order
+                // Check for extra tags that don't belong
+                const extraTags = tag_macs.filter(mac => 
+                    !recipe.some(r => r.tag_mac === mac)
+                );
+                
+                if (extraTags.length > 0) {
+                    allPass = false;
+                    results.push({
+                        ingredient: 'Extra tags',
+                        required_chain: 'None',
+                        got: extraTags.join(', '),
+                        pass: false,
+                        reason: 'Extra tags scanned'
+                    });
+                    logMessage('error', `❌ Extra tags scanned: ${extraTags.join(', ')}`);
+                }
+                
+                // Check for missing required tags
+                const requiredTagMacs = recipe.map(r => r.tag_mac).filter(mac => mac !== null);
+                const missingRequiredTags = requiredTagMacs.filter(mac => !tag_macs.includes(mac));
+                if (missingRequiredTags.length > 0) {
+                    logMessage('error', `❌ Missing required tags: ${missingRequiredTags.join(', ')}`);
+                }
+                
+                // Broadcast match checks to dashboard
+                try {
+                    const channel = new BroadcastChannel('ticket-rail-control');
+                    results.forEach(r => {
+                        channel.postMessage({
+                            type: 'esp-match-check',
+                            payload: {
+                                order_number: formattedOrder,
+                                ingredient: r.ingredient,
+                                expected: r.required_chain,
+                                got: r.got || 'null',
+                                pass: r.pass
+                            }
+                        });
+                    });
+                } catch(e) {
+                    logMessage('error', 'Failed to broadcast match checks:', e);
+                }
+                
+                // Log summary
+                logMessage('info', `📊 Validation summary: ${allPass ? 'ALL PASS ✅' : 'FAILED ❌'}`);
+                if (missingTags.length > 0) {
+                    logMessage('error', `  Missing tags: ${missingTags.join(', ')}`);
+                }
+                if (wrongStatus.length > 0) {
+                    logMessage('error', `  Wrong status: ${wrongStatus.map(w => `${w.ingredient} (expected: ${w.expected}, got: ${w.got})`).join('; ')}`);
+                }
+                if (extraTags.length > 0) {
+                    logMessage('error', `  Extra tags: ${extraTags.join(', ')}`);
+                }
+                
+                // STEP 5: Finalise the order
                 if (allPass) {
                     // ✅ ALL PASS - Complete the order
+                    logMessage('success', `✅ Order ${formattedOrder} PASSED validation`);
                     global.db.run(
                         `UPDATE Orders SET order_status = 'completed' WHERE orders_id = ?`,
                         [order.orders_id],
                         (err) => {
                             if (err) {
-                                console.error('Error updating order:', err);
+                                logMessage('error', 'Error updating order:', err);
                                 return res.status(500).json({ error: 'Database error' });
                             }
                             
-                            // STEP 5: Clear ALL tag current_status to 'Default'
+                            // STEP 6: Clear ALL tag current_status to 'Default'
                             global.db.run(
                                 `UPDATE ESP32Tags SET current_status = 'Default'`,
                                 (err) => {
                                     if (err) {
-                                        console.error('Error clearing tag statuses:', err);
+                                        logMessage('error', 'Error clearing tag statuses:', err);
                                         return res.status(500).json({ error: 'Database error' });
                                     }
                                     
-                                    console.log(`✅ Order ${order_number} COMPLETED - All tags reset to Default`);
+                                    logMessage('success', `✅ Order ${formattedOrder} COMPLETED - All tags reset to Default`);
+                                    
+                                    // Broadcast to dashboard
+                                    try {
+                                        const channel = new BroadcastChannel('ticket-rail-control');
+                                        channel.postMessage({
+                                            type: 'esp-submit-result',
+                                            payload: {
+                                                success: true,
+                                                result: 'PASS',
+                                                order_number: formattedOrder,
+                                                food: order.food_name,
+                                                score_earned: 100,
+                                                details: results
+                                            }
+                                        });
+                                    } catch(e) {
+                                        logMessage('error', 'Failed to broadcast to dashboard:', e);
+                                    }
+                                    
+                                    // Broadcast to game
+                                    try {
+                                        const gameChannel = new BroadcastChannel('ticket-rail-control');
+                                        gameChannel.postMessage({
+                                            type: 'esp-order-complete',
+                                            payload: {
+                                                order_number: formattedOrder,
+                                                success: true,
+                                                details: results
+                                            }
+                                        });
+                                    } catch(e) {
+                                        logMessage('error', 'Failed to broadcast to game:', e);
+                                    }
                                     
                                     res.json({
                                         success: true,
                                         result: 'PASS',
-                                        order_number: order_number,
+                                        order_number: formattedOrder,
                                         food: order.food_name,
                                         message: '✅ Order completed successfully! All tags have been reset.',
                                         details: results
@@ -360,21 +572,54 @@ router.post('/api/esp/submit', (req, res) => {
                     );
                 } else {
                     // ❌ FAIL - Order failed
+                    logMessage('error', `❌ Order ${formattedOrder} FAILED validation`);
                     global.db.run(
                         `UPDATE Orders SET order_status = 'failed' WHERE orders_id = ?`,
                         [order.orders_id],
                         (err) => {
                             if (err) {
-                                console.error('Error updating order:', err);
+                                logMessage('error', 'Error updating order:', err);
                                 return res.status(500).json({ error: 'Database error' });
                             }
                             
-                            console.log(`❌ Order ${order_number} FAILED`);
+                            logMessage('error', `❌ Order ${formattedOrder} marked as FAILED`);
+                            
+                            // Broadcast to dashboard
+                            try {
+                                const channel = new BroadcastChannel('ticket-rail-control');
+                                channel.postMessage({
+                                    type: 'esp-submit-result',
+                                    payload: {
+                                        success: false,
+                                        result: 'FAIL',
+                                        order_number: formattedOrder,
+                                        food: order.food_name,
+                                        details: results
+                                    }
+                                });
+                            } catch(e) {
+                                logMessage('error', 'Failed to broadcast to dashboard:', e);
+                            }
+                            
+                            // Broadcast to game
+                            try {
+                                const gameChannel = new BroadcastChannel('ticket-rail-control');
+                                gameChannel.postMessage({
+                                    type: 'esp-order-complete',
+                                    payload: {
+                                        order_number: formattedOrder,
+                                        success: false,
+                                        details: results
+                                    }
+                                });
+                            } catch(e) {
+                                logMessage('error', 'Failed to broadcast to game:', e);
+                            }
                             
                             res.json({
                                 success: false,
                                 result: 'FAIL',
-                                order_number: order_number,
+                                order_number: formattedOrder,
                                 food: order.food_name,
                                 message: '❌ Order validation failed. Check ingredient preparation chains.',
                                 details: results
@@ -385,21 +630,21 @@ router.post('/api/esp/submit', (req, res) => {
             });
         }
     );
-});
+}
 
 // ============================================
 // VIEW ROUTES
 // ============================================
 
 router.get('/game', (req, res) => {
-    console.log('🎮 Rendering game page');
+    logMessage('info', '🎮 Rendering game page');
     res.render('game', {
         title: 'Ticket Rail - Game'
     });
 });
 
 router.get('/game/settings', (req, res) => {
-    console.log('⚙️ Rendering game settings page');
+    logMessage('info', '⚙️ Rendering game settings page');
     res.render('gamesettings', {
         title: 'Ticket Rail - Controls'
     });
@@ -408,62 +653,3 @@ router.get('/game/settings', (req, res) => {
 console.log('✅ Ticketrail routes loaded successfully');
 
 module.exports = router;
-// Add this to your ESP action endpoint
-router.post('/api/esp/action', (req, res) => {
-    console.log('📡 /api/esp/action endpoint called');
-    const { tag_mac, action_name, order_number } = req.body;
-    
-    // ... existing code ...
-    
-    // After recording, broadcast to dashboard
-    try {
-        const channel = new BroadcastChannel('ticket-rail-control');
-        channel.postMessage({
-            type: 'esp-action',
-            payload: {
-                tag_mac: tag_mac,
-                action_name: action_name,
-                tagger_mac: req.body.tagger_mac || 'unknown',
-                order_number: order_number || null
-            }
-        });
-    } catch(e) {}
-});
-
-// Add this to your submit endpoint
-router.post('/api/esp/submit', (req, res) => {
-    // ... existing code ...
-    
-    // During validation, broadcast match checks
-    Object.values(expectedStatusMap).forEach((ing) => {
-        const pass = ing.current_status === expectedStatus;
-        try {
-            const channel = new BroadcastChannel('ticket-rail-control');
-            channel.postMessage({
-                type: 'esp-match-check',
-                payload: {
-                    ingredient: ing.name,
-                    expected: expectedStatus,
-                    got: ing.current_status || 'Default',
-                    pass: pass
-                }
-            });
-        } catch(e) {}
-    });
-    
-    // After completion
-    if (allPass) {
-        try {
-            const channel = new BroadcastChannel('ticket-rail-control');
-            channel.postMessage({
-                type: 'esp-submit-result',
-                payload: {
-                    success: true,
-                    order_number: order_number,
-                    food: order.food_name,
-                    score_earned: 100 // or calculate
-                }
-            });
-        } catch(e) {}
-    }
-});
