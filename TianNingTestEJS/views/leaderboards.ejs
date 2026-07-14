@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/main.css" />
+    <title><%= title%></title>
+    <style>
+        .leaderboard-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .leaderboard-container h1 {
+            font-size: 48px;
+            margin-bottom: 4px;
+            color: #f5f2ea;
+        }
+        .leaderboard-container .subtitle {
+            color: #6b6558;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 10px 24px;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 30px;
+            background: transparent;
+            color: #b5aea0;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.15s;
+        }
+        .tab-btn:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .tab-btn.active {
+            background: #4a9d6e;
+            border-color: #4a9d6e;
+            color: #12241a;
+        }
+
+        .leaderboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255,255,255,0.03);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .leaderboard-table th {
+            background: rgba(255,255,255,0.06);
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #6b6558;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .leaderboard-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 14px;
+            color: #e9e6de;
+        }
+        .leaderboard-table tr:hover td {
+            background: rgba(255,255,255,0.03);
+        }
+        .leaderboard-table .rank {
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .leaderboard-table .rank.gold { color: #ffd700; }
+        .leaderboard-table .rank.silver { color: #c0c0c0; }
+        .leaderboard-table .rank.bronze { color: #cd7f32; }
+
+        .score-highlight {
+            font-weight: 700;
+            color: #4a9d6e;
+            font-size: 18px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b6558;
+            font-family: 'Courier Prime', monospace;
+        }
+
+        .refresh-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 6px;
+            background: #2196F3;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.15s;
+            margin-bottom: 16px;
+        }
+        .refresh-btn:hover {
+            background: #1976D2;
+        }
+
+        .back-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            background: #666;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: 0.15s;
+        }
+        .back-btn:hover {
+            background: #555;
+        }
+
+        .footer-text {
+            color: #6b6558;
+            font-size: 12px;
+            margin-top: 30px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            padding-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="leaderboard-container">
+        <h1>🏆 Leaderboards</h1>
+        <p class="subtitle">Top performers in the kitchen</p>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="score">Top Scores</button>
+                <button class="tab-btn" data-tab="served">Most Served</button>
+                <button class="tab-btn" data-tab="accuracy">Best Accuracy</button>
+            </div>
+            <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+        </div>
+
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>Player</th>
+                    <th>Orders Served</th>
+                    <th>Failed</th>
+                    <th>Score</th>
+                    <th>Accuracy</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboardBody">
+                <tr>
+                    <td colspan="6" class="empty-state">⏳ Loading leaderboard...</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <button class="back-btn" onclick="window.location.href='/'">⬅ Back to Home</button>
+
+        <div class="footer-text">
+            &copy; <%= new Date().getFullYear() %> Ticket Rail — Rankings update in real-time
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'score';
+
+        async function refreshData() {
+            try {
+                const response = await fetch('/api/leaderboard');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderLeaderboard(data.players);
+                } else {
+                    console.error('Error loading leaderboard:', data.error);
+                    document.getElementById('leaderboardBody').innerHTML = `
+                        <tr>
+                            <td colspan="6" class="empty-state">❌ Error loading leaderboard</td>
+                        </tr>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('leaderboardBody').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">❌ Error loading leaderboard</td>
+                    </tr>
+                `;
+            }
+        }
+
+        function renderLeaderboard(players) {
+            const tbody = document.getElementById('leaderboardBody');
+            
+            if (!players || players.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="empty-state">📭 No players yet. Start cooking!</td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Sort based on current tab
+            let sorted = [...players];
+            switch(currentTab) {
+                case 'score':
+                    sorted.sort((a, b) => (b.score || 0) - (a.score || 0));
+                    break;
+                case 'served':
+                    sorted.sort((a, b) => (b.served || 0) - (a.served || 0));
+                    break;
+                case 'accuracy':
+                    sorted.sort((a, b) => {
+                        const accA = (a.served || 0) / Math.max(1, (a.served || 0) + (a.failed || 0));
+                        const accB = (b.served || 0) / Math.max(1, (b.served || 0) + (b.failed || 0));
+                        return accB - accA;
+                    });
+                    break;
+            }
+
+            tbody.innerHTML = sorted.map((player, index) => {
+                const rank = index + 1;
+                let rankClass = '';
+                let rankEmoji = '';
+                if (rank === 1) { rankClass = 'gold'; rankEmoji = '🥇'; }
+                else if (rank === 2) { rankClass = 'silver'; rankEmoji = '🥈'; }
+                else if (rank === 3) { rankClass = 'bronze'; rankEmoji = '🥉'; }
+                
+                const accuracy = ((player.served || 0) / Math.max(1, (player.served || 0) + (player.failed || 0)) * 100).toFixed(1);
+
+                return `
+                    <tr>
+                        <td><span class="rank ${rankClass}">${rankEmoji || '#' + rank}</span></td>
+                        <td><strong>${player.name || 'Player ' + rank}</strong></td>
+                        <td>${player.served || 0}</td>
+                        <td style="color: #d9463c;">${player.failed || 0}</td>
+                        <td><span class="score-highlight">${player.score || 0}</span></td>
+                        <td>${accuracy}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentTab = this.dataset.tab;
+                refreshData();
+            });
+        });
+
+        // Auto-refresh every 15 seconds
+        let autoRefreshInterval = setInterval(refreshData, 15000);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                clearInterval(autoRefreshInterval);
+            } else {
+                refreshData();
+                autoRefreshInterval = setInterval(refreshData, 15000);
+            }
+        });
+
+        // Initial load
+        refreshData();
+    </script>
+</body>
+</html>

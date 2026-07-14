@@ -10,6 +10,7 @@
   <header>
     <!-- Requirement: Settings Page, to include ESP32 Checking and Recipe Management-->
     <h1>Hello Avan, Display all current Recipes here</h1>
+    
     <!-- Requirement: Redirect to <<Add Recipe Page>> Section-->
     <form action="/settings/recipe/addrecipe" method="GET">
       <button type="submit">Add New Recipe</button>
@@ -53,5 +54,11 @@
             </tbody>
         </table>
     <% } %>
+
+    <!-- Back to Settings Button -->
+    <form action="/settings" method="GET">
+      <button type="submit" style="background: #666; color: white;">Back to Settings</button>
+    </form>
+  </header>
 </body>
 </html>
