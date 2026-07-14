@@ -5,9 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "clean-db-win": "del database.db",
-    "build-db-win": "sqlite3 database.db < db_schema.sql",
-    "ngrok":"ngrok http 4000 --domain=unlit-dander-halt.ngrok-free.dev",
+    "clean-db": "node -e \"const fs=require('fs');if(fs.existsSync('database.db')){fs.unlinkSync('database.db');console.log('🗑️ Database cleaned')}else{console.log('ℹ️ No database to clean')}\"",
+    "build-db": "node routes/rebuild-db.js",
+    "rebuild-db": "npm run clean-db && npm run build-db",
+    "ngrok": "ngrok http 4000 --domain=unlit-dander-halt.ngrok-free.dev",
     "start": "node index.js",
     "dev": "npm run ngrok && npm run start"
   },
