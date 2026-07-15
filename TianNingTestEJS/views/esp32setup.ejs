@@ -21,7 +21,7 @@
             <th>MAC Address</th>
             <th>IP Address</th>
             <th>Last Seen</th>
-            <th>Device Type</th>
+            <th>Station Type</th>
             <th>Actions</th>
         </tr>
     </thead>
@@ -38,9 +38,9 @@
                     <td><%= device.device_mac %></td>
                     <td><%= device.ip_address || 'N/A' %></td>
                     <td><%= device.last_seen || 'Never' %></td>
-                    <td><%= device.device_type || 'Unassigned' %></td>
+                    <td><%= device.station_name || 'Unassigned' %></td>
                     <td>
-                        <button onclick="openEditModal('<%= JSON.stringify(device).replace(/'/g, "\\'") %>')">Edit</button>
+                        <button type="button" onclick='openEditModal(<%- JSON.stringify(device) %>)'>Edit</button>
                     </td>
                 </tr>
             <% }) %>
@@ -52,21 +52,47 @@
 
 <!-- ─── REGISTER A NEW ESP32 ─────────────────────────── -->
 <h2>Register New ESP32</h2>
-<p>Register a <strong>tagger</strong> device (ESP32 scanner) that will be placed at a counter/station.</p>
-<form action="/esp32comms/register" method="POST">
-    <label>MAC Address:</label>
-    <input type="text" name="device_mac" placeholder="AA:BB:CC:DD:EE:FF" required>
 
-    <label>Device Type:</label>
-    <select name="device_type" required>
-        <option value="tagger">Tagger (ESP32 scanner)</option>
-        <option value="counter">Counter (ESP32 display/submit)</option>
+<p>
+    Register an ESP32 scanner and assign it to a station.
+</p>
+
+<form action="/esp32comms/register" method="POST">
+
+    <label>MAC Address:</label>
+    <input
+        type="text"
+        name="device_mac"
+        placeholder="AA:BB:CC:DD:EE:FF"
+        required
+    >
+
+    <label>Station:</label>
+    <select name="station_id" required>
+
+        <option value="">
+            -- Select Station --
+        </option>
+
+        <% stations.forEach(station => { %>
+            <option value="<%= station.station_id %>">
+                <%= station.station_name %>
+            </option>
+        <% }) %>
+
     </select>
 
     <label>IP Address:</label>
-    <input type="text" name="ip_address" placeholder="192.168.1.x">
+    <input
+        type="text"
+        name="ip_address"
+        placeholder="192.168.1.x"
+    >
 
-    <button type="submit">Register</button>
+    <button type="submit">
+        Register
+    </button>
+
 </form>
 
 <hr>
@@ -75,16 +101,23 @@
 <h2>Assign Tag to Ingredient</h2>
 <p>Link a <strong>passive tag</strong> (RFID/NFC chip) to an ingredient. Tags are read by tagger devices.</p>
 <form action="/esp32comms/assign-tag" method="POST">
-    <label>Tag MAC Address:</label>
-    <input type="text" name="device_mac" placeholder="AA:BB:CC:DD:EE:FF" required>
+    <label>RFID Tag:</label>
+
+    <input
+        type="text"
+        name="tag_rfid"
+        placeholder="RFID UID"
+        required
+    >
 
     <label>Ingredient:</label>
+
     <select name="ingredients_id" required>
-        <% if (typeof ingredients !== 'undefined') { %>
-            <% ingredients.forEach(i => { %>
-                <option value="<%= i.ingredients_id %>"><%= i.ingredients_name %></option>
-            <% }) %>
-        <% } %>
+        <% ingredients.forEach(ingredient => { %>
+            <option value="<%= ingredient.ingredients_id %>">
+                <%= ingredient.ingredients_name %>
+            </option>
+        <% }) %>
     </select>
 
     <button type="submit">Assign</button>
@@ -111,11 +144,11 @@
             <% tagAssignments.forEach(assignment => { %>
                 <tr>
                     <td><%= assignment.tag_id %></td>
-                    <td><%= assignment.device_mac %></td>
+                    <td><%= assignment.tag_rfid %></td>
                     <td><%= assignment.ingredients_name %></td>
                     <td><%= assignment.current_status || 'Default' %></td>
                     <td>
-                        <button onclick="editTagAssignment('<%= assignment.tag_id %>', '<%= assignment.device_mac %>', '<%= assignment.ingredients_id %>')">Edit</button>
+                        <button onclick="editTagAssignment('<%= assignment.tag_id %>', '<%= assignment.tag_rfid %>', '<%= assignment.ingredients_id %>')">Edit</button>
                         <button onclick="deleteTagAssignment('<%= assignment.tag_id %>')" style="background:#f44336; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Delete</button>
                     </td>
                 </tr>
@@ -134,12 +167,12 @@
 <div id="editAssignmentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
     <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:30px; border-radius:8px; max-width:500px; width:90%; max-height:90vh; overflow-y:auto;">
         <h2>Edit Tag Assignment</h2>
-        <form id="editAssignmentForm" action="/esp32comms/update-tag-assignment" method="POST">
+        <form id="editAssignmentForm" action="/settings/esp32/update-tag-assignment" method="POST">
             <input type="hidden" id="editAssignmentId" name="tag_id">
             
             <div style="margin-bottom:15px;">
                 <label style="display:block; margin-bottom:5px;">Tag MAC Address:</label>
-                <input type="text" id="editAssignmentMac" name="device_mac" required style="width:100%; padding:8px; box-sizing:border-box;">
+                <input type="text" id="editAssignmentMac" name="tag_rfid" required style="width:100%; padding:8px; box-sizing:border-box;">
             </div>
 
             <div style="margin-bottom:15px;">
@@ -162,42 +195,123 @@
 </div>
 
 <!-- ─── EDIT DEVICE MODAL ─────────────────────────────── -->
+
 <div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
-    <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:30px; border-radius:8px; max-width:500px; width:90%; max-height:90vh; overflow-y:auto;">
-        <h2>Edit ESP32 Device</h2>
-        <form id="editForm" action="/esp32comms/update" method="POST">
-            <input type="hidden" id="editDeviceId" name="esp32_id">
-            
-            <div style="margin-bottom:15px;">
-                <label style="display:block; margin-bottom:5px;">MAC Address:</label>
-                <input type="text" id="editMac" name="device_mac" required style="width:100%; padding:8px; box-sizing:border-box;">
-            </div>
 
-            <div style="margin-bottom:15px;">
-                <label style="display:block; margin-bottom:5px;">IP Address:</label>
-                <input type="text" id="editIp" name="ip_address" style="width:100%; padding:8px; box-sizing:border-box;">
-            </div>
+<div style="position:absolute; top:50%; left:50%;
+            transform:translate(-50%,-50%);
+            background:white; padding:30px; border-radius:8px;
+            max-width:500px; width:90%; max-height:90vh;
+            overflow-y:auto;">
 
-            <div style="margin-bottom:15px;">
-                <label style="display:block; margin-bottom:5px;">Device Type:</label>
-                <select id="editType" name="device_type" style="width:100%; padding:8px; box-sizing:border-box;">
-                    <option value="">-- unset --</option>
-                    <option value="tagger">Tagger (ESP32 scanner)</option>
-                    <option value="counter">Counter (ESP32 display/submit)</option>
-                </select>
-            </div>
+    <h2>Edit ESP32 Device</h2>
 
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button type="submit" style="flex:1; padding:10px; background:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer;">Save Changes</button>
-                <button type="button" onclick="closeEditModal()" style="flex:1; padding:10px; background:#f44336; color:white; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
-            </div>
-        </form>
-    </div>
+    <form id="editForm"
+          action="/settings/esp32/update"
+          method="POST">
+
+        <!-- Must match req.body.device_id -->
+        <input
+            type="hidden"
+            id="editDeviceId"
+            name="device_id"
+        >
+
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px;">
+                MAC Address:
+            </label>
+
+            <input
+                type="text"
+                id="editMac"
+                name="device_mac"
+                required
+                style="width:100%; padding:8px; box-sizing:border-box;"
+            >
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px;">
+                IP Address:
+            </label>
+
+            <input
+                type="text"
+                id="editIp"
+                name="ip_address"
+                style="width:100%; padding:8px; box-sizing:border-box;"
+            >
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px;">
+                Station:
+            </label>
+
+            <select
+                id="editStation"
+                name="station_id"
+                required
+                style="width:100%; padding:8px; box-sizing:border-box;"
+            >
+                <option value="">
+                    -- Select Station --
+                </option>
+
+                <% stations.forEach(station => { %>
+                    <option value="<%= station.station_id %>">
+                        <%= station.station_name %>
+                    </option>
+                <% }) %>
+            </select>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button
+                type="submit"
+                style="flex:1; padding:10px; background:#4CAF50;
+                       color:white; border:none; border-radius:4px;
+                       cursor:pointer;"
+            >
+                Save Changes
+            </button>
+
+            <button
+                type="button"
+                onclick="closeEditModal()"
+                style="flex:1; padding:10px; background:#f44336;
+                       color:white; border:none; border-radius:4px;
+                       cursor:pointer;"
+            >
+                Cancel
+            </button>
+        </div>
+    </form>
+</div>
+
 </div>
 
 <!-- ─── JAVASCRIPT ─────────────────────────────────────── -->
 <script>
 // Close modals when clicking outside
+function openEditModal(device) {
+    document.getElementById("editDeviceId").value =
+        device.device_id;
+
+    document.getElementById("editMac").value =
+        device.device_mac;
+
+    document.getElementById("editIp").value =
+        device.ip_address || "";
+
+    document.getElementById("editStation").value =
+        device.station_id || "";
+
+    document.getElementById("editModal").style.display =
+        "block";
+}
+
 document.getElementById('editModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeEditModal();
@@ -211,9 +325,9 @@ document.getElementById('editAssignmentModal').addEventListener('click', functio
 });
 
 // Open edit assignment modal
-function editTagAssignment(tag_id, device_mac, ingredients_id) {
+function editTagAssignment(tag_id, tag_rfid, ingredients_id) {
     document.getElementById('editAssignmentId').value = tag_id;
-    document.getElementById('editAssignmentMac').value = device_mac;
+    document.getElementById('editAssignmentMac').value = tag_rfid;
     document.getElementById('editAssignmentIngredient').value = ingredients_id;
     document.getElementById('editAssignmentModal').style.display = 'block';
 }
@@ -226,7 +340,7 @@ function closeEditAssignmentModal() {
 // Delete tag assignment
 function deleteTagAssignment(tag_id) {
     if (confirm('Are you sure you want to delete this tag assignment?')) {
-        fetch('/esp32comms/delete-tag-assignment', {
+        fetch('/settings/esp32/delete-tag-assignment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

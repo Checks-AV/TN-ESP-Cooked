@@ -106,7 +106,6 @@ CREATE TABLE IF NOT EXISTS crockery (
 CREATE TABLE IF NOT EXISTS ESP32Devices(
     device_id INTEGER PRIMARY KEY AUTOINCREMENT,
     device_mac TEXT NOT NULL UNIQUE,
-    device_type TEXT CHECK(device_type IN ('tagger', 'tag') OR device_type IS NULL),
     ip_address TEXT,
     last_seen TEXT
 );
@@ -116,19 +115,18 @@ CREATE TABLE IF NOT EXISTS ESP32Devices(
 CREATE TABLE IF NOT EXISTS ESP32Tagger (
     tagger_id INTEGER PRIMARY KEY AUTOINCREMENT,
     device_id INTEGER NOT NULL UNIQUE,
-    station_id INTEGER NOT NULL,
+    station_id INTEGER,
     FOREIGN KEY (device_id) REFERENCES ESP32Devices(device_id),
     FOREIGN KEY (station_id) REFERENCES station(station_id) 
 );
 
 -- Mac Address // Status for INGREDIENTS
-CREATE TABLE IF NOT EXISTS ESP32Tags (
+CREATE TABLE IF NOT EXISTS RFIDTags (
     tag_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tag_rfid TEXT NOT NULL UNIQUE,
     ingredients_id INTEGER NOT NULL,
-    device_id INTEGER NOT NULL UNIQUE,
-    current_status TEXT DEFAULT 'Default',
-    FOREIGN KEY (device_id) REFERENCES ESP32Devices(device_id),
-    FOREIGN KEY (ingredients_id) REFERENCES ingredients(ingredients_id)
+    current_status TEXT DEFAULT '1',
+    FOREIGN KEY (ingredients_id) REFERENCES ingredients(ingredients_id) ON DELETE RESTRICT
 );
 
 
@@ -148,10 +146,8 @@ CREATE TABLE IF NOT EXISTS Orders (
 -- Want to add additional stations in a separate page? --> Can do for part 1 as part of the front end scoping
 
 /* Input your Stations with Mac Address here */
-INSERT INTO station('station_name') VALUES ('Stove');
-INSERT INTO station('station_name') VALUES ('Wok');
+INSERT INTO station('station_name') VALUES ('General');
 INSERT INTO station('station_name') VALUES ('Counter');
-INSERT INTO station('station_name') VALUES ('Toaster');
 
 /* Insert your food here */
 INSERT INTO food('food_name') VALUES ('Fried rice');

@@ -9,10 +9,54 @@ router.get('/', (req, res, next) => {
 });
 
 // ─── LOAD ESP32 SETUP PAGE ──────────────────────────────────────
+// ─── LOAD ESP32 SETUP PAGE ──────────────────────────────────────
 router.get("/esp32", (req, res, next) => {
-    const sqlDevices = `SELECT * FROM ESP32Devices WHERE device_type IN ('tagger', 'counter') OR device_type IS NULL ORDER BY last_seen DESC`;
-    const sqlIngredients = `SELECT * FROM ingredients ORDER BY ingredients_name`;
-    const sqlStations = `SELECT * FROM station ORDER BY station_name`;
+    const sqlDevices = `
+        SELECT
+            ed.device_id,
+            ed.device_mac,
+            ed.ip_address,
+            ed.last_seen,
+            et.tagger_id,
+            et.station_id,
+            s.station_name
+        FROM ESP32Devices ed
+
+        LEFT JOIN ESP32Tagger et
+            ON ed.device_id = et.device_id
+
+        LEFT JOIN station s
+            ON et.station_id = s.station_id
+
+        ORDER BY ed.last_seen DESC
+    `;
+
+    const sqlIngredients = `
+        SELECT *
+        FROM ingredients
+        ORDER BY ingredients_name
+    `;
+
+    const sqlStations = `
+        SELECT *
+        FROM station
+        ORDER BY station_name
+    `;
+
+    const sqlAssignments = `
+        SELECT
+            rt.tag_id,
+            rt.tag_rfid,
+            rt.ingredients_id,
+            rt.current_status,
+            i.ingredients_name
+        FROM RFIDTags rt
+
+        JOIN ingredients i
+            ON rt.ingredients_id = i.ingredients_id
+
+        ORDER BY rt.tag_id DESC
+    `;
 
     global.db.all(sqlDevices, [], (err, devices) => {
         if (err) return next(err);
@@ -23,27 +67,21 @@ router.get("/esp32", (req, res, next) => {
             global.db.all(sqlStations, [], (err, stations) => {
                 if (err) return next(err);
 
-                // Get tag assignments with ingredient names
-                const sqlAssignments = `
-                    SELECT et.tag_id, et.device_id, et.ingredients_id, et.current_status,
-                           ed.device_mac, i.ingredients_name
-                    FROM ESP32Tags et
-                    JOIN ESP32Devices ed ON et.device_id = ed.device_id
-                    JOIN ingredients i ON et.ingredients_id = i.ingredients_id
-                    ORDER BY et.tag_id DESC
-                `;
+                global.db.all(
+                    sqlAssignments,
+                    [],
+                    (err, tagAssignments) => {
+                        if (err) return next(err);
 
-                global.db.all(sqlAssignments, [], (err, tagAssignments) => {
-                    if (err) return next(err);
-
-                    res.render("esp32setup.ejs", {
-                        title: "ESP32 Setup",
-                        devices,
-                        ingredients,
-                        stations,
-                        tagAssignments: tagAssignments || []
-                    });
-                });
+                        res.render("esp32setup.ejs", {
+                            title: "ESP32 Setup",
+                            devices: devices || [],
+                            ingredients: ingredients || [],
+                            stations: stations || [],
+                            tagAssignments: tagAssignments || []
+                        });
+                    }
+                );
             });
         });
     });
@@ -51,30 +89,87 @@ router.get("/esp32", (req, res, next) => {
 
 // ─── UPDATE ESP32 DEVICE ──────────────────────────────────────
 router.post("/esp32/update", (req, res, next) => {
-    const { esp32_id, device_mac, ip_address, device_type } = req.body;
-    
-    if (!esp32_id || !device_mac) {
-        return res.status(400).send("Device ID and MAC address are required");
+    const {
+        device_id,
+        device_mac,
+        ip_address,
+        station_id
+    } = req.body;
+
+    if (!device_id || !device_mac || !station_id) {
+        return res.status(400).send(
+            "Device ID, MAC address, and station are required"
+        );
     }
-    
+
+    // Check whether the ESP32 device exists
     global.db.get(
-        `SELECT * FROM ESP32Devices WHERE esp32_id = ?`,
-        [esp32_id],
+        `
+        SELECT device_id
+        FROM ESP32Devices
+        WHERE device_id = ?
+        `,
+        [device_id],
         (err, device) => {
             if (err) return next(err);
-            if (!device) return res.status(404).send("Device not found");
-            
+
+            if (!device) {
+                return res.status(404).send("Device not found");
+            }
+
+            // Update MAC address and IP address
             global.db.run(
-                `UPDATE ESP32Devices 
-                 SET device_mac = ?, 
-                     ip_address = ?, 
-                     device_type = ?
-                 WHERE esp32_id = ?`,
-                [device_mac, ip_address || null, device_type || null, esp32_id],
-                function(err) {
-                    if (err) return next(err);
-                    console.log(`[UPDATE] Device ${esp32_id} updated successfully`);
-                    res.redirect("/settings/esp32");
+                `
+                UPDATE ESP32Devices
+                SET
+                    device_mac = ?,
+                    ip_address = ?
+                WHERE device_id = ?
+                `,
+                [
+                    device_mac,
+                    ip_address || null,
+                    device_id
+                ],
+                function (err) {
+                    if (err) {
+                        if (err.code === "SQLITE_CONSTRAINT") {
+                            return res.status(409).send(
+                                "That MAC address is already registered."
+                            );
+                        }
+
+                        return next(err);
+                    }
+
+                    // Update the station assigned to the ESP32
+                    global.db.run(
+                        `
+                        INSERT INTO ESP32Tagger (
+                            device_id,
+                            station_id
+                        )
+                        VALUES (?, ?)
+
+                        ON CONFLICT(device_id)
+                        DO UPDATE SET
+                            station_id = excluded.station_id
+                        `,
+                        [
+                            device_id,
+                            station_id
+                        ],
+                        function (err) {
+                            if (err) return next(err);
+
+                            console.log(
+                                `[UPDATE] Device ${device_id} updated: ` +
+                                `${device_mac} assigned to station ${station_id}`
+                            );
+
+                            res.redirect("/settings/esp32");
+                        }
+                    );
                 }
             );
         }
@@ -83,109 +178,128 @@ router.post("/esp32/update", (req, res, next) => {
 
 // ─── ASSIGN TAG TO INGREDIENT ──────────────────────────────────
 router.post("/esp32/assign-tag", (req, res, next) => {
-    const { device_mac, ingredients_id } = req.body;
+    const { tag_rfid, ingredients_id } = req.body;
 
-    if (!device_mac || !ingredients_id) {
-        return res.status(400).send("MAC address and ingredient are required");
+    if (!tag_rfid || !ingredients_id) {
+        return res.status(400).send(
+            "RFID tag and ingredient are required"
+        );
     }
 
-    // Check if the tag device exists (it should be in ESP32Devices as a passive tag)
-    global.db.get(
-        `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
-        [device_mac],
-        (err, device) => {
-            if (err) return next(err);
-            if (!device) {
-                return res.status(404).send("Tag MAC not found. Please register the tag first.");
-            }
+    // Insert a new RFID assignment or update the existing one.
+    global.db.run(
+        `
+        INSERT INTO RFIDTags (
+            tag_rfid,
+            ingredients_id,
+            current_status
+        )
+        VALUES (?, ?, '1')
 
-            // Check if this tag is already assigned
-            global.db.get(
-                `SELECT tag_id FROM ESP32Tags WHERE device_id = ?`,
-                [device.device_id],
-                (err, existing) => {
-                    if (err) return next(err);
-                    if (existing) {
-                        // Update existing assignment
-                        global.db.run(
-                            `UPDATE ESP32Tags 
-                             SET ingredients_id = ?, current_status = 'Default'
-                             WHERE device_id = ?`,
-                            [ingredients_id, device.device_id],
-                            function(err) {
-                                if (err) return next(err);
-                                console.log(`[ASSIGN-TAG] Updated: ${device_mac} → ingredient ${ingredients_id}`);
-                                res.redirect("/settings/esp32");
-                            }
-                        );
-                    } else {
-                        // Create new assignment
-                        global.db.run(
-                            `INSERT INTO ESP32Tags (device_id, ingredients_id, current_status)
-                             VALUES (?, ?, 'Default')`,
-                            [device.device_id, ingredients_id],
-                            function(err) {
-                                if (err) return next(err);
-                                console.log(`[ASSIGN-TAG] Created: ${device_mac} → ingredient ${ingredients_id}`);
-                                res.redirect("/settings/esp32");
-                            }
-                        );
-                    }
-                }
+        ON CONFLICT(tag_rfid)
+        DO UPDATE SET
+            ingredients_id = excluded.ingredients_id,
+            current_status = '1'
+        `,
+        [tag_rfid, ingredients_id],
+        function (err) {
+            if (err) return next(err);
+
+            console.log(
+                `[ASSIGN-TAG] ${tag_rfid} → ingredient ${ingredients_id}`
             );
+
+            res.redirect("/settings/esp32");
         }
     );
 });
+
 
 // ─── UPDATE TAG ASSIGNMENT ─────────────────────────────────────
 router.post("/esp32/update-tag-assignment", (req, res, next) => {
-    const { tag_id, device_mac, ingredients_id } = req.body;
-    
-    if (!tag_id || !device_mac || !ingredients_id) {
-        return res.status(400).send("Missing required fields");
+    const {
+        tag_id,
+        tag_rfid,
+        ingredients_id
+    } = req.body;
+
+    if (!tag_id || !tag_rfid || !ingredients_id) {
+        return res.status(400).send(
+            "Tag ID, RFID tag and ingredient are required"
+        );
     }
-    
-    // Get the device_id from the MAC
-    global.db.get(
-        `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
-        [device_mac],
-        (err, device) => {
-            if (err) return next(err);
-            if (!device) {
-                return res.status(404).send("Device MAC not found. Register it first.");
-            }
-            
-            // Update the assignment
-            global.db.run(
-                `UPDATE ESP32Tags 
-                 SET device_id = ?, ingredients_id = ?
-                 WHERE tag_id = ?`,
-                [device.device_id, ingredients_id, tag_id],
-                function(err) {
-                    if (err) return next(err);
-                    console.log(`[UPDATE-TAG-ASSIGNMENT] Updated assignment ${tag_id}`);
-                    res.redirect("/settings/esp32");
+
+    global.db.run(
+        `
+        UPDATE RFIDTags
+        SET
+            tag_rfid = ?,
+            ingredients_id = ?
+        WHERE tag_id = ?
+        `,
+        [tag_rfid, ingredients_id, tag_id],
+        function (err) {
+            if (err) {
+                // SQLite unique constraint error if another tag
+                // already uses the submitted RFID UID.
+                if (err.code === "SQLITE_CONSTRAINT") {
+                    return res.status(409).send(
+                        "That RFID tag is already assigned."
+                    );
                 }
+
+                return next(err);
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).send(
+                    "RFID tag assignment not found"
+                );
+            }
+
+            console.log(
+                `[UPDATE-TAG-ASSIGNMENT] Updated assignment ${tag_id}: ` +
+                `${tag_rfid} → ingredient ${ingredients_id}`
             );
+
+            res.redirect("/settings/esp32");
         }
     );
 });
+
 
 // ─── DELETE TAG ASSIGNMENT ─────────────────────────────────────
 router.post("/esp32/delete-tag-assignment", (req, res, next) => {
     const { tag_id } = req.body;
-    
+
     if (!tag_id) {
-        return res.status(400).json({ error: "Missing tag_id" });
+        return res.status(400).json({
+            success: false,
+            error: "Missing tag_id"
+        });
     }
-    
+
     global.db.run(
-        `DELETE FROM ESP32Tags WHERE tag_id = ?`,
+        `DELETE FROM RFIDTags WHERE tag_id = ?`,
         [tag_id],
-        function(err) {
+        function (err) {
             if (err) return next(err);
-            console.log(`[DELETE-TAG-ASSIGNMENT] Deleted assignment ${tag_id}`);
-            res.json({ success: true, message: "Assignment deleted successfully" });
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: "RFID tag assignment not found"
+                });
+            }
+
+            console.log(
+                `[DELETE-TAG-ASSIGNMENT] Deleted assignment ${tag_id}`
+            );
+
+            res.json({
+                success: true,
+                message: "Assignment deleted successfully"
+            });
         }
     );
 });
