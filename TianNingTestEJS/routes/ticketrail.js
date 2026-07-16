@@ -198,9 +198,13 @@ router.get('/api/esp/status', (req, res) => {
     
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
+    // A "Counter" station device counts as the online ESP we care about.
     global.db.get(
-        `SELECT device_mac FROM ESP32Devices 
-         WHERE device_type = 'counter' AND last_seen > ?
+        `SELECT ed.device_mac
+         FROM ESP32Devices ed
+         JOIN ESP32Tagger et ON et.device_id = ed.device_id
+         JOIN station s ON s.station_id = et.station_id
+         WHERE s.station_name = 'Counter' AND ed.last_seen > ?
          LIMIT 1`,
         [fiveMinutesAgo],
         (err, row) => {
@@ -219,7 +223,7 @@ router.get('/api/esp/status', (req, res) => {
 // COUNTER ESP SUBMIT ENDPOINT
 // ============================================
 
-router.post('/api/esp/submit', (req, res) => {
+router.post('/api/esp/submit', (req, res, next) => {
     const { order_number, device_mac, tag_macs } = req.body;
     
     logMessage('esp', '📡 /api/esp/submit endpoint called (COUNTER ESP)', {
@@ -265,11 +269,15 @@ router.post('/api/esp/submit', (req, res) => {
         });
     }
     
-    // STEP 1: If device_mac is provided, verify it's a counter ESP
+    // STEP 1: If device_mac is provided, verify it belongs to the Counter station
     if (device_mac) {
         logMessage('info', `🔍 Verifying device: ${device_mac}`);
         global.db.get(
-            `SELECT device_id, device_type FROM ESP32Devices WHERE device_mac = ?`,
+            `SELECT ed.device_id, s.station_name
+             FROM ESP32Devices ed
+             JOIN ESP32Tagger et ON et.device_id = ed.device_id
+             JOIN station s ON s.station_id = et.station_id
+             WHERE ed.device_mac = ?`,
             [device_mac],
             (err, device) => {
                 if (err) {
@@ -277,28 +285,28 @@ router.post('/api/esp/submit', (req, res) => {
                     return res.status(500).json({ error: 'Database error' });
                 }
                 if (!device) {
-                    logMessage('error', `⚠️ Device ${device_mac} not found`);
+                    logMessage('error', `⚠️ Device ${device_mac} not found or has no station assigned`);
                     return res.status(404).json({ 
                         error: 'Device not found',
-                        message: 'This ESP32 is not registered.'
+                        message: 'This ESP32 is not registered or has no station assigned.'
                     });
                 }
-                if (device.device_type !== 'counter') {
-                    logMessage('error', `⚠️ Device ${device_mac} is type ${device.device_type}, not counter`);
+                if (device.station_name !== 'Counter') {
+                    logMessage('error', `⚠️ Device ${device_mac} is at station "${device.station_name}", not Counter`);
                     return res.status(403).json({ 
                         error: 'Invalid device type',
-                        message: 'Only counter ESPs can submit orders'
+                        message: 'Only devices assigned to the Counter station can submit orders'
                     });
                 }
-                logMessage('success', `✅ Device ${device_mac} verified as counter`);
+                logMessage('success', `✅ Device ${device_mac} verified as Counter`);
                 // Device is valid, proceed to find order
-                findOrderAndValidate(order_number, tag_macs, res);
+                findOrderAndValidate(order_number, tag_macs, res, next);
             }
         );
     } else {
         // No device_mac provided - allow for game client testing
         logMessage('warn', '⚠️ No device_mac provided - allowing game client submission');
-        findOrderAndValidate(order_number, tag_macs, res);
+        findOrderAndValidate(order_number, tag_macs, res, next);
     }
 });
 
@@ -306,7 +314,7 @@ router.post('/api/esp/submit', (req, res) => {
 // INTERNAL: Find Order and Validate
 // ============================================
 
-function findOrderAndValidate(order_number, tag_macs, res) {
+function findOrderAndValidate(order_number, tag_macs, res, next) {
     // Format order number if needed (K-001 format)
     const formattedOrder = order_number.startsWith('K-') ? order_number : 'K-' + String(order_number).padStart(3, '0');
     logMessage('info', `🔍 Looking for order: ${formattedOrder}`);
@@ -334,20 +342,20 @@ function findOrderAndValidate(order_number, tag_macs, res) {
             logMessage('success', `📋 Found order: ${formattedOrder} (${order.food_name})`);
             logMessage('info', `📋 Tags received: ${tag_macs.join(', ')}`);
             
-            // STEP 3: Get all required ingredients with their preparation methods and tag assignments
+            // STEP 3: Get all required ingredients with their RFID tag and current status.
+            // RFIDTags are passive (no ESP32Devices join needed) — tag_rfid IS the tag identifier.
             const recipeSql = `
                 SELECT 
                     i.ingredients_id,
                     i.ingredients_name,
                     pm.preparation_method_name AS required_action,
-                    ed.device_mac AS tag_mac,
-                    et.current_status
+                    rt.tag_rfid AS tag_mac,
+                    rt.current_status
                 FROM food_ingredients fi
                 JOIN ingredients i ON fi.ingredients_id = i.ingredients_id
                 JOIN food_ingredient_preparation fip ON fi.food_ingredients_id = fip.food_ingredients_id
                 JOIN preparation_method pm ON fip.preparation_method_id = pm.preparation_method_id
-                LEFT JOIN ESP32Tags et ON et.ingredients_id = i.ingredients_id
-                LEFT JOIN ESP32Devices ed ON ed.device_id = et.device_id
+                LEFT JOIN RFIDTags rt ON rt.ingredients_id = i.ingredients_id
                 WHERE fi.food_id = ?
                 ORDER BY fip.prep_step_order ASC
             `;
@@ -501,7 +509,8 @@ function findOrderAndValidate(order_number, tag_macs, res) {
                     logMessage('error', `  Extra tags: ${extraTags.join(', ')}`);
                 }
                 
-                // STEP 5: Finalise the order
+                // STEP 5: Finalise the order — reset ALL tag statuses to Default
+                // regardless of pass or fail, then respond.
                 if (allPass) {
                     // ✅ ALL PASS - Complete the order
                     logMessage('success', `✅ Order ${formattedOrder} PASSED validation`);
@@ -516,7 +525,7 @@ function findOrderAndValidate(order_number, tag_macs, res) {
                             
                             // STEP 6: Clear ALL tag current_status to 'Default'
                             global.db.run(
-                                `UPDATE ESP32Tags SET current_status = 'Default'`,
+                                `UPDATE RFIDTags SET current_status = 'Default'`,
                                 (err) => {
                                     if (err) {
                                         logMessage('error', 'Error clearing tag statuses:', err);
@@ -581,49 +590,60 @@ function findOrderAndValidate(order_number, tag_macs, res) {
                                 logMessage('error', 'Error updating order:', err);
                                 return res.status(500).json({ error: 'Database error' });
                             }
+
+                            // Reset ALL tag statuses back to Default, same as on success
+                            global.db.run(
+                                `UPDATE RFIDTags SET current_status = 'Default'`,
+                                (err) => {
+                                    if (err) {
+                                        logMessage('error', 'Error clearing tag statuses:', err);
+                                        return res.status(500).json({ error: 'Database error' });
+                                    }
+
+                                    logMessage('error', `❌ Order ${formattedOrder} marked as FAILED - All tags reset to Default`);
                             
-                            logMessage('error', `❌ Order ${formattedOrder} marked as FAILED`);
-                            
-                            // Broadcast to dashboard
-                            try {
-                                const channel = new BroadcastChannel('ticket-rail-control');
-                                channel.postMessage({
-                                    type: 'esp-submit-result',
-                                    payload: {
+                                    // Broadcast to dashboard
+                                    try {
+                                        const channel = new BroadcastChannel('ticket-rail-control');
+                                        channel.postMessage({
+                                            type: 'esp-submit-result',
+                                            payload: {
+                                                success: false,
+                                                result: 'FAIL',
+                                                order_number: formattedOrder,
+                                                food: order.food_name,
+                                                details: results
+                                            }
+                                        });
+                                    } catch(e) {
+                                        logMessage('error', 'Failed to broadcast to dashboard:', e);
+                                    }
+                                    
+                                    // Broadcast to game
+                                    try {
+                                        const gameChannel = new BroadcastChannel('ticket-rail-control');
+                                        gameChannel.postMessage({
+                                            type: 'esp-order-complete',
+                                            payload: {
+                                                order_number: formattedOrder,
+                                                success: false,
+                                                details: results
+                                            }
+                                        });
+                                    } catch(e) {
+                                        logMessage('error', 'Failed to broadcast to game:', e);
+                                    }
+                                    
+                                    res.json({
                                         success: false,
                                         result: 'FAIL',
                                         order_number: formattedOrder,
                                         food: order.food_name,
+                                        message: '❌ Order validation failed. Check ingredient preparation chains.',
                                         details: results
-                                    }
-                                });
-                            } catch(e) {
-                                logMessage('error', 'Failed to broadcast to dashboard:', e);
-                            }
-                            
-                            // Broadcast to game
-                            try {
-                                const gameChannel = new BroadcastChannel('ticket-rail-control');
-                                gameChannel.postMessage({
-                                    type: 'esp-order-complete',
-                                    payload: {
-                                        order_number: formattedOrder,
-                                        success: false,
-                                        details: results
-                                    }
-                                });
-                            } catch(e) {
-                                logMessage('error', 'Failed to broadcast to game:', e);
-                            }
-                            
-                            res.json({
-                                success: false,
-                                result: 'FAIL',
-                                order_number: formattedOrder,
-                                food: order.food_name,
-                                message: '❌ Order validation failed. Check ingredient preparation chains.',
-                                details: results
-                            });
+                                    });
+                                }
+                            );
                         }
                     );
                 }

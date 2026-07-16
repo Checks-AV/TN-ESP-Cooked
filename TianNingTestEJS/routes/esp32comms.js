@@ -3,8 +3,7 @@ const router = express.Router();
 
 // ─── POST /esp32comms/register ────────────────────────────────
 // ESP32 calls this on boot to announce itself
-// Body: { device_mac, station_type, ip_address }
-// station_type: 1 | 2 
+// Body: { device_mac, station_id, ip_address }
 router.post("/register", (req, res, next) => {
     const {
         device_mac,
@@ -115,11 +114,13 @@ router.post("/register", (req, res, next) => {
 // Always-on listener: every ESP32 message comes here
 // Body: { device_mac, message_type, payload }
 //
+// device_mac here is always the STATION's ESP32 (tags are passive RFID,
+// they don't have their own MAC / network identity).
+//
 // message_type options:
-//   "action"  → payload: { order_number, action_name }
-//               tag sends its own mac + what was done to it
-//   "submit"  → payload: { order_number }
-//               special submission ESP sends this
+//   "action"  → payload: { tag_rfid, action_name }
+//               station reports it performed `action_name` on `tag_rfid`
+//   "submit"  → handled separately via /api/esp/submit in ticketrail.js
 //   "ping"    → payload: {} (just a heartbeat, updates last_seen)
 //
 router.post("/listen", (req, res, next) => {
@@ -148,156 +149,101 @@ router.post("/listen", (req, res, next) => {
                 return handleAction(req, res, next, device_mac, payload);
             }
 
-            if (message_type === "submit") {
-                return handleSubmit(req, res, next, device_mac, payload);
-            }
-
             return res.status(400).json({ error: `Unknown message_type: ${message_type}` });
         }
     );
 });
 
 // ─── INTERNAL: handle action ──────────────────────────────────
-// tag_mac is the device sending (it IS the tag)
-// action_name is what happened to it e.g. "Chopped", "Cooked"
-function handleAction(req, res, next, tag_mac, payload) {
-    const { order_number, action_name } = payload || {};
+// device_mac: the STATION's ESP32 MAC (not the tag — tags are passive RFID)
+// payload: { tag_rfid, action_name }
+//
+// Validates that the sending station is actually allowed to perform
+// action_name (via station_preparation_method), then appends the action
+// to that tag's current_status chain (e.g. "Default → Chopped → Cooked").
+function handleAction(req, res, next, device_mac, payload) {
+    const { tag_rfid, action_name } = payload || {};
 
-    if (!order_number || !action_name) {
-        return res.status(400).json({ error: "action needs order_number and action_name in payload" });
+    if (!tag_rfid || !action_name) {
+        return res.status(400).json({ error: "action needs tag_rfid and action_name in payload" });
     }
 
+    // 1. Find which station this ESP32 is assigned to
     global.db.get(
-        `SELECT orders_id FROM Orders WHERE order_number = ? AND order_status = 'pending'`,
-        [order_number],
-        (err, order) => {
+        `SELECT et.station_id, s.station_name
+         FROM ESP32Devices ed
+         JOIN ESP32Tagger et ON et.device_id = ed.device_id
+         JOIN station s ON s.station_id = et.station_id
+         WHERE ed.device_mac = ?`,
+        [device_mac],
+        (err, station) => {
             if (err) return next(err);
-            if (!order) return res.status(404).json({ error: "Order not found or not pending" });
+            if (!station) {
+                return res.status(404).json({
+                    error: `Device ${device_mac} is not registered or has no station assigned`
+                });
+            }
 
-            global.db.run(
-                `INSERT INTO OrderActions (orders_id, tag_mac, action_name) VALUES (?, ?, ?)`,
-                [order.orders_id, tag_mac, action_name],
-                function (err) {
+            // 2. Confirm this station is allowed to perform this preparation method
+            global.db.get(
+                `SELECT pm.preparation_method_id
+                 FROM station_preparation_method spm
+                 JOIN preparation_method pm ON pm.preparation_method_id = spm.preparation_method_id
+                 WHERE spm.station_id = ? AND pm.preparation_method_name = ?`,
+                [station.station_id, action_name],
+                (err, allowed) => {
                     if (err) return next(err);
-                    console.log(`[ACTION] Order ${order_number} | Tag ${tag_mac} | ${action_name}`);
-                    res.json({ success: true, action_id: this.lastID });
+                    if (!allowed) {
+                        return res.status(403).json({
+                            error: `Station "${station.station_name}" cannot perform "${action_name}"`
+                        });
+                    }
+
+                    // 3. Find the tag and its current status
+                    global.db.get(
+                        `SELECT tag_id, ingredients_id, current_status FROM RFIDTags WHERE tag_rfid = ?`,
+                        [tag_rfid],
+                        (err, tag) => {
+                            if (err) return next(err);
+                            if (!tag) {
+                                return res.status(404).json({
+                                    error: `Tag ${tag_rfid} is not assigned to any ingredient`
+                                });
+                            }
+
+                            // 4. Append the action to the status chain
+                            const base = (!tag.current_status || tag.current_status === '1')
+                                ? 'Default'
+                                : tag.current_status;
+                            const newStatus = `${base} → ${action_name}`;
+
+                            global.db.run(
+                                `UPDATE RFIDTags SET current_status = ? WHERE tag_id = ?`,
+                                [newStatus, tag.tag_id],
+                                function (err) {
+                                    if (err) return next(err);
+
+                                    console.log(
+                                        `[ACTION] Tag ${tag_rfid} @ station "${station.station_name}" ` +
+                                        `→ ${newStatus}`
+                                    );
+
+                                    res.json({
+                                        success: true,
+                                        tag_rfid,
+                                        station: station.station_name,
+                                        new_status: newStatus
+                                    });
+                                }
+                            );
+                        }
+                    );
                 }
             );
         }
     );
 }
 
-// ─── INTERNAL: handle submit ──────────────────────────────────
-// Special submission ESP sends order_number
-// Server checks last action on each ingredient tag vs recipe requirement
-function handleSubmit(req, res, next, submitter_mac, payload) {
-    const { order_number } = payload || {};
-
-    if (!order_number) {
-        return res.status(400).json({ error: "submit needs order_number in payload" });
-    }
-
-    global.db.get(
-        `SELECT o.orders_id, o.food_id, f.food_name
-         FROM Orders o
-         JOIN food f ON o.food_id = f.food_id
-         WHERE o.order_number = ? AND o.order_status = 'pending'`,
-        [order_number],
-        (err, order) => {
-            if (err) return next(err);
-            if (!order) return res.status(404).json({ error: "Order not found or already submitted" });
-
-            const recipeSql = `
-                SELECT i.ingredients_name,
-                       i.ingredients_id,
-                       ist.ingredientstatus_name AS required_status,
-                       ed.device_mac             AS tag_mac
-                FROM food_ingredients fi
-                JOIN ingredients i      ON fi.ingredients_id      = i.ingredients_id
-                JOIN ingredientstatus ist ON fi.ingredientstatus_id = ist.ingredientstatus_id
-                LEFT JOIN RFIDTags et  ON et.ingredients_id      = i.ingredients_id
-                LEFT JOIN ESP32Devices ed ON ed.device_id         = et.device_id
-                WHERE fi.food_id = ?
-            `;
-
-            global.db.all(recipeSql, [order.food_id], (err, recipe) => {
-                if (err) return next(err);
-                if (recipe.length === 0) {
-                    return res.status(400).json({ error: "Recipe has no ingredients" });
-                }
-
-                let checked = 0;
-                const results = [];
-                let allPass = true;
-
-                recipe.forEach((ing) => {
-                    if (!ing.tag_mac) {
-                        results.push({
-                            ingredient: ing.ingredients_name,
-                            required:   ing.required_status,
-                            got:        null,
-                            pass:       false,
-                            reason:     "No tag registered for this ingredient"
-                        });
-                        allPass = false;
-                        checked++;
-                        if (checked === recipe.length) finalise();
-                        return;
-                    }
-
-                    global.db.get(
-                        `SELECT action_name FROM OrderActions
-                         WHERE orders_id = ? AND tag_mac = ?
-                         ORDER BY action_time DESC LIMIT 1`,
-                        [order.orders_id, ing.tag_mac],
-                        (err, lastAction) => {
-                            if (err) return next(err);
-
-                            const got  = lastAction ? lastAction.action_name : null;
-                            const pass = got &&
-                                got.toLowerCase() === ing.required_status.toLowerCase();
-
-                            if (!pass) allPass = false;
-
-                            results.push({
-                                ingredient: ing.ingredients_name,
-                                required:   ing.required_status,
-                                got,
-                                pass
-                            });
-
-                            checked++;
-                            if (checked === recipe.length) finalise();
-                        }
-                    );
-                });
-
-                function finalise() {
-                    const newStatus = allPass ? 'completed' : 'failed';
-
-                    global.db.run(
-                        `UPDATE Orders SET order_status = ? WHERE orders_id = ?`,
-                        [newStatus, order.orders_id],
-                        (err) => {
-                            if (err) return next(err);
-
-                            console.log(`[SUBMIT] ${allPass ? '✅' : '❌'} Order ${order_number} → ${newStatus}`);
-
-                            res.json({
-                                success:      allPass,
-                                result:       allPass ? 'PASS' : 'FAIL',
-                                order_number,
-                                food:         order.food_name,
-                                submitter:    submitter_mac,
-                                details:      results
-                            });
-                        }
-                    );
-                }
-            });
-        }
-    );
-}
 // ─── POST /esp32comms/assign-tag ──────────────────────────────
 // Link a passive RFID tag to an ingredient
 router.post("/assign-tag", (req, res, next) => {
@@ -313,13 +259,15 @@ router.post("/assign-tag", (req, res, next) => {
         `
         INSERT INTO RFIDTags (
             tag_rfid,
-            ingredients_id
+            ingredients_id,
+            current_status
         )
-        VALUES (?, ?)
+        VALUES (?, ?, 'Default')
 
         ON CONFLICT(tag_rfid)
         DO UPDATE SET
-            ingredients_id = excluded.ingredients_id
+            ingredients_id = excluded.ingredients_id,
+            current_status = 'Default'
         `,
         [tag_rfid, ingredients_id],
         function (err) {
@@ -337,7 +285,7 @@ router.post("/assign-tag", (req, res, next) => {
 });
 
 // ─── POST /esp32comms/assign-tagger ──────────────────────────
-// Link a tagger device to a station
+// Link a tagger (station) device to a station
 router.post("/assign-tagger", (req, res, next) => {
     const { device_mac, station_id } = req.body;
 
@@ -362,9 +310,9 @@ router.post("/assign-tagger", (req, res, next) => {
         }
     );
 });
-module.exports = router;
 
-// Add this route to handle the update submission from the modal
+// ─── POST /esp32comms/update ───────────────────────────────────
+// Handle the update submission from the ESP32 edit modal
 router.post("/update", (req, res, next) => {
     const {
         device_id,
@@ -452,3 +400,5 @@ router.post("/update", (req, res, next) => {
         }
     );
 });
+
+module.exports = router;
