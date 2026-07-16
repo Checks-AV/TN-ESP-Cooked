@@ -68,3 +68,5 @@ curl http://localhost:3000/api/stations
     tag_macs: ["11:22:33:44:55:66", "77:88:99:AA:BB:CC", "DD:EE:FF:00:11:22"]
   }
 }
+
+http://localhost:4000/esp-test-console.html

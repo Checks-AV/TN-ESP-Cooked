@@ -96,10 +96,10 @@ CREATE TABLE IF NOT EXISTS station_preparation_method(
 );
 
 -- Crockery HERE // Pans, Pot // TO IMPLEMENT? FOR NOW NO
-CREATE TABLE IF NOT EXISTS crockery (
-    crockery_id INTEGER,
-    crockery_name TEXT NOT NULL UNIQUE
-);
+-- CREATE TABLE IF NOT EXISTS crockery (
+--     crockery_id INTEGER,
+--     crockery_name TEXT NOT NULL UNIQUE
+-- );
 
 
 -- DO NOT TOUCH BELOW UNTIL TOP IS DONE 

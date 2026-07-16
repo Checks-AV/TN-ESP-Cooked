@@ -1,6 +1,6 @@
-
 // setup express, body parser and EJS 
 const express = require('express');
+const path = require('path'); // <-- ADD THIS LINE - fixes the "path is not defined" error
 const app = express();
 const port = 4000;
 var bodyParser = require("body-parser");
@@ -33,7 +33,7 @@ const settingsRoutes = require('./routes/settings');
 app.use('/settings', settingsRoutes);
 
 const esp32Routes = require('./routes/esp32comms');
-app.use('/esp32comms',esp32Routes);
+app.use('/esp32comms', esp32Routes);
 
 app.use(express.text());
 /* app.post('/', (req, res) => {
@@ -84,6 +84,10 @@ app.listen(port, () => console.log('Server running on port 4000'));
     console.log('🌍 Public: http://unlit-dander-halt.ngrok-free.dev');
     console.log('==================================================\n');
 });*/
+
+// Route removed since esp-test-console.html is now in the public folder
+// and served by express.static
+// Access it at: http://localhost:4000/esp-test-console.html
 
 const stagesRoutes = require('./routes/stages');
 app.use('/stages', stagesRoutes);
