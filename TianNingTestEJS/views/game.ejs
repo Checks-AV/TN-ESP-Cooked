@@ -609,6 +609,27 @@
     };
     activeOrders.push(order);
 
+    // Register this order with the server (Orders table) so the Counter
+    // ESP has a real order_number + recipe (food_id) to validate against.
+    // The wire order_number is a raw 2-digit string, e.g. "01" — separate
+    // from the "K-001" label shown on the ticket for display purposes.
+    const wireOrderNumber = String(orderCounter).padStart(2, '0');
+    order.wireOrderNumber = wireOrderNumber;
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_number: wireOrderNumber, food_id: recipe.id })
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.success) {
+          console.error(`❌ Failed to register order ${orderNo} (wire #${wireOrderNumber}) with server:`, data.message || data.error);
+        } else {
+          console.log(`📋 Order ${orderNo} registered as wire #${wireOrderNumber} (food_id ${recipe.id})`);
+        }
+      })
+      .catch(err => console.error(`❌ Error registering order ${orderNo}:`, err));
+
     updateStats();
     scheduleNextSpawn();
     
@@ -644,8 +665,9 @@
   // ============================================
   
   function processOrderComplete(orderNumber, result) {
-    // Find the order
-    const order = activeOrders.find(o => o.orderNo === orderNumber);
+    // orderNumber here may be the wire form ("01") or ticket label ("K-001")
+    // depending on what the server echoes back — match against both.
+    const order = activeOrders.find(o => o.orderNo === orderNumber || o.wireOrderNumber === orderNumber);
     if (!order) {
       console.warn(`Order ${orderNumber} not found`);
       return;

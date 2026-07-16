@@ -185,6 +185,75 @@ router.get('/api/recipes/:id', (req, res) => {
 });
 
 // ============================================
+// CREATE ORDER (called by game frontend when a ticket spawns)
+// ============================================
+
+router.post('/api/orders', (req, res, next) => {
+    const { order_number, food_id } = req.body;
+
+    if (!order_number || !food_id) {
+        return res.status(400).json({
+            error: 'Missing fields',
+            message: 'order_number and food_id are required'
+        });
+    }
+
+    const formattedOrder = String(order_number).trim().padStart(2, '0');
+
+    if (!/^\d{2}$/.test(formattedOrder)) {
+        return res.status(400).json({
+            error: 'Invalid order_number',
+            message: 'order_number must be a 2-digit number (e.g. "01")'
+        });
+    }
+
+    if (!global.db) {
+        return res.status(500).json({ error: 'Database not available' });
+    }
+
+    // order_number is only unique among orders that are still pending —
+    // it's fine to reuse "05" once the previous order with that number
+    // has completed or failed.
+    global.db.get(
+        `SELECT orders_id FROM Orders WHERE order_number = ? AND order_status = 'pending'`,
+        [formattedOrder],
+        (err, existing) => {
+            if (err) {
+                logMessage('error', 'Error checking existing order:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            if (existing) {
+                logMessage('error', `⚠️ Order number ${formattedOrder} is already pending`);
+                return res.status(409).json({
+                    error: 'Duplicate order_number',
+                    message: `Order ${formattedOrder} is already pending. Wait for it to resolve first.`
+                });
+            }
+
+            global.db.run(
+                `INSERT INTO Orders (food_id, order_number, order_status)
+                 VALUES (?, ?, 'pending')`,
+                [food_id, formattedOrder],
+                function (err) {
+                    if (err) {
+                        logMessage('error', 'Error creating order:', err);
+                        return res.status(500).json({ error: 'Database error' });
+                    }
+
+                    logMessage('success', `✅ Order ${formattedOrder} created (food_id ${food_id})`);
+                    res.json({
+                        success: true,
+                        orders_id: this.lastID,
+                        order_number: formattedOrder,
+                        food_id
+                    });
+                }
+            );
+        }
+    );
+});
+
+// ============================================
 // ESP STATUS ENDPOINT
 // ============================================
 
@@ -315,8 +384,20 @@ router.post('/api/esp/submit', (req, res, next) => {
 // ============================================
 
 function findOrderAndValidate(order_number, tag_macs, res, next) {
-    // Format order number if needed (K-001 format)
-    const formattedOrder = order_number.startsWith('K-') ? order_number : 'K-' + String(order_number).padStart(3, '0');
+    // Order numbers on the wire are a raw 2-digit string, e.g. "01".
+    // Normalize to exactly 2 digits (handles a number or a short string
+    // arriving from the ESP) and store/match in that same raw form —
+    // no "K-" prefix, no 3-digit padding.
+    const formattedOrder = String(order_number).trim().padStart(2, '0');
+
+    if (!/^\d{2}$/.test(formattedOrder)) {
+        logMessage('error', `❌ Invalid order_number format: "${order_number}"`);
+        return res.status(400).json({
+            error: 'Invalid order_number',
+            message: 'order_number must be a 2-digit number (e.g. "01")'
+        });
+    }
+
     logMessage('info', `🔍 Looking for order: ${formattedOrder}`);
     
     // STEP 2: Find the pending order

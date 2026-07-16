@@ -157,91 +157,110 @@ router.post("/listen", (req, res, next) => {
 // ─── INTERNAL: handle action ──────────────────────────────────
 // device_mac: the STATION's ESP32 MAC (not the tag — tags are passive RFID)
 // payload: { tag_rfid, action_name }
-//
-// Validates that the sending station is actually allowed to perform
-// action_name (via station_preparation_method), then appends the action
-// to that tag's current_status chain (e.g. "Default → Chopped → Cooked").
+// action_name may be EITHER:
+//   - a preparation_method_id (number, e.g. 2)
+//   - a preparation_method_name (string, e.g. "Cook")
+// Either way, the canonical name is resolved and stored in the chain,
+// so RFIDTags.current_status always matches the string format the
+// recipe validator (ticketrail.js) expects.
 function handleAction(req, res, next, device_mac, payload) {
     const { tag_rfid, action_name } = payload || {};
 
-    if (!tag_rfid || !action_name) {
+    if (!tag_rfid || action_name === undefined || action_name === null || action_name === '') {
         return res.status(400).json({ error: "action needs tag_rfid and action_name in payload" });
     }
 
-    // 1. Find which station this ESP32 is assigned to
-    global.db.get(
-        `SELECT et.station_id, s.station_name
-         FROM ESP32Devices ed
-         JOIN ESP32Tagger et ON et.device_id = ed.device_id
-         JOIN station s ON s.station_id = et.station_id
-         WHERE ed.device_mac = ?`,
-        [device_mac],
-        (err, station) => {
-            if (err) return next(err);
-            if (!station) {
-                return res.status(404).json({
-                    error: `Device ${device_mac} is not registered or has no station assigned`
-                });
-            }
+    // Resolve action_name to a canonical preparation_method row,
+    // whether it arrived as an id or a name.
+    const isNumeric = /^\d+$/.test(String(action_name).trim());
+    const methodLookupSql = isNumeric
+        ? `SELECT preparation_method_id, preparation_method_name FROM preparation_method WHERE preparation_method_id = ?`
+        : `SELECT preparation_method_id, preparation_method_name FROM preparation_method WHERE preparation_method_name = ?`;
+    const methodLookupParam = isNumeric ? Number(action_name) : String(action_name).trim();
 
-            // 2. Confirm this station is allowed to perform this preparation method
-            global.db.get(
-                `SELECT pm.preparation_method_id
-                 FROM station_preparation_method spm
-                 JOIN preparation_method pm ON pm.preparation_method_id = spm.preparation_method_id
-                 WHERE spm.station_id = ? AND pm.preparation_method_name = ?`,
-                [station.station_id, action_name],
-                (err, allowed) => {
-                    if (err) return next(err);
-                    if (!allowed) {
-                        return res.status(403).json({
-                            error: `Station "${station.station_name}" cannot perform "${action_name}"`
-                        });
-                    }
+    global.db.get(methodLookupSql, [methodLookupParam], (err, method) => {
+        if (err) return next(err);
+        if (!method) {
+            return res.status(400).json({
+                error: `Unknown preparation method: "${action_name}"`
+            });
+        }
 
-                    // 3. Find the tag and its current status
-                    global.db.get(
-                        `SELECT tag_id, ingredients_id, current_status FROM RFIDTags WHERE tag_rfid = ?`,
-                        [tag_rfid],
-                        (err, tag) => {
-                            if (err) return next(err);
-                            if (!tag) {
-                                return res.status(404).json({
-                                    error: `Tag ${tag_rfid} is not assigned to any ingredient`
-                                });
-                            }
+        // 1. Find which station this ESP32 is assigned to
+        global.db.get(
+            `SELECT et.station_id, s.station_name
+             FROM ESP32Devices ed
+             JOIN ESP32Tagger et ON et.device_id = ed.device_id
+             JOIN station s ON s.station_id = et.station_id
+             WHERE ed.device_mac = ?`,
+            [device_mac],
+            (err, station) => {
+                if (err) return next(err);
+                if (!station) {
+                    return res.status(404).json({
+                        error: `Device ${device_mac} is not registered or has no station assigned`
+                    });
+                }
 
-                            // 4. Append the action to the status chain
-                            const base = (!tag.current_status || tag.current_status === '1')
-                                ? 'Default'
-                                : tag.current_status;
-                            const newStatus = `${base} → ${action_name}`;
+                // 2. Confirm this station is allowed to perform this preparation method
+                global.db.get(
+                    `SELECT preparation_method_id
+                     FROM station_preparation_method
+                     WHERE station_id = ? AND preparation_method_id = ?`,
+                    [station.station_id, method.preparation_method_id],
+                    (err, allowed) => {
+                        if (err) return next(err);
+                        if (!allowed) {
+                            return res.status(403).json({
+                                error: `Station "${station.station_name}" cannot perform "${method.preparation_method_name}"`
+                            });
+                        }
 
-                            global.db.run(
-                                `UPDATE RFIDTags SET current_status = ? WHERE tag_id = ?`,
-                                [newStatus, tag.tag_id],
-                                function (err) {
-                                    if (err) return next(err);
-
-                                    console.log(
-                                        `[ACTION] Tag ${tag_rfid} @ station "${station.station_name}" ` +
-                                        `→ ${newStatus}`
-                                    );
-
-                                    res.json({
-                                        success: true,
-                                        tag_rfid,
-                                        station: station.station_name,
-                                        new_status: newStatus
+                        // 3. Find the tag and its current status
+                        global.db.get(
+                            `SELECT tag_id, ingredients_id, current_status FROM RFIDTags WHERE tag_rfid = ?`,
+                            [tag_rfid],
+                            (err, tag) => {
+                                if (err) return next(err);
+                                if (!tag) {
+                                    return res.status(404).json({
+                                        error: `Tag ${tag_rfid} is not assigned to any ingredient`
                                     });
                                 }
-                            );
-                        }
-                    );
-                }
-            );
-        }
-    );
+
+                                // 4. Append the resolved method name to the status chain
+                                const base = (!tag.current_status || tag.current_status === '1')
+                                    ? 'Default'
+                                    : tag.current_status;
+                                const newStatus = `${base} → ${method.preparation_method_name}`;
+
+                                global.db.run(
+                                    `UPDATE RFIDTags SET current_status = ? WHERE tag_id = ?`,
+                                    [newStatus, tag.tag_id],
+                                    function (err) {
+                                        if (err) return next(err);
+
+                                        console.log(
+                                            `[ACTION] Tag ${tag_rfid} @ station "${station.station_name}" ` +
+                                            `→ ${newStatus}`
+                                        );
+
+                                        res.json({
+                                            success: true,
+                                            tag_rfid,
+                                            station: station.station_name,
+                                            action: method.preparation_method_name,
+                                            new_status: newStatus
+                                        });
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    });
 }
 
 // ─── POST /esp32comms/assign-tag ──────────────────────────────
