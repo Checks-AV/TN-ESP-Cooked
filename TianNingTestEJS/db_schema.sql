@@ -1,4 +1,3 @@
-
 -- This makes sure that foreign_key constraints are observed and that errors will be thrown for violations
 PRAGMA foreign_keys=ON;
 
@@ -129,16 +128,26 @@ CREATE TABLE IF NOT EXISTS RFIDTags (
     FOREIGN KEY (ingredients_id) REFERENCES ingredients(ingredients_id) ON DELETE RESTRICT
 );
 
-
--- ORDERS ARE PART 3 of the development cycle
-/* Orders table for constant updating during the game here */
-/* CREATE TABLE IF NOT EXISTS Orders (
-    orders_id INTEGER, --Order Number
-    food_id INTEGER, -- Type of Food
-    order_status TEXT, -- ONGOING? EXPIRED? 
-    order_time_started TEXT, -- TIME HERE
+-- Orders table — one row per spawned ticket, created automatically by the
+-- game frontend (POST /api/orders) the moment a ticket appears on screen.
+CREATE TABLE IF NOT EXISTS Orders (
+    orders_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    food_id         INTEGER NOT NULL,
+    order_number    TEXT NOT NULL UNIQUE,
+    order_status    TEXT DEFAULT 'pending',
+    order_time_started TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (food_id) REFERENCES food(food_id)
-);*/
+);
+
+-- Append-only action log: ESP32 sends mac + action, server just writes it
+CREATE TABLE IF NOT EXISTS OrderActions (
+    action_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    orders_id       INTEGER NOT NULL,
+    tag_mac         TEXT NOT NULL,
+    action_name     TEXT NOT NULL,
+    action_time     TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (orders_id) REFERENCES Orders(orders_id)
+);
 
 
 -- Insert default data (if necessary here)
@@ -146,8 +155,8 @@ CREATE TABLE IF NOT EXISTS RFIDTags (
 -- Want to add additional stations in a separate page? --> Can do for part 1 as part of the front end scoping
 
 /* Input your Stations with Mac Address here */
-INSERT INTO station('station_name') VALUES ('General');
-INSERT INTO station('station_name') VALUES ('Counter');
+INSERT INTO station('station_name') VALUES ('General'); --1
+INSERT INTO station('station_name') VALUES ('Counter'); --2
 
 /* Insert your food here */
 INSERT INTO food('food_name') VALUES ('Fried rice');
@@ -182,16 +191,32 @@ INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Chopped'); --8
 INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Burnt'); --9
 
 /* Insert your station actions here! */
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Toast');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Cook');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Boil');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Fry');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Slice');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Dice');
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Chop');
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Toast'); --1
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Cook');  --2
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Boil');  --3
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Fry');   --4
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Slice'); --5
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Dice');  --6
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Chop');  --7
+
+/* Station permissions — which station is allowed to perform which
+   preparation method. Without rows here, handleAction() in
+   esp32comms.js will reject every action with a 403, since it always
+   checks this table before updating a tag's status.
+
+   Counter (station_id 2) intentionally gets NO rows here — it only
+   ever submits finished orders via /api/esp/submit, never performs
+   prep actions on tags (enforced explicitly in handleAction too). */
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 1); -- General -> Toast
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 2); -- General -> Cook
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 3); -- General -> Boil
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 4); -- General -> Fry
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 5); -- General -> Slice
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 6); -- General -> Dice
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 7); -- General -> Chop
 
 /* Dummy Tag Data here */
-INSERT INTO ESP32Devices('device_mac', 'ip_address', 'last_seen') VALUES (' 1C:DB:D4:40:35:38', '192.168.10.116', '2026-05-06T10:25:12.663Z');
+INSERT INTO ESP32Devices('device_mac', 'ip_address', 'last_seen') VALUES ('1C:DB:D4:40:35:38', '192.168.10.116', '2026-05-06T10:25:12.663Z');
 
 
 -- Do we want a login authentication here? 
@@ -205,26 +230,4 @@ INSERT INTO email_accounts ('email_address', 'user_id') VALUES ('simon@gmail.com
 INSERT INTO email_accounts ('email_address', 'user_id') VALUES ('simon@hotmail.com', 1); 
 INSERT INTO email_accounts ('email_address', 'user_id') VALUES ('dianne@yahoo.co.uk', 2);  */
 
-
--- Replace your bare Orders table with this
-CREATE TABLE IF NOT EXISTS Orders (
-    orders_id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    food_id         INTEGER NOT NULL,
-    order_number    TEXT NOT NULL UNIQUE,
-    order_status    TEXT DEFAULT 'pending',
-    order_time_started TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (food_id) REFERENCES food(food_id)
-);
-
--- Append-only action log: ESP32 sends mac + action, server just writes it
-CREATE TABLE IF NOT EXISTS OrderActions (
-    action_id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    orders_id       INTEGER NOT NULL,
-    tag_mac         TEXT NOT NULL,
-    action_name     TEXT NOT NULL,
-    action_time     TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (orders_id) REFERENCES Orders(orders_id)
-);
-
 COMMIT;
-

@@ -202,6 +202,15 @@ function handleAction(req, res, next, device_mac, payload) {
                     });
                 }
 
+                // The Counter station only ever submits finished orders via
+                // /api/esp/submit — it never performs prep actions on tags.
+                if (station.station_name === 'Counter') {
+                    return res.status(403).json({
+                        error: `Station "Counter" cannot perform prep actions. ` +
+                               `Counter only submits finished orders via /api/esp/submit.`
+                    });
+                }
+
                 // 2. Confirm this station is allowed to perform this preparation method
                 global.db.get(
                     `SELECT preparation_method_id
