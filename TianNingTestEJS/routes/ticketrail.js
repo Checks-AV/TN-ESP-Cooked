@@ -11,6 +11,7 @@ console.log('📦 Loading ticketrail routes...');
 // ============================================
 
 let sseClients = [];
+let clientHeartbeats = new Map();
 
 // ============================================
 // HELPER: Broadcast to all SSE clients
@@ -22,12 +23,31 @@ function broadcastToClients(type, payload) {
     
     // Remove dead clients and send to alive ones
     const aliveClients = [];
+    const now = Date.now();
+    
     sseClients.forEach(client => {
+        // Check if client is still alive (heartbeat check)
+        const clientId = client._clientId;
+        const lastHeartbeat = clientHeartbeats.get(clientId) || 0;
+        
+        // If no heartbeat in 30 seconds, consider client dead
+        if (now - lastHeartbeat > 30000) {
+            console.log(`❌ Client ${clientId} timed out, removing`);
+            clientHeartbeats.delete(clientId);
+            try {
+                client.end();
+            } catch (e) {
+                // Ignore
+            }
+            return;
+        }
+        
         try {
             client.write(data);
             aliveClients.push(client);
         } catch (e) {
             console.log('❌ SSE client write failed, removing');
+            clientHeartbeats.delete(client._clientId);
         }
     });
     sseClients = aliveClients;
@@ -48,8 +68,18 @@ function logMessage(type, message, data = null) {
     };
     console.log(`[${timestamp}] [${type}] ${message}`, data || '');
     
-    // Broadcast to SSE clients
-    broadcastToClients('server-log', logEntry);
+    // Broadcast to SSE clients (but avoid infinite loops)
+    if (type !== 'sse-broadcast') {
+        broadcastToClients('server-log', logEntry);
+    }
+}
+
+// ============================================
+// HELPER: Get formatted order number
+// ============================================
+
+function formatOrderNumber(orderNumber) {
+    return String(orderNumber).trim().padStart(2, '0');
 }
 
 // ============================================
@@ -59,6 +89,9 @@ function logMessage(type, message, data = null) {
 router.get('/api/events', (req, res) => {
     console.log('📡 SSE client connecting...');
     
+    // Generate unique client ID
+    const clientId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    
     // Set headers for SSE
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
@@ -67,17 +100,59 @@ router.get('/api/events', (req, res) => {
         'Access-Control-Allow-Origin': '*'
     });
     
+    // Store client ID on response object
+    res._clientId = clientId;
+    clientHeartbeats.set(clientId, Date.now());
+    
     // Send initial connection message
-    res.write(`data: ${JSON.stringify({ type: 'connected', payload: { message: 'SSE connected', timestamp: new Date().toISOString() } })}\n\n`);
+    res.write(`data: ${JSON.stringify({ 
+        type: 'connected', 
+        payload: { 
+            message: 'SSE connected', 
+            clientId: clientId,
+            timestamp: new Date().toISOString() 
+        } 
+    })}\n\n`);
     
     // Add client to list
     sseClients.push(res);
-    console.log(`✅ SSE client connected. Total clients: ${sseClients.length}`);
+    console.log(`✅ SSE client ${clientId} connected. Total clients: ${sseClients.length}`);
+    
+    // Send current order status to new client
+    if (global.db) {
+        global.db.all(
+            `SELECT order_number, order_status, food_id, order_time_started 
+             FROM Orders 
+             WHERE order_status IN ('pending', 'completed', 'failed', 'missed')
+             ORDER BY orders_id DESC 
+             LIMIT 10`,
+            (err, orders) => {
+                if (!err && orders) {
+                    res.write(`data: ${JSON.stringify({ 
+                        type: 'initial-state', 
+                        payload: { orders } 
+                    })}\n\n`);
+                }
+            }
+        );
+    }
+    
+    // Send heartbeat ping every 15 seconds
+    const heartbeatInterval = setInterval(() => {
+        try {
+            res.write(`: heartbeat\n\n`);
+            clientHeartbeats.set(clientId, Date.now());
+        } catch (e) {
+            clearInterval(heartbeatInterval);
+        }
+    }, 15000);
     
     // Handle client disconnect
     req.on('close', () => {
-        console.log('📡 SSE client disconnected');
+        console.log(`📡 SSE client ${clientId} disconnected`);
+        clearInterval(heartbeatInterval);
         sseClients = sseClients.filter(c => c !== res);
+        clientHeartbeats.delete(clientId);
         console.log(`📡 Total clients: ${sseClients.length}`);
     });
 });
@@ -94,12 +169,36 @@ router.get('/api/orders/check', (req, res) => {
     }
     
     global.db.all(
-        `SELECT order_number, order_status, food_id 
+        `SELECT order_number, order_status, food_id, order_time_started
          FROM Orders 
          WHERE order_status IN ('completed', 'failed', 'missed')
          ORDER BY orders_id DESC 
          LIMIT ?`,
         [limit],
+        (err, orders) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ orders });
+        }
+    );
+});
+
+// ============================================
+// GET PENDING ORDERS
+// ============================================
+
+router.get('/api/orders/pending', (req, res) => {
+    if (!global.db) {
+        return res.status(500).json({ error: 'Database not available' });
+    }
+    
+    global.db.all(
+        `SELECT o.orders_id, o.order_number, o.food_id, f.food_name, o.order_time_started
+         FROM Orders o
+         JOIN food f ON o.food_id = f.food_id
+         WHERE o.order_status = 'pending'
+         ORDER BY o.orders_id ASC`,
         (err, orders) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
@@ -118,7 +217,8 @@ router.get('/api/test', (req, res) => {
     res.json({ 
         status: 'ok', 
         message: 'Ticket rail API is working!',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        clients: sseClients.length
     });
 });
 
@@ -269,7 +369,7 @@ router.post('/api/orders', (req, res, next) => {
         });
     }
 
-    const formattedOrder = String(order_number).trim().padStart(2, '0');
+    const formattedOrder = formatOrderNumber(order_number);
 
     if (!/^\d{2}$/.test(formattedOrder)) {
         return res.status(400).json({
@@ -282,43 +382,86 @@ router.post('/api/orders', (req, res, next) => {
         return res.status(500).json({ error: 'Database not available' });
     }
 
-    global.db.get(
-        `SELECT orders_id FROM Orders WHERE order_number = ? AND order_status = 'pending'`,
-        [formattedOrder],
-        (err, existing) => {
-            if (err) {
-                logMessage('error', 'Error checking existing order:', err);
-                return res.status(500).json({ error: 'Database error' });
-            }
-            if (existing) {
-                logMessage('error', `⚠️ Order number ${formattedOrder} is already pending`);
-                return res.status(409).json({
-                    error: 'Duplicate order_number',
-                    message: `Order ${formattedOrder} is already pending. Wait for it to resolve first.`
-                });
-            }
+    // Check if food exists
+    global.db.get('SELECT food_id FROM food WHERE food_id = ?', [food_id], (err, food) => {
+        if (err) {
+            logMessage('error', 'Error checking food:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        if (!food) {
+            return res.status(404).json({
+                error: 'Food not found',
+                message: `Food with ID ${food_id} does not exist`
+            });
+        }
 
-            global.db.run(
-                `INSERT INTO Orders (food_id, order_number, order_status)
-                 VALUES (?, ?, 'pending')`,
-                [food_id, formattedOrder],
-                function (err) {
-                    if (err) {
-                        logMessage('error', 'Error creating order:', err);
-                        return res.status(500).json({ error: 'Database error' });
-                    }
-
-                    logMessage('success', `✅ Order ${formattedOrder} created (food_id ${food_id})`);
-                    res.json({
-                        success: true,
-                        orders_id: this.lastID,
-                        order_number: formattedOrder,
-                        food_id
+        // Check for existing pending order with same number
+        global.db.get(
+            `SELECT orders_id FROM Orders WHERE order_number = ? AND order_status = 'pending'`,
+            [formattedOrder],
+            (err, existing) => {
+                if (err) {
+                    logMessage('error', 'Error checking existing order:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                if (existing) {
+                    logMessage('error', `⚠️ Order number ${formattedOrder} is already pending`);
+                    return res.status(409).json({
+                        error: 'Duplicate order_number',
+                        message: `Order ${formattedOrder} is already pending. Wait for it to resolve first.`
                     });
                 }
-            );
-        }
-    );
+
+                // Check if there are too many pending orders
+                global.db.get(
+                    `SELECT COUNT(*) as count FROM Orders WHERE order_status = 'pending'`,
+                    (err, result) => {
+                        if (err) {
+                            logMessage('error', 'Error checking pending count:', err);
+                            return res.status(500).json({ error: 'Database error' });
+                        }
+                        
+                        if (result.count >= 10) {
+                            logMessage('warn', `⚠️ Too many pending orders (${result.count})`);
+                            return res.status(429).json({
+                                error: 'Too many pending orders',
+                                message: 'Maximum 10 pending orders allowed'
+                            });
+                        }
+
+                        global.db.run(
+                            `INSERT INTO Orders (food_id, order_number, order_status, order_time_started)
+                             VALUES (?, ?, 'pending', datetime('now'))`,
+                            [food_id, formattedOrder],
+                            function (err) {
+                                if (err) {
+                                    logMessage('error', 'Error creating order:', err);
+                                    return res.status(500).json({ error: 'Database error' });
+                                }
+
+                                logMessage('success', `✅ Order ${formattedOrder} created (food_id ${food_id})`);
+                                
+                                // Broadcast new order via SSE
+                                broadcastToClients('order-created', {
+                                    order_number: formattedOrder,
+                                    display_order_number: '#' + formattedOrder,
+                                    food_id: food_id,
+                                    orders_id: this.lastID
+                                });
+                                
+                                res.json({
+                                    success: true,
+                                    orders_id: this.lastID,
+                                    order_number: formattedOrder,
+                                    food_id
+                                });
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    });
 });
 
 // ============================================
@@ -336,57 +479,100 @@ router.post('/api/orders/clear', (req, res) => {
         });
     }
     
-    global.db.run(
-        `UPDATE RFIDTags SET current_status = 'Default'`,
-        function(err) {
+    // Check if there are any pending orders first
+    global.db.get(
+        `SELECT COUNT(*) as count FROM Orders WHERE order_status = 'pending'`,
+        (err, result) => {
             if (err) {
-                logMessage('error', '❌ Error resetting tag statuses:', err);
-                return res.status(500).json({ 
-                    error: 'Database error',
-                    message: 'Failed to reset tag statuses'
+                logMessage('error', 'Error checking pending orders:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            if (result.count === 0) {
+                logMessage('info', 'No pending orders to clear');
+                return res.json({
+                    success: true,
+                    message: 'No pending orders to clear',
+                    orders_cleared: 0,
+                    tags_reset: true
                 });
             }
             
-            logMessage('info', `🔄 Reset ${this.changes || 0} tag statuses to 'Default'`);
-            
-            global.db.run(
-                `DELETE FROM Orders`,
-                function(err) {
-                    if (err) {
-                        logMessage('error', '❌ Error clearing orders:', err);
-                        return res.status(500).json({ 
-                            error: 'Database error',
-                            message: 'Failed to clear orders'
-                        });
-                    }
-                    
-                    const ordersCleared = this.changes || 0;
-                    logMessage('success', `✅ Cleared ${ordersCleared} orders from database`);
-                    
-                    global.db.run(
-                        `DELETE FROM OrderActions`,
-                        function(err) {
-                            if (err) {
-                                logMessage('warn', '⚠️ Error clearing order actions:', err);
-                            } else {
-                                logMessage('info', `🔄 Cleared ${this.changes || 0} order actions`);
-                            }
-                            
-                            broadcastToClients('orders-cleared', {
-                                orders_cleared: ordersCleared,
-                                tags_reset: true
-                            });
-                            
-                            res.json({
-                                success: true,
-                                message: 'All orders cleared and tags reset to Default',
-                                orders_cleared: ordersCleared,
-                                tags_reset: true
+            // Begin transaction
+            global.db.run("BEGIN TRANSACTION", (err) => {
+                if (err) {
+                    logMessage('error', 'Error starting transaction:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                
+                // Reset tag statuses
+                global.db.run(
+                    `UPDATE RFIDTags SET current_status = 'Default'`,
+                    function(err) {
+                        if (err) {
+                            logMessage('error', '❌ Error resetting tag statuses:', err);
+                            global.db.run("ROLLBACK");
+                            return res.status(500).json({ 
+                                error: 'Database error',
+                                message: 'Failed to reset tag statuses'
                             });
                         }
-                    );
-                }
-            );
+                        
+                        logMessage('info', `🔄 Reset ${this.changes || 0} tag statuses to 'Default'`);
+                        
+                        // Delete all orders
+                        global.db.run(
+                            `DELETE FROM Orders`,
+                            function(err) {
+                                if (err) {
+                                    logMessage('error', '❌ Error clearing orders:', err);
+                                    global.db.run("ROLLBACK");
+                                    return res.status(500).json({ 
+                                        error: 'Database error',
+                                        message: 'Failed to clear orders'
+                                    });
+                                }
+                                
+                                const ordersCleared = this.changes || 0;
+                                logMessage('success', `✅ Cleared ${ordersCleared} orders from database`);
+                                
+                                // Clear order actions
+                                global.db.run(
+                                    `DELETE FROM OrderActions`,
+                                    function(err) {
+                                        if (err) {
+                                            logMessage('warn', '⚠️ Error clearing order actions:', err);
+                                        } else {
+                                            logMessage('info', `🔄 Cleared ${this.changes || 0} order actions`);
+                                        }
+                                        
+                                        // Commit transaction
+                                        global.db.run("COMMIT", (err) => {
+                                            if (err) {
+                                                logMessage('error', 'Error committing transaction:', err);
+                                                global.db.run("ROLLBACK");
+                                                return res.status(500).json({ error: 'Database error' });
+                                            }
+                                            
+                                            broadcastToClients('orders-cleared', {
+                                                orders_cleared: ordersCleared,
+                                                tags_reset: true
+                                            });
+                                            
+                                            res.json({
+                                                success: true,
+                                                message: 'All orders cleared and tags reset to Default',
+                                                orders_cleared: ordersCleared,
+                                                tags_reset: true
+                                            });
+                                        });
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            });
         }
     );
 });
@@ -406,7 +592,7 @@ router.get('/api/esp/status', (req, res) => {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     
     global.db.get(
-        `SELECT ed.device_mac
+        `SELECT ed.device_mac, ed.last_seen
          FROM ESP32Devices ed
          JOIN ESP32Tagger et ON et.device_id = ed.device_id
          JOIN station s ON s.station_id = et.station_id
@@ -419,8 +605,9 @@ router.get('/api/esp/status', (req, res) => {
                 return res.json({ online: false });
             }
             const online = !!row;
+            const lastSeen = row ? row.last_seen : null;
             logMessage('info', `ESP status: ${online ? 'Online ✅' : 'Offline ❌'}`);
-            res.json({ online: online });
+            res.json({ online: online, last_seen: lastSeen });
         }
     );
 });
@@ -456,9 +643,7 @@ router.post('/api/esp/missed', (req, res) => {
         });
     }
 
-    const formattedOrder = String(order_number)
-        .trim()
-        .padStart(2, '0');
+    const formattedOrder = formatOrderNumber(order_number);
 
     if (!/^\d{2}$/.test(formattedOrder)) {
         logMessage('error', `❌ Invalid order number: ${order_number}`);
@@ -469,50 +654,80 @@ router.post('/api/esp/missed', (req, res) => {
         });
     }
 
-    const sql = `
-        UPDATE Orders
-        SET order_status = 'missed'
-        WHERE order_number = ?
-          AND order_status = 'pending'
-    `;
-
-    global.db.run(
-        sql,
-        [formattedOrder],
-        function (err) {
-            if (err) {
-                logMessage('error', `❌ Failed to mark order ${formattedOrder} as missed`, err);
-                return res.status(500).json({
-                    success: false,
-                    error: 'Database error',
-                    message: err.message
-                });
-            }
-
-            if (this.changes === 0) {
-                logMessage('warn', `⚠️ Order ${formattedOrder} was not found or was no longer pending`);
-                return res.status(409).json({
-                    success: false,
-                    error: 'Order not updated',
-                    message: `Order ${formattedOrder} was not found or is no longer pending`
-                });
-            }
-
-            logMessage('success', `✅ Order ${formattedOrder} marked as missed`);
-            
-            // Broadcast missed order via SSE
-            broadcastToClients('order-missed', {
-                order_number: formattedOrder,
-                display_order_number: '#' + String(formattedOrder).padStart(2, '0')
-            });
-            
-            return res.json({
-                success: true,
-                order_number: formattedOrder,
-                order_status: 'missed'
-            });
+    // Use transaction to ensure consistency
+    global.db.run("BEGIN TRANSACTION", (err) => {
+        if (err) {
+            logMessage('error', 'Error starting transaction:', err);
+            return res.status(500).json({ error: 'Database error' });
         }
-    );
+
+        const sql = `
+            UPDATE Orders
+            SET order_status = 'missed'
+            WHERE order_number = ?
+              AND order_status = 'pending'
+        `;
+
+        global.db.run(
+            sql,
+            [formattedOrder],
+            function (err) {
+                if (err) {
+                    logMessage('error', `❌ Failed to mark order ${formattedOrder} as missed`, err);
+                    global.db.run("ROLLBACK");
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Database error',
+                        message: err.message
+                    });
+                }
+
+                if (this.changes === 0) {
+                    logMessage('warn', `⚠️ Order ${formattedOrder} was not found or was no longer pending`);
+                    global.db.run("ROLLBACK");
+                    return res.status(409).json({
+                        success: false,
+                        error: 'Order not updated',
+                        message: `Order ${formattedOrder} was not found or is no longer pending`
+                    });
+                }
+
+                // Reset tags
+                global.db.run(
+                    `UPDATE RFIDTags SET current_status = 'Default'`,
+                    function(err) {
+                        if (err) {
+                            logMessage('error', 'Error resetting tags:', err);
+                            global.db.run("ROLLBACK");
+                            return res.status(500).json({ error: 'Database error' });
+                        }
+
+                        global.db.run("COMMIT", (err) => {
+                            if (err) {
+                                logMessage('error', 'Error committing transaction:', err);
+                                global.db.run("ROLLBACK");
+                                return res.status(500).json({ error: 'Database error' });
+                            }
+
+                            logMessage('success', `✅ Order ${formattedOrder} marked as missed`);
+                            
+                            // Broadcast missed order via SSE
+                            broadcastToClients('order-missed', {
+                                order_number: formattedOrder,
+                                display_order_number: '#' + String(formattedOrder).padStart(2, '0')
+                            });
+                            
+                            return res.json({
+                                success: true,
+                                order_number: formattedOrder,
+                                order_status: 'missed'
+                            });
+                        });
+                    }
+                );
+            }
+        );
+    });
 });
 
 // ============================================
@@ -553,10 +768,34 @@ router.post('/api/esp/submit', (req, res, next) => {
         });
     }
     
+    // Use a lock to prevent race conditions
+    const lockKey = `order_${formatOrderNumber(order_number)}`;
+    if (global.orderLocks && global.orderLocks[lockKey]) {
+        logMessage('warn', `⚠️ Order ${order_number} is already being processed`);
+        return res.status(409).json({
+            error: 'Order processing in progress',
+            message: `Order ${order_number} is currently being processed`
+        });
+    }
+    
+    // Initialize locks if not exists
+    if (!global.orderLocks) {
+        global.orderLocks = {};
+    }
+    global.orderLocks[lockKey] = true;
+    
+    // Auto-release lock after 10 seconds (safety)
+    setTimeout(() => {
+        if (global.orderLocks) {
+            delete global.orderLocks[lockKey];
+        }
+    }, 10000);
+    
     console.log(`📝 Processing submission: Order ${order_number} from device ${device_mac || 'GAME_CLIENT'}`);
     console.log(`📋 Tags received: ${tag_macs.join(', ')}`);
     
     if (!global.db) {
+        delete global.orderLocks[lockKey];
         logMessage('error', '❌ global.db is not available');
         return res.status(500).json({ 
             error: 'Database not available',
@@ -575,10 +814,12 @@ router.post('/api/esp/submit', (req, res, next) => {
             [device_mac],
             (err, device) => {
                 if (err) {
+                    delete global.orderLocks[lockKey];
                     logMessage('error', 'Error finding device:', err);
                     return res.status(500).json({ error: 'Database error' });
                 }
                 if (!device) {
+                    delete global.orderLocks[lockKey];
                     logMessage('error', `⚠️ Device ${device_mac} not found or has no station assigned`);
                     return res.status(404).json({ 
                         error: 'Device not found',
@@ -586,6 +827,7 @@ router.post('/api/esp/submit', (req, res, next) => {
                     });
                 }
                 if (device.station_name !== 'Counter') {
+                    delete global.orderLocks[lockKey];
                     logMessage('error', `⚠️ Device ${device_mac} is at station "${device.station_name}", not Counter`);
                     return res.status(403).json({ 
                         error: 'Invalid device type',
@@ -593,12 +835,12 @@ router.post('/api/esp/submit', (req, res, next) => {
                     });
                 }
                 logMessage('success', `✅ Device ${device_mac} verified as Counter`);
-                findOrderAndValidate(order_number, tag_macs, res, next);
+                findOrderAndValidate(order_number, tag_macs, res, next, lockKey);
             }
         );
     } else {
         logMessage('warn', '⚠️ No device_mac provided - allowing game client submission');
-        findOrderAndValidate(order_number, tag_macs, res, next);
+        findOrderAndValidate(order_number, tag_macs, res, next, lockKey);
     }
 });
 
@@ -606,10 +848,11 @@ router.post('/api/esp/submit', (req, res, next) => {
 // INTERNAL: Find Order and Validate
 // ============================================
 
-function findOrderAndValidate(order_number, tag_macs, res, next) {
-    const formattedOrder = String(order_number).trim().padStart(2, '0');
+function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
+    const formattedOrder = formatOrderNumber(order_number);
 
     if (!/^\d{2}$/.test(formattedOrder)) {
+        if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
         logMessage('error', `❌ Invalid order_number format: "${order_number}"`);
         return res.status(400).json({
             error: 'Invalid order_number',
@@ -627,6 +870,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
         [formattedOrder],
         (err, allOrdersWithThisNumber) => {
             if (err) {
+                if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                 logMessage('error', 'Error fetching orders:', err);
                 return res.status(500).json({ error: 'Database error' });
             }
@@ -637,7 +881,12 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
                     logMessage('info', `  #${idx + 1}: ID=${o.orders_id}, status="${o.order_status}", food_id=${o.food_id}, time=${o.order_time_started}`);
                 });
             } else {
+                if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                 logMessage('error', `❌ No orders at all with number ${formattedOrder} found in database`);
+                return res.status(404).json({ 
+                    error: 'Order not found',
+                    message: `Order number ${formattedOrder} does not exist in the database.`
+                });
             }
             
             global.db.get(
@@ -650,6 +899,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
                 [formattedOrder],
                 (err, pendingOrder) => {
                     if (err) {
+                        if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                         logMessage('error', 'Error finding pending order:', err);
                         return res.status(500).json({ error: 'Database error' });
                     }
@@ -664,6 +914,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
                              LIMIT 1`,
                             [formattedOrder],
                             (err2, nonPendingOrder) => {
+                                if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                 if (err2) {
                                     logMessage('error', 'Error checking non-pending order:', err2);
                                 } else if (nonPendingOrder) {
@@ -690,6 +941,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
                     logMessage('info', `📋 Order details: ID=${pendingOrder.orders_id}, status="${pendingOrder.order_status}"`);
                     logMessage('info', `📋 Tags received: ${tag_macs.join(', ')}`);
                     
+                    // Get recipe with proper joins
                     const recipeSql = `
                         SELECT 
                             i.ingredients_id,
@@ -708,11 +960,13 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
                     
                     global.db.all(recipeSql, [pendingOrder.food_id], (err, recipe) => {
                         if (err) {
+                            if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                             logMessage('error', 'Error getting recipe:', err);
                             return res.status(500).json({ error: 'Database error' });
                         }
                         
                         if (recipe.length === 0) {
+                            if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                             logMessage('error', `❌ Recipe for ${pendingOrder.food_name} has no ingredients defined`);
                             return res.status(400).json({ 
                                 error: 'Invalid recipe',
@@ -724,6 +978,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
                         
                         const hasAnyTag = recipe.some(ing => ing.tag_mac !== null);
                         if (!hasAnyTag) {
+                            if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                             logMessage('error', '❌ No tags assigned to any ingredients');
                             return res.status(400).json({
                                 error: 'No tags assigned',
@@ -816,112 +1071,91 @@ function findOrderAndValidate(order_number, tag_macs, res, next) {
                         
                         logMessage('info', `📊 Validation summary: ${allPass ? 'ALL PASS ✅' : 'FAILED ❌'}`);
                         
-                        if (allPass) {
-                            logMessage('success', `✅ Order ${formattedOrder} PASSED validation`);
+                        // Use transaction for updating order and tags
+                        global.db.run("BEGIN TRANSACTION", (err) => {
+                            if (err) {
+                                if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
+                                logMessage('error', 'Error starting transaction:', err);
+                                return res.status(500).json({ error: 'Database error' });
+                            }
+                            
+                            const newStatus = allPass ? 'completed' : 'failed';
+                            const statusMessage = allPass ? 'COMPLETED' : 'FAILED';
+                            
                             global.db.run(
-                                `UPDATE Orders SET order_status = 'completed' WHERE orders_id = ?`,
-                                [pendingOrder.orders_id],
-                                (err) => {
+                                `UPDATE Orders SET order_status = ? WHERE orders_id = ?`,
+                                [newStatus, pendingOrder.orders_id],
+                                function(err) {
                                     if (err) {
                                         logMessage('error', 'Error updating order:', err);
+                                        global.db.run("ROLLBACK");
+                                        if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                         return res.status(500).json({ error: 'Database error' });
                                     }
                                     
+                                    // Reset all tag statuses to Default
                                     global.db.run(
                                         `UPDATE RFIDTags SET current_status = 'Default'`,
-                                        (err) => {
+                                        function(err) {
                                             if (err) {
                                                 logMessage('error', 'Error clearing tag statuses:', err);
+                                                global.db.run("ROLLBACK");
+                                                if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                                 return res.status(500).json({ error: 'Database error' });
                                             }
                                             
-                                            logMessage('success', `✅ Order ${formattedOrder} COMPLETED - All tags reset`);
-                                            
-                                            const responseData = {
-                                                success: true,
-                                                result: 'PASS',
-                                                order_number: formattedOrder,
-                                                food: pendingOrder.food_name,
-                                                score_earned: 100,
-                                                message: '✅ Order completed successfully!',
-                                                details: results
-                                            };
-                                            
-                                            // Broadcast via SSE to all connected clients
-                                            console.log(`📤 Broadcasting SSE: esp-order-complete for ${formattedOrder} (SUCCESS)`);
-                                            broadcastToClients('esp-order-complete', {
-                                                order_number: formattedOrder,
-                                                success: true,
-                                                details: results,
-                                                score_earned: 100,
-                                                food: pendingOrder.food_name,
-                                                message: 'Order completed successfully'
+                                            // Commit transaction
+                                            global.db.run("COMMIT", (err) => {
+                                                if (err) {
+                                                    logMessage('error', 'Error committing transaction:', err);
+                                                    global.db.run("ROLLBACK");
+                                                    if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
+                                                    return res.status(500).json({ error: 'Database error' });
+                                                }
+                                                
+                                                // Release lock
+                                                if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
+                                                
+                                                const responseData = {
+                                                    success: allPass,
+                                                    result: allPass ? 'PASS' : 'FAIL',
+                                                    order_number: formattedOrder,
+                                                    food: pendingOrder.food_name,
+                                                    score_earned: allPass ? 100 : 0,
+                                                    message: allPass ? '✅ Order completed successfully!' : '❌ Order validation failed. Check ingredient preparation chains.',
+                                                    details: results
+                                                };
+                                                
+                                                // Broadcast via SSE
+                                                console.log(`📤 Broadcasting SSE: esp-order-complete for ${formattedOrder} (${statusMessage})`);
+                                                broadcastToClients('esp-order-complete', {
+                                                    order_number: formattedOrder,
+                                                    success: allPass,
+                                                    details: results,
+                                                    score_earned: allPass ? 100 : 0,
+                                                    food: pendingOrder.food_name,
+                                                    message: allPass ? 'Order completed successfully' : 'Order validation failed'
+                                                });
+                                                
+                                                broadcastToClients('esp-submit-result', responseData);
+                                                
+                                                if (!allPass) {
+                                                    broadcastToClients('order-failed', {
+                                                        order_number: formattedOrder,
+                                                        display_order_number: '#' + formattedOrder,
+                                                        food: pendingOrder.food_name,
+                                                        reason: 'Validation failed'
+                                                    });
+                                                }
+                                                
+                                                logMessage('success', `✅ Order ${formattedOrder} ${statusMessage}`);
+                                                res.json(responseData);
                                             });
-                                            
-                                            broadcastToClients('esp-submit-result', responseData);
-                                            
-                                            res.json(responseData);
                                         }
                                     );
                                 }
                             );
-                        } else {
-                            logMessage('error', `❌ Order ${formattedOrder} FAILED validation`);
-                            global.db.run(
-                                `UPDATE Orders SET order_status = 'failed' WHERE orders_id = ?`,
-                                [pendingOrder.orders_id],
-                                (err) => {
-                                    if (err) {
-                                        logMessage('error', 'Error updating order:', err);
-                                        return res.status(500).json({ error: 'Database error' });
-                                    }
-
-                                    global.db.run(
-                                        `UPDATE RFIDTags SET current_status = 'Default'`,
-                                        (err) => {
-                                            if (err) {
-                                                logMessage('error', 'Error clearing tag statuses:', err);
-                                                return res.status(500).json({ error: 'Database error' });
-                                            }
-
-                                            logMessage('error', `❌ Order ${formattedOrder} marked as FAILED - All tags reset`);
-                                    
-                                            const responseData = {
-                                                success: false,
-                                                result: 'FAIL',
-                                                order_number: formattedOrder,
-                                                food: pendingOrder.food_name,
-                                                message: '❌ Order validation failed. Check ingredient preparation chains.',
-                                                details: results
-                                            };
-                                            
-                                            // Broadcast via SSE to all connected clients
-                                            console.log(`📤 Broadcasting SSE: esp-order-complete for ${formattedOrder} (FAILURE)`);
-                                            broadcastToClients('esp-order-complete', {
-                                                order_number: formattedOrder,
-                                                success: false,
-                                                details: results,
-                                                message: 'Order validation failed',
-                                                food: pendingOrder.food_name,
-                                                reason: 'Validation failed'
-                                            });
-                                            
-                                            broadcastToClients('esp-submit-result', responseData);
-                                            
-                                            // Also send direct order-failed
-                                            broadcastToClients('order-failed', {
-                                                order_number: formattedOrder,
-                                                display_order_number: '#' + String(formattedOrder).padStart(2, '0'),
-                                                food: pendingOrder.food_name,
-                                                reason: 'Validation failed'
-                                            });
-                                            
-                                            res.json(responseData);
-                                        }
-                                    );
-                                }
-                            );
-                        }
+                        });
                     });
                 }
             );

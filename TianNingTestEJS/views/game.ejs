@@ -1482,7 +1482,16 @@
     showGameOver();
   }
 
-  function resetService() {
+  // resetService() is called: on page load, when a service ends and the
+  // user hits "New Service", and whenever startService() auto-resets an
+  // already-finished service. Every one of those is the start of a fresh
+  // round, so this is the right single place to also wipe server-side
+  // state (Orders + RFIDTags) — otherwise order_number ("01", "02", ...)
+  // collides with rows left over from the previous service, since
+  // Orders.order_number is UNIQUE across the whole table's history, not
+  // just among currently-pending rows. Without this, every submission
+  // after the first playthrough would fail with a 409/DB constraint error.
+  async function resetService() {
     running = false;
     paused = false;
     if (spawnTimeout) clearTimeout(spawnTimeout);
@@ -1492,6 +1501,24 @@
     score = 0; served = 0; missed = 0; failed = 0;
     serviceRemaining = totalServiceTime;
     orderCounter = 0;
+
+    statusMsg.textContent = '🔄 Clearing previous orders...';
+    statusMsg.className = 'status-msg';
+    manualStartBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/orders/clear', { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) {
+        console.warn('⚠️ /api/orders/clear did not report success:', data);
+      } else {
+        console.log(`🔄 Server cleared ${data.orders_cleared} old orders, tags reset`);
+      }
+    } catch (err) {
+      console.error('❌ Failed to clear orders on the server before resetting:', err);
+      statusMsg.textContent = '⚠️ Could not reach server to clear old orders — a new service may fail on the first submit.';
+      statusMsg.className = 'status-msg error';
+    }
     
     if (recipesLoaded && recipes.length > 0) {
       emptyMsg.style.display = 'block';
@@ -1547,7 +1574,6 @@
     console.log('📡 Connecting to SSE stream at /api/events...');
     
     try {
-      // Use fetch with EventSource polyfill approach
       const sse = new EventSource('/api/events');
       
       sse.onopen = function(event) {
@@ -1564,7 +1590,6 @@
           const msg = JSON.parse(event.data);
           console.log('📨 SSE message parsed:', msg.type, msg.payload || '');
           
-          // Process the message using the same handlers
           handleMessage(msg);
           
         } catch (error) {
@@ -1589,7 +1614,6 @@
         }
       };
       
-      // Store reference for cleanup
       window.sseConnection = sse;
       
     } catch (error) {
@@ -1658,7 +1682,6 @@
         const payload = msg.payload;
         if (payload.order_number) {
           console.log(`📨 Order complete via SSE: ${payload.order_number}`, payload.success ? '✅ SUCCESS' : '❌ FAILURE');
-          // Make sure we have the correct order number format
           const orderNum = payload.order_number;
           processOrderComplete(orderNum, payload);
         }
@@ -1666,45 +1689,6 @@
 
       case 'esp-submit-result':
         console.log('📨 ESP submit result:', msg.payload);
-        break;
-
-      case 'order-failed':
-        const failPayload = msg.payload;
-        if (failPayload.order_number) {
-          console.log(`📨 Direct order-failed received for: ${failPayload.order_number}`);
-          const orderToRemove = activeOrders.find(o => 
-            o.wireOrderNumber === failPayload.order_number || 
-            o.orderNo === failPayload.order_number ||
-            o.orderNo === '#' + String(failPayload.order_number).padStart(2, '0')
-          );
-          if (orderToRemove && !orderToRemove.failed && !orderToRemove.completed && !orderToRemove.missed) {
-            console.log(`🎯 Found order to mark as failed: ${orderToRemove.orderNo}`);
-            orderToRemove.failed = true;
-            orderToRemove.received = true;
-            orderToRemove.validated = true;
-            failed += 1;
-            
-            const badge = orderToRemove.el.querySelector('.status-badge');
-            if (badge) {
-              badge.textContent = '💀 Failed';
-              badge.className = 'status-badge failed';
-            }
-            const foot = orderToRemove.el.querySelector('.ticket-foot .status-text');
-            if (foot) {
-              foot.textContent = `❌ ${failPayload.reason || 'Validation failed'}`;
-              foot.className = 'status-text failed';
-            }
-            orderToRemove.el.classList.add('failed');
-            showToast('💀 Order failed!', 'bad');
-            updateStats();
-            
-            setTimeout(() => removeTicket(orderToRemove), 1500);
-          } else if (orderToRemove) {
-            console.log(`⏭️ Order ${orderToRemove.orderNo} already processed (completed=${orderToRemove.completed}, missed=${orderToRemove.missed}, failed=${orderToRemove.failed})`);
-          } else {
-            console.log(`⚠️ Order ${failPayload.order_number} not found in active orders`);
-          }
-        }
         break;
 
       case 'order-missed':
@@ -1737,7 +1721,6 @@
         break;
 
       case 'server-log':
-        // Display server logs in console
         if (msg.payload && msg.payload.message) {
           console.log(`[Server ${msg.payload.timestamp}] ${msg.payload.type}: ${msg.payload.message}`);
         }
@@ -1778,7 +1761,7 @@
   // ============================================
   
   async function init() {
-    resetService();
+    await resetService();
     statusMsg.textContent = '🔄 Loading recipes from kitchen...';
     statusMsg.className = 'status-msg';
     controllerStatus.textContent = '⏸ loading...';
@@ -1791,7 +1774,6 @@
       updateStatusPill();
     }
     
-    // Connect to SSE for real-time updates with a small delay
     setTimeout(() => {
       connectSSE();
     }, 1000);
@@ -1804,7 +1786,6 @@
     console.log('📊 Active orders:', activeOrders.length);
   }
 
-  // Cleanup SSE on page unload
   window.addEventListener('beforeunload', function() {
     if (window.sseConnection) {
       console.log('📡 Closing SSE connection');
