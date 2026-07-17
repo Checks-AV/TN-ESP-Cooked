@@ -206,6 +206,8 @@
       min-height: 60px;
       align-items: center;
     }
+    .mini-rail::-webkit-scrollbar { height: 6px; }
+    .mini-rail::-webkit-scrollbar-thumb { background: #4a5054; border-radius: 3px; }
     .mini-ticket {
       background: #f3ecd8;
       color: #26241f;
@@ -217,9 +219,27 @@
       box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       transform: rotate(var(--tilt, 0deg));
       flex: 0 0 auto;
+      animation: miniDrop 0.3s ease-out;
+    }
+    @keyframes miniDrop {
+      from { transform: translateY(-10px) rotate(var(--tilt, 0deg)); opacity: 0; }
+      to { transform: translateY(0) rotate(var(--tilt, 0deg)); opacity: 1; }
     }
     .mini-ticket .dish { font-weight: 700; font-size: 13px; }
     .mini-ticket .time { color: #6b6558; font-size: 10px; }
+    .mini-ticket .status-badge-mini {
+      font-size: 8px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      margin-left: 4px;
+      font-weight: 600;
+    }
+    .mini-ticket .status-badge-mini.waiting { background: #dfa62e; color: #2d2410; }
+    .mini-ticket .status-badge-mini.completed { background: #4a9d6e; color: #12241a; }
+    .mini-ticket .status-badge-mini.missed { background: #d9463c; color: #fff; }
+    .mini-ticket .status-badge-mini.failed { background: #d9463c; color: #fff; }
+    .mini-ticket .status-badge-mini.cooking { background: #e3ddc6; color: #5a5334; }
+    
     .empty-rail-mini {
       color: #6b6558;
       font-family: 'Courier Prime', monospace;
@@ -236,6 +256,7 @@
     }
     .connection-status.connected { border-left: 3px solid #4a9d6e; }
     .connection-status.disconnected { border-left: 3px solid #d9463c; }
+    .connection-status.syncing { border-left: 3px solid #dfa62e; }
     .nav-link {
       color: #b5aea0;
       text-decoration: none;
@@ -294,6 +315,8 @@
     .log-type.esp { background: #4a3a1a; color: #dfa62e; }
     .log-type.match { background: #1a3a3a; color: #4ad6d6; }
     .log-type.submit { background: #3a1a4a; color: #c96ad6; }
+    .log-type.order { background: #1a2a4a; color: #6cb4ee; }
+    .log-type.db { background: #1a4a1a; color: #4a9d6e; }
     .log-message { color: #e9e6de; word-break: break-all; }
 
     .esp-status-indicator {
@@ -321,6 +344,16 @@
     .clear-logs-btn:hover {
       background: rgba(255,255,255,0.08);
       color: #f5f2ea;
+    }
+
+    .order-count-badge {
+      background: #4a9d6e;
+      color: #12241a;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-left: 8px;
     }
   </style>
 </head>
@@ -398,6 +431,7 @@
       <div class="stat-item"><span class="num" id="statScore">0</span> score</div>
       <div class="stat-item"><span class="num" id="statServed">0</span> served</div>
       <div class="stat-item"><span class="num" id="statMissed">0</span> missed</div>
+      <div class="stat-item"><span class="num" id="statFailed">0</span> failed</div>
     </div>
     <div style="margin-top: 16px; display: flex; align-items: center; gap: 16px;">
       <span style="font-size:13px; color:#b5aea0;">Service clock</span>
@@ -418,7 +452,7 @@
 
 <!-- RAIL PREVIEW (mini) -->
 <div class="card" style="margin-bottom: 24px;">
-  <h2>🚄 Active orders (preview)</h2>
+  <h2>🚄 Active orders (preview) <span class="order-count-badge" id="orderCountBadge">0</span></h2>
   <div class="mini-rail" id="miniRail">
     <div class="empty-rail-mini">No orders — start service to see them appear.</div>
   </div>
@@ -455,11 +489,12 @@
   // ----- state -----
   let running = false;
   let paused = false;
-  let score = 0, served = 0, missed = 0;
+  let score = 0, served = 0, missed = 0, failed = 0;
   let serviceRemaining = 300;
   let totalServiceTime = 300;
   let orderCounter = 0;
   let autoScroll = true;
+  let activeOrders = [];
 
   // timing parameters
   let params = {
@@ -470,9 +505,6 @@
     totalTime: 300,
   };
 
-  // active orders (for preview)
-  let activeOrders = [];
-
   // DOM refs
   const startBtn = document.getElementById('startBtn');
   const pauseBtn = document.getElementById('pauseBtn');
@@ -482,6 +514,7 @@
   const liveLabel = document.getElementById('liveLabel');
   const connectionStatus = document.getElementById('connectionStatus');
   const espStatus = document.getElementById('espStatus');
+  const orderCountBadge = document.getElementById('orderCountBadge');
 
   const spawnMinInput = document.getElementById('spawnMin');
   const spawnMaxInput = document.getElementById('spawnMax');
@@ -497,6 +530,7 @@
   const statScore = document.getElementById('statScore');
   const statServed = document.getElementById('statServed');
   const statMissed = document.getElementById('statMissed');
+  const statFailed = document.getElementById('statFailed');
   const serviceTimeEl = document.getElementById('serviceTime');
   const serviceFillEl = document.getElementById('serviceFill');
   const miniRail = document.getElementById('miniRail');
@@ -508,7 +542,6 @@
     const entry = document.createElement('div');
     entry.className = 'log-entry';
     
-    let typeLabel = type;
     let typeClass = 'info';
     switch(type) {
       case 'ESP Received': typeClass = 'esp'; break;
@@ -516,12 +549,18 @@
       case 'Match Check': typeClass = 'match'; break;
       case '✅ Success': typeClass = 'success'; break;
       case '❌ Error': typeClass = 'error'; break;
+      case '📋 Order': typeClass = 'order'; break;
+      case '💾 DB': typeClass = 'db'; break;
       default: typeClass = 'info';
     }
     
     let displayMessage = message;
     if (data) {
-      displayMessage += ' ' + JSON.stringify(data, null, 0);
+      try {
+        displayMessage += ' ' + JSON.stringify(data, null, 0);
+      } catch(e) {
+        displayMessage += ' [data]';
+      }
     }
     
     entry.innerHTML = `
@@ -574,20 +613,22 @@
       case 'game-reset':
         running = false;
         paused = false;
-        score = 0; served = 0; missed = 0;
+        score = 0; served = 0; missed = 0; failed = 0;
         serviceRemaining = totalServiceTime;
         activeOrders = [];
         addLog('info', '⟳ Game reset');
         updateUI();
+        renderMiniRail();
         break;
 
       case 'state-report':
         const state = msg.payload;
         running = state.running;
         paused = state.paused;
-        score = state.score;
-        served = state.served;
-        missed = state.missed;
+        score = state.score || 0;
+        served = state.served || 0;
+        missed = state.missed || 0;
+        failed = state.failed || 0;
         if (state.serviceRemaining !== undefined) {
           serviceRemaining = state.serviceRemaining;
         }
@@ -597,7 +638,46 @@
         updateUI();
         break;
 
-      // ESP Message Logs from Game
+      case 'order-spawned':
+        // New order spawned in game
+        const newOrder = msg.payload;
+        const exists = activeOrders.some(o => o.orderNo === newOrder.orderNo);
+        if (!exists) {
+          activeOrders.push(newOrder);
+          addLog('📋 Order', `🆕 Order ${newOrder.orderNo} spawned - ${newOrder.dish}`, {
+            prepTime: newOrder.duration,
+            points: newOrder.points
+          });
+          renderMiniRail();
+        }
+        break;
+
+      case 'order-complete':
+        const completePayload = msg.payload;
+        const orderIndex = activeOrders.findIndex(o => o.orderNo === completePayload.orderNo || o.orderNo === completePayload.order_number);
+        if (orderIndex !== -1) {
+          const order = activeOrders[orderIndex];
+          order.status = completePayload.status || 'completed';
+          if (completePayload.success !== undefined) {
+            order.success = completePayload.success;
+          }
+          if (completePayload.score_earned !== undefined) {
+            order.scoreEarned = completePayload.score_earned;
+          }
+          addLog('📋 Order', `📦 Order ${order.orderNo} ${order.status}`, {
+            food: order.dish,
+            score: order.scoreEarned || 0
+          });
+          
+          setTimeout(() => {
+            activeOrders = activeOrders.filter(o => o.orderNo !== order.orderNo);
+            renderMiniRail();
+          }, 2000);
+          
+          renderMiniRail();
+        }
+        break;
+
       case 'esp-action':
         addLog('ESP Received', `📡 ${msg.payload.tag_mac} → ${msg.payload.action_name}`, {
           tagger: msg.payload.tagger_mac,
@@ -624,11 +704,28 @@
             score: msg.payload.score_earned,
             food: msg.payload.food
           });
+          const orderIdx = activeOrders.findIndex(o => o.orderNo === msg.payload.order_number || o.orderNo === msg.payload.display_order_number);
+          if (orderIdx !== -1) {
+            activeOrders[orderIdx].status = 'completed';
+            activeOrders[orderIdx].success = true;
+            activeOrders[orderIdx].scoreEarned = msg.payload.score_earned;
+            renderMiniRail();
+          }
         } else {
           addLog('❌ Error', `❌ Order ${msg.payload.order_number} FAILED`, {
-            reason: msg.payload.reason
+            reason: msg.payload.reason || 'Validation failed'
           });
+          const orderIdx = activeOrders.findIndex(o => o.orderNo === msg.payload.order_number || o.orderNo === msg.payload.display_order_number);
+          if (orderIdx !== -1) {
+            activeOrders[orderIdx].status = 'failed';
+            activeOrders[orderIdx].success = false;
+            renderMiniRail();
+          }
         }
+        break;
+
+      case 'orders-cleared':
+        addLog('💾 DB', `🗑 Database cleared: ${msg.payload.orders_cleared || 0} orders removed, tags reset`);
         break;
 
       case 'esp-status':
@@ -674,6 +771,7 @@
     statScore.textContent = score;
     statServed.textContent = served;
     statMissed.textContent = missed;
+    statFailed.textContent = failed || 0;
 
     const m = Math.floor(Math.max(0, serviceRemaining) / 60).toString().padStart(2, '0');
     const s = Math.floor(Math.max(0, serviceRemaining) % 60).toString().padStart(2, '0');
@@ -682,15 +780,23 @@
   }
 
   function renderMiniRail() {
+    orderCountBadge.textContent = activeOrders.length;
+    
     if (!activeOrders.length) {
       miniRail.innerHTML = `<div class="empty-rail-mini">No orders — start service to see them appear.</div>`;
       return;
     }
+    
     miniRail.innerHTML = activeOrders.map((o, i) => {
       const tilt = (Math.random() * 3 - 1.5).toFixed(1) + 'deg';
+      const statusClass = o.status || 'waiting';
+      const statusLabel = statusClass.charAt(0).toUpperCase() + statusClass.slice(1);
+      const timeLeft = o.remaining !== undefined ? Math.ceil(o.remaining) : '?';
+      
       return `<div class="mini-ticket" style="--tilt:${tilt}">
         <span class="dish">${o.dish}</span>
-        <span class="time">${Math.ceil(o.remaining)}s</span>
+        <span class="time">${timeLeft}s</span>
+        <span class="status-badge-mini ${statusClass}">${statusLabel}</span>
       </div>`;
     }).join('');
   }
@@ -732,9 +838,11 @@
     }
     updateUI();
     connectionStatus.textContent = '📤 Params sent!';
+    connectionStatus.className = 'connection-status syncing';
     addLog('info', '📤 Parameters sent to game', params);
     setTimeout(() => {
       connectionStatus.textContent = '✅ Game connected';
+      connectionStatus.className = 'connection-status connected';
     }, 2000);
   }
 
@@ -775,9 +883,54 @@
     channel.postMessage({ type: 'pause' });
   }
 
-  function resetService() {
-    channel.postMessage({ type: 'reset' });
+  async function resetService() {
     addLog('info', '⟳ Reset command sent');
+    
+    // First, clear the database orders
+    try {
+      const response = await fetch('/api/orders/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reset' })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        addLog('💾 DB', `✅ Database cleared: ${data.orders_cleared} orders removed, tags reset`);
+        connectionStatus.textContent = '🗑 Database cleared';
+        connectionStatus.className = 'connection-status syncing';
+        setTimeout(() => {
+          connectionStatus.textContent = '✅ Game connected';
+          connectionStatus.className = 'connection-status connected';
+        }, 2000);
+      } else {
+        addLog('❌ Error', `Failed to clear database: ${data.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      addLog('❌ Error', `Error clearing database: ${err.message}`);
+    }
+    
+    // Then send reset command to game
+    channel.postMessage({ type: 'reset' });
+    
+    // Clear local state
+    running = false;
+    paused = false;
+    score = 0;
+    served = 0;
+    missed = 0;
+    failed = 0;
+    serviceRemaining = totalServiceTime;
+    activeOrders = [];
+    
+    updateUI();
+    renderMiniRail();
+    
+    // Update UI buttons
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+    pauseBtn.textContent = '⏸ Pause';
   }
 
   startBtn.addEventListener('click', startService);
@@ -800,7 +953,6 @@
         addLog('info', '⚠️ No ESP devices online');
       }
       
-      // Also send to game
       channel.postMessage({
         type: 'esp-status',
         payload: { online: data.online }
