@@ -288,6 +288,112 @@ router.get('/api/esp/status', (req, res) => {
     );
 });
 
+
+// ============================================
+// ORDER MISSED UPDATE DATABASE
+// ============================================
+
+router.post('/api/esp/missed', (req, res) => {
+    const { order_number } = req.body;
+
+    logMessage(
+        'game',
+        `📡 /api/esp/missed called for order ${order_number}`,
+        { order_number }
+    );
+
+    if (order_number === undefined || order_number === null || order_number === '') {
+        logMessage('error', '❌ Missing order_number');
+
+        return res.status(400).json({
+            success: false,
+            error: 'Missing order_number',
+            message: 'order_number is required'
+        });
+    }
+
+    if (!global.db) {
+        logMessage('error', '❌ global.db is not available');
+
+        return res.status(500).json({
+            success: false,
+            error: 'Database not available',
+            message: 'The database connection is not initialized.'
+        });
+    }
+
+    // Use the same two-digit format used when the order was created.
+    const formattedOrder = String(order_number)
+        .trim()
+        .padStart(2, '0');
+
+    if (!/^\d{2}$/.test(formattedOrder)) {
+        logMessage(
+            'error',
+            `❌ Invalid order number: ${order_number}`
+        );
+
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid order_number',
+            message: 'order_number must be a 2-digit number, such as "01"'
+        });
+    }
+
+    const sql = `
+        UPDATE Orders
+        SET order_status = 'missed'
+        WHERE order_number = ?
+          AND order_status = 'pending'
+    `;
+
+    global.db.run(
+        sql,
+        [formattedOrder],
+        function (err) {
+            if (err) {
+                logMessage(
+                    'error',
+                    `❌ Failed to mark order ${formattedOrder} as missed`,
+                    err
+                );
+
+                return res.status(500).json({
+                    success: false,
+                    error: 'Database error',
+                    message: err.message
+                });
+            }
+
+            if (this.changes === 0) {
+                logMessage(
+                    'warn',
+                    `⚠️ Order ${formattedOrder} was not found or was no longer pending`
+                );
+
+                return res.status(409).json({
+                    success: false,
+                    error: 'Order not updated',
+                    message:
+                        `Order ${formattedOrder} was not found or is no longer pending`
+                });
+            }
+
+            logMessage(
+                'success',
+                `✅ Order ${formattedOrder} marked as missed`
+            );
+
+            return res.json({
+                success: true,
+                order_number: formattedOrder,
+                order_status: 'missed'
+            });
+        }
+    );
+});
+
+
 // ============================================
 // COUNTER ESP SUBMIT ENDPOINT
 // ============================================
@@ -374,6 +480,7 @@ router.post('/api/esp/submit', (req, res, next) => {
         );
     } else {
         // No device_mac provided - allow for game client testing
+        // This can be dangerous, please do note later on. 
         logMessage('warn', '⚠️ No device_mac provided - allowing game client submission');
         findOrderAndValidate(order_number, tag_macs, res, next);
     }
@@ -381,6 +488,7 @@ router.post('/api/esp/submit', (req, res, next) => {
 
 // ============================================
 // INTERNAL: Find Order and Validate
+// THIS IS USED FOR SUBMISSION ONLY
 // ============================================
 
 function findOrderAndValidate(order_number, tag_macs, res, next) {

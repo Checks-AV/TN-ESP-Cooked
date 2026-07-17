@@ -814,42 +814,111 @@
     setTimeout(() => removeTicket(order), 1500);
   }
 
-  function missOrder(order) {
-    if (order.missed) return;
-    order.missed = true;
-    missed += 1;
-    
-    const badge = order.el.querySelector('.status-badge');
+async function missOrder(order) {
+  if (order.missed || order.completed || order.failed) {
+    return;
+  }
+
+  // Lock the order immediately so tick() cannot call this again.
+  order.missed = true;
+  missed += 1;
+
+  const badge = order.el.querySelector('.status-badge');
+
+  if (badge) {
     badge.textContent = 'Missed';
     badge.className = 'status-badge missed';
-    order.el.classList.add('missed');
-    
-    const foot = order.el.querySelector('.ticket-foot .status-text');
-    if (foot) {
-      foot.textContent = '⏰ Order timed out!';
-      foot.className = 'status-text missed';
-    }
-    
-    // Update all dots to failed
-    order.ingredientList.forEach((_, idx) => {
-      const dot = document.getElementById(`dot-${order.orderNo}-${idx}`);
-      if (dot) dot.className = 'status-dot failed';
-    });
-    
-    showToast('Order missed', 'bad');
-    updateStats();
-    
-    // Send to dashboard
-    try {
-      const channel = new BroadcastChannel('ticket-rail-control');
-      channel.postMessage({ 
-        type: 'state-report', 
-        payload: getState() 
-      });
-    } catch(e) {}
-    
-    setTimeout(() => removeTicket(order), 900);
   }
+
+  order.el.classList.add('missed');
+
+  const foot = order.el.querySelector(
+    '.ticket-foot .status-text'
+  );
+
+  if (foot) {
+    foot.textContent = '⏰ Order timed out!';
+    foot.className = 'status-text missed';
+  }
+
+  order.ingredientList.forEach((_, idx) => {
+    const dot = document.getElementById(
+      `dot-${order.orderNo}-${idx}`
+    );
+
+    if (dot) {
+      dot.className = 'status-dot failed';
+    }
+  });
+
+  showToast('Order missed', 'bad');
+  updateStats();
+
+  try {
+    const response = await fetch('/api/esp/missed', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        order_number: order.wireOrderNumber
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(
+        data.message || 'Failed to update missed order'
+      );
+    }
+
+    console.log(
+      `✅ Order ${order.wireOrderNumber} marked as missed in database`
+    );
+  } catch (error) {
+    console.error(
+      `❌ Could not mark order ${order.wireOrderNumber} as missed:`,
+      error
+    );
+
+    if (foot) {
+      foot.textContent =
+        '⚠️ Missed, but database update failed';
+    }
+
+    showToast('Database update failed', 'bad');
+  }
+
+  try {
+    const channel = new BroadcastChannel(
+      'ticket-rail-control'
+    );
+
+    channel.postMessage({
+      type: 'esp-submit-result',
+      payload: {
+        success: false,
+        result: 'MISSED',
+        order_number: order.wireOrderNumber,
+        display_order_number: order.orderNo,
+        food: order.recipe.name,
+        reason: 'Order timed out'
+      }
+    });
+
+    channel.postMessage({
+      type: 'state-report',
+      payload: getState()
+    });
+
+    channel.close();
+  } catch (error) {
+    console.error('Broadcast error:', error);
+  }
+
+  setTimeout(() => removeTicket(order), 900);
+}
 
   function removeTicket(order) {
     order.el.style.transition = 'opacity .3s, transform .3s';
