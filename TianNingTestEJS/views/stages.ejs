@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="/main.css">
+    <title><%= title %></title>
+    <style>
+        body { font-family: sans-serif; padding: 16px; }
+        h1 { margin-bottom: 4px; }
+        .refresh-note { color: #888; font-size: 0.8em; margin: 0 0 16px; }
+        .controls { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+        #msg { color: green; font-weight: bold; min-height: 1.4em; }
+
+        /* Order board */
+        .order-board { display: flex; gap: 16px; flex-wrap: wrap; }
+        .order-card {
+            border: 2px solid #444; border-radius: 10px;
+            padding: 16px; min-width: 240px; max-width: 300px;
+            background: #fffbe6;
+        }
+        .order-number { font-size: 1.4em; font-weight: bold; color: #c0392b; }
+        .food-name { font-size: 1.05em; margin: 4px 0 8px; }
+        .order-time { font-size: 0.75em; color: #999; margin-bottom: 8px; }
+
+        .ingredient {
+            margin: 6px 0; padding: 8px;
+            background: #f0f0f0; border-radius: 6px;
+        }
+        .ing-name { font-weight: bold; }
+        .ing-target { font-size: 0.8em; color: #555; margin: 2px 0 6px; }
+
+        /* Action chain: chopped → cooked → ... */
+        .action-chain { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+        .action-tag {
+            background: #27ae60; color: white;
+            border-radius: 4px; padding: 2px 8px;
+            font-size: 0.8em;
+        }
+        .arrow { color: #aaa; font-size: 0.85em; }
+        .no-action { color: #bbb; font-size: 0.8em; }
+
+        /* No tag warning */
+        .no-tag { color: #e67e22; font-size: 0.78em; }
+    </style>
+</head>
+<body>
+    <h1>🍳 Order Board</h1>
+    <p class="refresh-note">Auto-refreshes every 5 seconds.</p>
+
+    <div class="controls">
+        <button onclick="spawnOrder()">+ Spawn Random Order</button>
+    </div>
+    <p id="msg"></p>
+
+    <div class="order-board">
+        <% if (orders.length === 0) { %>
+            <p>No active orders — press Spawn to start!</p>
+        <% } else { %>
+            <% orders.forEach(order => { %>
+                <div class="order-card">
+                    <div class="order-number">#<%= order.order_number %></div>
+                    <div class="food-name"><strong><%= order.food_name %></strong></div>
+                    <div class="order-time"><%= order.order_time_started %></div>
+                    <hr>
+
+                    <% order.ingredients.forEach(ing => { %>
+                        <div class="ingredient">
+                            <div class="ing-name">
+                                <%= ing.ingredients_name %> ×<%= ing.required_amount %>
+                            </div>
+                            <div class="ing-target">
+                                Target: <em><%= ing.target_status %></em>
+                            </div>
+
+                            <% if (!ing.tag_mac) { %>
+                                <div class="no-tag">⚠ No tag registered</div>
+                            <% } else { %>
+                                <div class="action-chain">
+                                    <% if (ing.actions.length === 0) { %>
+                                        <span class="no-action">No actions yet</span>
+                                    <% } else { %>
+                                        <% ing.actions.forEach((a, i) => { %>
+                                            <% if (i > 0) { %>
+                                                <span class="arrow">→</span>
+                                            <% } %>
+                                            <span class="action-tag"
+                                                  title="<%= a.action_time %>">
+                                                <%= a.action_name %>
+                                            </span>
+                                        <% }) %>
+                                    <% } %>
+                                </div>
+                            <% } %>
+                        </div>
+                    <% }) %>
+                </div>
+            <% }) %>
+        <% } %>
+    </div>
+
+    <script>
+        // Auto-refresh so ESP32 actions show up live
+        setInterval(() => location.reload(), 5000);
+
+        async function spawnOrder() {
+            const msg = document.getElementById('msg');
+            const res = await fetch('/stages/spawn', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                msg.style.color = 'green';
+                msg.textContent = `✅ Spawned: ${data.order_number}`;
+                setTimeout(() => location.reload(), 600);
+            } else {
+                msg.style.color = 'red';
+                msg.textContent = '❌ ' + (data.error || 'Failed');
+            }
+        }
+    </script>
+</body>
+</html>
