@@ -132,13 +132,13 @@ CREATE TABLE IF NOT EXISTS RFIDTags (
 
 -- ORDERS ARE PART 3 of the development cycle
 /* Orders table for constant updating during the game here */
-CREATE TABLE IF NOT EXISTS Orders (
+/* CREATE TABLE IF NOT EXISTS Orders (
     orders_id INTEGER, --Order Number
     food_id INTEGER, -- Type of Food
     order_status TEXT, -- ONGOING? EXPIRED? 
     order_time_started TEXT, -- TIME HERE
     FOREIGN KEY (food_id) REFERENCES food(food_id)
-);
+);*/
 
 
 -- Insert default data (if necessary here)
