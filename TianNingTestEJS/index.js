@@ -89,5 +89,5 @@ app.listen(port, () => console.log('Server running on port 4000'));
 // and served by express.static
 // Access it at: http://localhost:4000/esp-test-console.html
 
-const stagesRoutes = require('./routes/stages');
-app.use('/stages', stagesRoutes);
+// const stagesRoutes = require('./routes/stages');
+// app.use('/stages', stagesRoutes);
