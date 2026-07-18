@@ -1,0 +1,255 @@
+INSERT OR IGNORE INTO ingredients('ingredients_name') VALUES ('Rice');      --5
+INSERT OR IGNORE INTO ingredients('ingredients_name') VALUES ('Mushroom');  --6
+INSERT OR IGNORE INTO ingredients('ingredients_name') VALUES ('Cheese');    --7 
+INSERT OR IGNORE INTO ingredients('ingredients_name') VALUES ('Fish');      --8
+INSERT OR IGNORE INTO ingredients('ingredients_name') VALUES ('Potato');    --9
+INSERT OR IGNORE INTO ingredients('ingredients_name') VALUES ('Egg');       --10
+
+-- Insert new food items (these won't exist yet)
+INSERT OR IGNORE INTO food('food_name') VALUES ('Mushroom Soup');
+INSERT OR IGNORE INTO food('food_name') VALUES ('Chicken Curry Rice');
+INSERT OR IGNORE INTO food('food_name') VALUES ('Fish and Chip');
+INSERT OR IGNORE INTO food('food_name') VALUES ('Salad');
+INSERT OR IGNORE INTO food('food_name') VALUES ('Fish Cake');
+INSERT OR IGNORE INTO food('food_name') VALUES ('Golden Gohan');
+-- ============================================
+-- MUSHROOM SOUP (food_id will be assigned automatically)
+-- Ingredients: Mushroom (2), Potato (7)
+-- ============================================
+-- Mushroom -> Chop (1), Boil (2)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 2, 1  -- Mushroom
+FROM food f WHERE f.food_name = 'Mushroom Soup';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 1, 1  -- Chop
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Mushroom Soup' AND fi.ingredients_id = 2;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 2, 2  -- Boil
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Mushroom Soup' AND fi.ingredients_id = 2;
+
+-- Potato -> Dice (6), Cook (3)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 7, 1  -- Potato
+FROM food f WHERE f.food_name = 'Mushroom Soup';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 6, 1  -- Dice
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Mushroom Soup' AND fi.ingredients_id = 7;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 3, 2  -- Cook
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Mushroom Soup' AND fi.ingredients_id = 7;
+
+-- ============================================
+-- CHICKEN CURRY RICE
+-- Ingredients: Chicken (8), Potato (7), Rice (1)
+-- ============================================
+-- Chicken -> Chop (1), Cook (3)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 8, 1  -- Chicken
+FROM food f WHERE f.food_name = 'Chicken Curry Rice';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 1, 1  -- Chop
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Chicken Curry Rice' AND fi.ingredients_id = 8;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 3, 2  -- Cook
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Chicken Curry Rice' AND fi.ingredients_id = 8;
+
+-- Potato -> Dice (6), Boil (2)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 7, 1  -- Potato
+FROM food f WHERE f.food_name = 'Chicken Curry Rice';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 6, 1  -- Dice
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Chicken Curry Rice' AND fi.ingredients_id = 7;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 2, 2  -- Boil
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Chicken Curry Rice' AND fi.ingredients_id = 7;
+
+-- Rice -> Stew (5)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 1, 1  -- Rice
+FROM food f WHERE f.food_name = 'Chicken Curry Rice';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 5, 1  -- Stew
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Chicken Curry Rice' AND fi.ingredients_id = 1;
+
+-- ============================================
+-- FISH AND CHIP
+-- Ingredients: Fish (5), Potato (7), Cheese (3)
+-- ============================================
+-- Fish -> Fry (4)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 5, 1  -- Fish
+FROM food f WHERE f.food_name = 'Fish and Chip';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 4, 1  -- Fry
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish and Chip' AND fi.ingredients_id = 5;
+
+-- Potato -> Chop (1), Fry (4)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 7, 1  -- Potato
+FROM food f WHERE f.food_name = 'Fish and Chip';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 1, 1  -- Chop
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish and Chip' AND fi.ingredients_id = 7;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 4, 2  -- Fry
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish and Chip' AND fi.ingredients_id = 7;
+
+-- Cheese -> Stew (5)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 3, 1  -- Cheese
+FROM food f WHERE f.food_name = 'Fish and Chip';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 5, 1  -- Stew
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish and Chip' AND fi.ingredients_id = 3;
+
+-- ============================================
+-- SALAD
+-- Ingredients: Lettuce (4), Mushroom (2), Cheese (3)
+-- ============================================
+-- Lettuce (no prep method needed - just raw)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 4, 1  -- Lettuce
+FROM food f WHERE f.food_name = 'Salad';
+
+-- Mushroom (no prep method needed - just raw)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 2, 1  -- Mushroom
+FROM food f WHERE f.food_name = 'Salad';
+
+-- Cheese (no prep method needed - just raw)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 3, 1  -- Cheese
+FROM food f WHERE f.food_name = 'Salad';
+
+-- ============================================
+-- FISH CAKE
+-- Ingredients: Fish (5), Lettuce (4), Cheese (3)
+-- ============================================
+-- Fish -> Boil (2), Fry (4)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 5, 1  -- Fish
+FROM food f WHERE f.food_name = 'Fish Cake';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 2, 1  -- Boil
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish Cake' AND fi.ingredients_id = 5;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 4, 2  -- Fry
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish Cake' AND fi.ingredients_id = 5;
+
+-- Lettuce -> Dice (6)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 4, 1  -- Lettuce
+FROM food f WHERE f.food_name = 'Fish Cake';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 6, 1  -- Dice
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish Cake' AND fi.ingredients_id = 4;
+
+-- Cheese -> Stew (5)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 3, 1  -- Cheese
+FROM food f WHERE f.food_name = 'Fish Cake';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 5, 1  -- Stew
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Fish Cake' AND fi.ingredients_id = 3;
+
+-- ============================================
+-- GOLDEN GOHAN
+-- Ingredients: Rice (1), Egg (9)
+-- ============================================
+-- Rice -> Cook (3), Boil (2), Cook (3)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 1, 1  -- Rice
+FROM food f WHERE f.food_name = 'Golden Gohan';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 3, 1  -- Cook
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Golden Gohan' AND fi.ingredients_id = 1;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 2, 2  -- Boil
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Golden Gohan' AND fi.ingredients_id = 1;
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 3, 3  -- Cook
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Golden Gohan' AND fi.ingredients_id = 1;
+
+-- Egg -> Cook (3)
+INSERT INTO food_ingredients (food_id, ingredients_id, required_amount)
+SELECT f.food_id, 9, 1  -- Egg
+FROM food f WHERE f.food_name = 'Golden Gohan';
+
+INSERT INTO food_ingredient_preparation (food_ingredients_id, preparation_method_id, prep_step_order)
+SELECT fi.food_ingredients_id, 3, 1  -- Cook
+FROM food_ingredients fi
+JOIN food f ON fi.food_id = f.food_id
+WHERE f.food_name = 'Golden Gohan' AND fi.ingredients_id = 9;
+
+-- Insert RFID tags for each ingredient
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status) VALUES 
+    ('TAG-001', 1, 'Default'),  -- Rice
+    ('TAG-002', 2, 'Default'),  -- Mushroom
+    ('TAG-003', 3, 'Default'),  -- Cheese
+    ('TAG-004', 4, 'Default'),  -- Lettuce
+    ('TAG-005', 5, 'Default'),  -- Fish
+    ('TAG-006', 6, 'Default'),  -- Beef
+    ('TAG-007', 7, 'Default'),  -- Potato
+    ('TAG-008', 8, 'Default'),  -- Chicken
+    ('TAG-009', 9, 'Default');  -- Egg

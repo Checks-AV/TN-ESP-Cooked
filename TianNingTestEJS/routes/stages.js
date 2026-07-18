@@ -10,7 +10,13 @@ router.get('/', (req, res, next) => {
 
 // ─── LOAD ESP32 SETUP PAGE ──────────────────────────────────────
 router.get("/esp32", (req, res, next) => {
-    const sqlDevices = `SELECT * FROM ESP32Devices WHERE device_type IN ('tagger', 'counter') OR device_type IS NULL ORDER BY last_seen DESC`;
+    const sqlDevices = `
+        SELECT ed.*, s.station_name 
+        FROM ESP32Devices ed
+        LEFT JOIN ESP32Tagger et ON ed.device_id = et.device_id
+        LEFT JOIN station s ON et.station_id = s.station_id
+        ORDER BY ed.last_seen DESC
+    `;
     const sqlIngredients = `SELECT * FROM ingredients ORDER BY ingredients_name`;
     const sqlStations = `SELECT * FROM station ORDER BY station_name`;
 
@@ -23,7 +29,7 @@ router.get("/esp32", (req, res, next) => {
             global.db.all(sqlStations, [], (err, stations) => {
                 if (err) return next(err);
 
-                // Get tag assignments with ingredient names - FIXED: Use RFIDTags
+                // Get tag assignments with ingredient names
                 const sqlAssignments = `
                     SELECT rt.tag_id, rt.tag_rfid, rt.ingredients_id, rt.current_status,
                            i.ingredients_name
@@ -48,32 +54,219 @@ router.get("/esp32", (req, res, next) => {
     });
 });
 
+// ─── REGISTER NEW ESP32 DEVICE ─────────────────────────────────
+router.post("/esp32/register", (req, res, next) => {
+    const { device_mac, ip_address, station_id } = req.body;
+    
+    if (!device_mac) {
+        return res.status(400).send("MAC address is required");
+    }
+    
+    const now = new Date().toISOString();
+    
+    // First insert or update the device
+    global.db.run(
+        `INSERT INTO ESP32Devices (device_mac, ip_address, last_seen)
+         VALUES (?, ?, ?)
+         ON CONFLICT(device_mac) 
+         DO UPDATE SET ip_address = excluded.ip_address, last_seen = excluded.last_seen`,
+        [device_mac, ip_address || null, now],
+        function(err) {
+            if (err) return next(err);
+            
+            // Get the device_id
+            global.db.get(
+                `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
+                [device_mac],
+                (err, device) => {
+                    if (err) return next(err);
+                    if (!device) return res.status(500).send("Device registration failed");
+                    
+                    // If station_id is provided, assign the device to that station
+                    if (station_id) {
+                        global.db.run(
+                            `INSERT INTO ESP32Tagger (device_id, station_id)
+                             VALUES (?, ?)
+                             ON CONFLICT(device_id) 
+                             DO UPDATE SET station_id = excluded.station_id`,
+                            [device.device_id, station_id],
+                            function(err) {
+                                if (err) return next(err);
+                                console.log(`[REGISTER] ${device_mac} registered with station ${station_id}`);
+                                res.redirect("/settings/esp32");
+                            }
+                        );
+                    } else {
+                        // If no station_id, try to assign to "General" station
+                        global.db.get(
+                            `SELECT station_id FROM station WHERE station_name = 'General'`,
+                            [],
+                            (err, generalStation) => {
+                                if (err) return next(err);
+                                if (generalStation) {
+                                    global.db.run(
+                                        `INSERT INTO ESP32Tagger (device_id, station_id)
+                                         VALUES (?, ?)
+                                         ON CONFLICT(device_id) 
+                                         DO UPDATE SET station_id = excluded.station_id`,
+                                        [device.device_id, generalStation.station_id],
+                                        function(err) {
+                                            if (err) return next(err);
+                                            console.log(`[REGISTER] ${device_mac} auto-assigned to General station`);
+                                            res.redirect("/settings/esp32");
+                                        }
+                                    );
+                                } else {
+                                    console.log(`[REGISTER] ${device_mac} registered without station assignment`);
+                                    res.redirect("/settings/esp32");
+                                }
+                            }
+                        );
+                    }
+                }
+            );
+        }
+    );
+});
+
 // ─── UPDATE ESP32 DEVICE ──────────────────────────────────────
 router.post("/esp32/update", (req, res, next) => {
-    const { esp32_id, device_mac, ip_address, device_type } = req.body;
+    const { device_id, device_mac, ip_address, station_id } = req.body;
     
-    if (!esp32_id || !device_mac) {
+    if (!device_id || !device_mac) {
         return res.status(400).send("Device ID and MAC address are required");
     }
     
     global.db.get(
-        `SELECT * FROM ESP32Devices WHERE esp32_id = ?`,
-        [esp32_id],
+        `SELECT * FROM ESP32Devices WHERE device_id = ?`,
+        [device_id],
         (err, device) => {
             if (err) return next(err);
             if (!device) return res.status(404).send("Device not found");
             
+            // Update device info
             global.db.run(
                 `UPDATE ESP32Devices 
-                 SET device_mac = ?, 
-                     ip_address = ?, 
-                     device_type = ?
-                 WHERE esp32_id = ?`,
-                [device_mac, ip_address || null, device_type || null, esp32_id],
+                 SET device_mac = ?, ip_address = ?
+                 WHERE device_id = ?`,
+                [device_mac, ip_address || null, device_id],
                 function(err) {
                     if (err) return next(err);
-                    console.log(`[UPDATE] Device ${esp32_id} updated successfully`);
-                    res.redirect("/settings/esp32");
+                    
+                    // Update or create station assignment
+                    if (station_id) {
+                        global.db.run(
+                            `INSERT INTO ESP32Tagger (device_id, station_id)
+                             VALUES (?, ?)
+                             ON CONFLICT(device_id) 
+                             DO UPDATE SET station_id = excluded.station_id`,
+                            [device_id, station_id],
+                            function(err) {
+                                if (err) return next(err);
+                                console.log(`[UPDATE] Device ${device_id} updated successfully`);
+                                res.redirect("/settings/esp32");
+                            }
+                        );
+                    } else {
+                        console.log(`[UPDATE] Device ${device_id} updated without station assignment`);
+                        res.redirect("/settings/esp32");
+                    }
+                }
+            );
+        }
+    );
+});
+
+// ─── DELETE ESP32 DEVICE ──────────────────────────────────────
+router.delete("/esp32/device/:device_id", (req, res, next) => {
+    const { device_id } = req.params;
+    
+    if (!device_id) {
+        return res.status(400).json({ success: false, error: "Missing device_id" });
+    }
+    
+    // Start transaction
+    global.db.serialize(() => {
+        global.db.run("BEGIN TRANSACTION");
+        
+        // First delete from ESP32Tagger
+        global.db.run(
+            `DELETE FROM ESP32Tagger WHERE device_id = ?`,
+            [device_id],
+            function(err) {
+                if (err) {
+                    global.db.run("ROLLBACK");
+                    return next(err);
+                }
+                
+                // Then delete from ESP32Devices
+                global.db.run(
+                    `DELETE FROM ESP32Devices WHERE device_id = ?`,
+                    [device_id],
+                    function(err) {
+                        if (err) {
+                            global.db.run("ROLLBACK");
+                            return next(err);
+                        }
+                        
+                        if (this.changes === 0) {
+                            global.db.run("ROLLBACK");
+                            return res.status(404).json({ 
+                                success: false, 
+                                error: "Device not found" 
+                            });
+                        }
+                        
+                        global.db.run("COMMIT");
+                        console.log(`[DELETE] Device ${device_id} removed successfully`);
+                        res.json({ 
+                            success: true, 
+                            message: "Device removed successfully" 
+                        });
+                    }
+                );
+            }
+        );
+    });
+});
+
+// ─── RESET TAG STATUS ─────────────────────────────────────────
+router.post("/esp32/reset-tag", (req, res, next) => {
+    const { tag_rfid } = req.body;
+    
+    if (!tag_rfid) {
+        return res.status(400).json({ 
+            success: false, 
+            error: "Missing tag_rfid" 
+        });
+    }
+    
+    global.db.get(
+        `SELECT tag_id, current_status FROM RFIDTags WHERE tag_rfid = ?`,
+        [tag_rfid],
+        (err, tag) => {
+            if (err) return next(err);
+            if (!tag) {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: `Tag ${tag_rfid} not found` 
+                });
+            }
+            
+            global.db.run(
+                `UPDATE RFIDTags SET current_status = 'Default' WHERE tag_id = ?`,
+                [tag.tag_id],
+                function(err) {
+                    if (err) return next(err);
+                    
+                    console.log(`[RESET-TAG] Tag ${tag_rfid} reset: "${tag.current_status}" → "Default"`);
+                    res.json({ 
+                        success: true, 
+                        message: "Tag reset to Default",
+                        tag_rfid,
+                        previous_status: tag.current_status,
+                        new_status: 'Default'
+                    });
                 }
             );
         }

@@ -18,13 +18,6 @@ router.post("/register", (req, res, next) => {
         });
     }
 
-    if (!station_id) {
-        return res.status(400).json({
-            success: false,
-            error: "Missing station_id"
-        });
-    }
-
     const now = new Date().toISOString();
 
     // First insert or update the ESP32 network device.
@@ -69,41 +62,67 @@ router.post("/register", (req, res, next) => {
                         });
                     }
 
-                    // Assign the ESP32 to a station.
-                    global.db.run(
-                        `
-                        INSERT INTO ESP32Tagger (
-                            device_id,
-                            station_id
-                        )
-                        VALUES (?, ?)
-
-                        ON CONFLICT(device_id)
-                        DO UPDATE SET
-                            station_id = excluded.station_id
-                        `,
-                        [
-                            device.device_id,
-                            station_id
-                        ],
-                        function (err) {
-                            if (err) return next(err);
-
-                            console.log(
-                                `[REGISTER] ${device_mac} | ` +
-                                `station: ${station_id} | ` +
-                                `ip: ${ip_address || "N/A"}`
-                            );
-
-                            return res.json({
-                                success: true,
-                                message: "ESP32 registered successfully",
-                                device_id: device.device_id,
-                                device_mac,
+                    // If no station_id was given, default to the "General"
+                    // station by name — so an ESP32 can self-register with
+                    // zero manual setup on first boot. It only ever needs to
+                    // send station_id if you want it explicitly at Counter
+                    // (or a future non-default station).
+                    function assignStation(resolvedStationId) {
+                        global.db.run(
+                            `
+                            INSERT INTO ESP32Tagger (
+                                device_id,
                                 station_id
-                            });
-                        }
-                    );
+                            )
+                            VALUES (?, ?)
+
+                            ON CONFLICT(device_id)
+                            DO UPDATE SET
+                                station_id = excluded.station_id
+                            `,
+                            [
+                                device.device_id,
+                                resolvedStationId
+                            ],
+                            function (err) {
+                                if (err) return next(err);
+
+                                console.log(
+                                    `[REGISTER] ${device_mac} | ` +
+                                    `station: ${resolvedStationId} | ` +
+                                    `ip: ${ip_address || "N/A"}`
+                                );
+
+                                return res.json({
+                                    success: true,
+                                    message: "ESP32 registered successfully",
+                                    device_id: device.device_id,
+                                    device_mac,
+                                    station_id: resolvedStationId,
+                                    auto_assigned: !station_id
+                                });
+                            }
+                        );
+                    }
+
+                    if (station_id) {
+                        assignStation(station_id);
+                    } else {
+                        global.db.get(
+                            `SELECT station_id FROM station WHERE station_name = 'General'`,
+                            [],
+                            (err, generalStation) => {
+                                if (err) return next(err);
+                                if (!generalStation) {
+                                    return res.status(500).json({
+                                        success: false,
+                                        error: "No station_id provided and no 'General' station exists to default to"
+                                    });
+                                }
+                                assignStation(generalStation.station_id);
+                            }
+                        );
+                    }
                 }
             );
         }
@@ -120,6 +139,10 @@ router.post("/register", (req, res, next) => {
 // message_type options:
 //   "action"  → payload: { tag_rfid, action_name }
 //               station reports it performed `action_name` on `tag_rfid`
+//   "reset"   → payload: { tag_rfid }
+//               the "Reset" station reports a tag was scanned to be
+//               manually cleared — server sets that tag's
+//               current_status back to 'Default'
 //   "submit"  → handled separately via /api/esp/submit in ticketrail.js
 //   "ping"    → payload: {} (just a heartbeat, updates last_seen)
 //
@@ -132,26 +155,94 @@ router.post("/listen", (req, res, next) => {
 
     const now = new Date().toISOString();
 
-    // Always update last_seen for any message
-    global.db.run(
-        `UPDATE ESP32Devices SET last_seen = ? WHERE device_mac = ?`,
-        [now, device_mac],
-        (err) => {
+    // First, ensure the device exists in the database
+    // If it doesn't exist, create it with default "General" station
+    global.db.get(
+        `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
+        [device_mac],
+        (err, existingDevice) => {
             if (err) return next(err);
 
-            console.log(`[LISTEN] ${device_mac} | ${message_type} | ${JSON.stringify(payload)}`);
-
-            if (message_type === "ping") {
-                return res.json({ success: true, message: "pong" });
+            if (!existingDevice) {
+                // Device doesn't exist - auto-register it
+                console.log(`[LISTEN] Auto-registering new device: ${device_mac}`);
+                
+                global.db.run(
+                    `INSERT INTO ESP32Devices (device_mac, ip_address, last_seen)
+                     VALUES (?, ?, ?)`,
+                    [device_mac, null, now],
+                    function(err) {
+                        if (err) return next(err);
+                        
+                        // Get the new device_id
+                        global.db.get(
+                            `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
+                            [device_mac],
+                            (err, newDevice) => {
+                                if (err) return next(err);
+                                if (!newDevice) {
+                                    return res.status(500).json({ error: "Failed to create device" });
+                                }
+                                
+                                // Assign to "General" station by default
+                                global.db.get(
+                                    `SELECT station_id FROM station WHERE station_name = 'General'`,
+                                    [],
+                                    (err, generalStation) => {
+                                        if (err) return next(err);
+                                        
+                                        if (generalStation) {
+                                            global.db.run(
+                                                `INSERT INTO ESP32Tagger (device_id, station_id)
+                                                 VALUES (?, ?)`,
+                                                [newDevice.device_id, generalStation.station_id],
+                                                function(err) {
+                                                    if (err) return next(err);
+                                                    console.log(`[LISTEN] Auto-assigned ${device_mac} to General station`);
+                                                    processMessage();
+                                                }
+                                            );
+                                        } else {
+                                            console.log(`[LISTEN] No General station found for auto-assignment`);
+                                            processMessage();
+                                        }
+                                    }
+                                );
+                            }
+                        );
+                    }
+                );
+            } else {
+                // Device exists, just update last_seen
+                global.db.run(
+                    `UPDATE ESP32Devices SET last_seen = ? WHERE device_mac = ?`,
+                    [now, device_mac],
+                    (err) => {
+                        if (err) return next(err);
+                        processMessage();
+                    }
+                );
             }
-
-            if (message_type === "action") {
-                return handleAction(req, res, next, device_mac, payload);
-            }
-
-            return res.status(400).json({ error: `Unknown message_type: ${message_type}` });
         }
     );
+
+    function processMessage() {
+        console.log(`[LISTEN] ${device_mac} | ${message_type} | ${JSON.stringify(payload)}`);
+
+        if (message_type === "ping") {
+            return res.json({ success: true, message: "pong" });
+        }
+
+        if (message_type === "action") {
+            return handleAction(req, res, next, device_mac, payload);
+        }
+
+        if (message_type === "reset") {
+            return handleResetTag(req, res, next, device_mac, payload);
+        }
+
+        return res.status(400).json({ error: `Unknown message_type: ${message_type}` });
+    }
 });
 
 // ─── INTERNAL: handle action ──────────────────────────────────
@@ -202,12 +293,19 @@ function handleAction(req, res, next, device_mac, payload) {
                     });
                 }
 
-                // The Counter station only ever submits finished orders via
-                // /api/esp/submit — it never performs prep actions on tags.
+                // Counter only submits finished orders (/api/esp/submit),
+                // and Reset only clears a single tag's status (message_type
+                // "reset") — neither ever performs prep actions on tags.
                 if (station.station_name === 'Counter') {
                     return res.status(403).json({
                         error: `Station "Counter" cannot perform prep actions. ` +
                                `Counter only submits finished orders via /api/esp/submit.`
+                    });
+                }
+                if (station.station_name === 'Reset') {
+                    return res.status(403).json({
+                        error: `Station "Reset" cannot perform prep actions. ` +
+                               `Reset only clears tag status via message_type "reset".`
                     });
                 }
 
@@ -270,6 +368,81 @@ function handleAction(req, res, next, device_mac, payload) {
             }
         );
     });
+}
+
+// ─── INTERNAL: handle reset ────────────────────────────────────
+// device_mac: the "Reset" station's ESP32 MAC
+// payload: { tag_rfid }
+//
+// Clears a single tag's current_status back to 'Default', independent
+// of any order. This is a manual/utility action — separate from the
+// automatic reset-all-tags that happens after every order submit
+// (pass or fail) in ticketrail.js.
+function handleResetTag(req, res, next, device_mac, payload) {
+    const { tag_rfid } = payload || {};
+
+    if (!tag_rfid) {
+        return res.status(400).json({ error: "reset needs tag_rfid in payload" });
+    }
+
+    // Find which station this ESP32 is assigned to, and confirm it's
+    // actually the "Reset" station — this message type has one job.
+    global.db.get(
+        `SELECT et.station_id, s.station_name
+         FROM ESP32Devices ed
+         JOIN ESP32Tagger et ON et.device_id = ed.device_id
+         JOIN station s ON s.station_id = et.station_id
+         WHERE ed.device_mac = ?`,
+        [device_mac],
+        (err, station) => {
+            if (err) return next(err);
+            if (!station) {
+                return res.status(404).json({
+                    error: `Device ${device_mac} is not registered or has no station assigned`
+                });
+            }
+
+            if (station.station_name !== 'Reset') {
+                return res.status(403).json({
+                    error: `Station "${station.station_name}" cannot send reset messages. ` +
+                           `Only the "Reset" station can clear a tag's status this way.`
+                });
+            }
+
+            global.db.get(
+                `SELECT tag_id, current_status FROM RFIDTags WHERE tag_rfid = ?`,
+                [tag_rfid],
+                (err, tag) => {
+                    if (err) return next(err);
+                    if (!tag) {
+                        return res.status(404).json({
+                            error: `Tag ${tag_rfid} is not assigned to any ingredient`
+                        });
+                    }
+
+                    global.db.run(
+                        `UPDATE RFIDTags SET current_status = 'Default' WHERE tag_id = ?`,
+                        [tag.tag_id],
+                        function (err) {
+                            if (err) return next(err);
+
+                            console.log(
+                                `[RESET] Tag ${tag_rfid} cleared: ` +
+                                `"${tag.current_status}" → "Default"`
+                            );
+
+                            res.json({
+                                success: true,
+                                tag_rfid,
+                                previous_status: tag.current_status,
+                                new_status: 'Default'
+                            });
+                        }
+                    );
+                }
+            );
+        }
+    );
 }
 
 // ─── POST /esp32comms/assign-tag ──────────────────────────────
@@ -425,6 +598,191 @@ router.post("/update", (req, res, next) => {
                     );
                 }
             );
+        }
+    );
+});
+
+// ─── POST /esp32comms/reset ────────────────────────────────────
+// Reset a single tag's status back to 'Default'
+router.post("/reset", (req, res, next) => {
+    const { tag_rfid } = req.body;
+
+    if (!tag_rfid) {
+        return res.status(400).json({
+            success: false,
+            error: "Missing tag_rfid"
+        });
+    }
+
+    global.db.get(
+        `SELECT tag_id, current_status FROM RFIDTags WHERE tag_rfid = ?`,
+        [tag_rfid],
+        (err, tag) => {
+            if (err) return next(err);
+            if (!tag) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Tag ${tag_rfid} not found`
+                });
+            }
+
+            global.db.run(
+                `UPDATE RFIDTags SET current_status = 'Default' WHERE tag_id = ?`,
+                [tag.tag_id],
+                function (err) {
+                    if (err) return next(err);
+
+                    console.log(
+                        `[RESET] Tag ${tag_rfid} reset: ` +
+                        `"${tag.current_status}" → "Default"`
+                    );
+
+                    res.json({
+                        success: true,
+                        message: "Tag reset to Default",
+                        tag_rfid,
+                        previous_status: tag.current_status,
+                        new_status: 'Default'
+                    });
+                }
+            );
+        }
+    );
+});
+
+// ─── DELETE /esp32comms/device/:device_id ────────────────────
+// Remove an ESP32 device and its tagger assignment
+router.delete("/device/:device_id", (req, res, next) => {
+    const { device_id } = req.params;
+
+    if (!device_id) {
+        return res.status(400).json({
+            success: false,
+            error: "Missing device_id"
+        });
+    }
+
+    // Start a transaction to ensure both deletes succeed or fail together
+    global.db.serialize(() => {
+        global.db.run("BEGIN TRANSACTION");
+
+        // First delete from ESP32Tagger (foreign key constraint)
+        global.db.run(
+            `DELETE FROM ESP32Tagger WHERE device_id = ?`,
+            [device_id],
+            (err) => {
+                if (err) {
+                    global.db.run("ROLLBACK");
+                    return next(err);
+                }
+
+                // Then delete from ESP32Devices
+                global.db.run(
+                    `DELETE FROM ESP32Devices WHERE device_id = ?`,
+                    [device_id],
+                    function (err) {
+                        if (err) {
+                            global.db.run("ROLLBACK");
+                            return next(err);
+                        }
+
+                        if (this.changes === 0) {
+                            global.db.run("ROLLBACK");
+                            return res.status(404).json({
+                                success: false,
+                                error: "Device not found"
+                            });
+                        }
+
+                        global.db.run("COMMIT");
+                        console.log(`[DELETE] Device ${device_id} removed`);
+                        
+                        res.json({
+                            success: true,
+                            message: "Device removed successfully",
+                            device_id
+                        });
+                    }
+                );
+            }
+        );
+    });
+});
+
+// ─── POST /esp32comms/delete-tag-assignment ──────────────────
+// Remove a tag assignment
+router.post("/delete-tag-assignment", (req, res, next) => {
+    const { tag_id } = req.body;
+
+    if (!tag_id) {
+        return res.status(400).json({
+            success: false,
+            error: "Missing tag_id"
+        });
+    }
+
+    global.db.run(
+        `DELETE FROM RFIDTags WHERE tag_id = ?`,
+        [tag_id],
+        function (err) {
+            if (err) return next(err);
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Tag assignment not found"
+                });
+            }
+
+            console.log(`[DELETE-TAG] Tag assignment ${tag_id} removed`);
+            res.json({
+                success: true,
+                message: "Tag assignment removed successfully"
+            });
+        }
+    );
+});
+
+// ─── POST /esp32comms/update-tag-assignment ──────────────────
+// Update a tag assignment
+router.post("/update-tag-assignment", (req, res, next) => {
+    const { tag_id, tag_rfid, ingredients_id } = req.body;
+
+    if (!tag_id || !tag_rfid || !ingredients_id) {
+        return res.status(400).json({
+            success: false,
+            error: "Missing required fields"
+        });
+    }
+
+    global.db.run(
+        `UPDATE RFIDTags 
+         SET tag_rfid = ?, ingredients_id = ?, current_status = 'Default'
+         WHERE tag_id = ?`,
+        [tag_rfid, ingredients_id, tag_id],
+        function (err) {
+            if (err) {
+                if (err.code === "SQLITE_CONSTRAINT") {
+                    return res.status(409).json({
+                        success: false,
+                        error: "That RFID tag is already assigned"
+                    });
+                }
+                return next(err);
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Tag assignment not found"
+                });
+            }
+
+            console.log(`[UPDATE-TAG] Tag assignment ${tag_id} updated`);
+            res.json({
+                success: true,
+                message: "Tag assignment updated successfully"
+            });
         }
     );
 });

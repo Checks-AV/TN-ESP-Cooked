@@ -2,7 +2,7 @@
  * simulate-esp.js
  *
  * Simulates ESP32 devices talking to the Ticket Rail server, so you can
- * test the whole flow (register -> action -> submit) without real hardware.
+ * test the whole flow (register -> action -> reset -> submit) without real hardware.
  *
  * Requires Node 18+ (built-in fetch). Run with:
  *   node public/simulate-esp.js
@@ -13,7 +13,7 @@
 
 const CONFIG = {
     // Change this to match your server URL
-    baseUrl: "http://localhost:4000", // Changed from 3000 to 4000 to match your server port
+    baseUrl: "http://localhost:4000",
 
     // Devices to simulate
     generalStation: { 
@@ -26,19 +26,28 @@ const CONFIG = {
         station_id: 2, 
         ip_address: "192.168.1.102" 
     },
+    resetStation: { 
+        device_mac: "AA:BB:CC:DD:EE:03", 
+        station_id: 3,  // Make sure this matches your Reset station ID
+        ip_address: "192.168.1.103" 
+    },
 
     // RFID tag(s) to simulate scanning, and what action to perform on each.
     // action_name can be a preparation_method_id (number) or name (string) -
     // both are supported by the server.
     tagActions: [
-        { tag_rfid: "TAG-001", action_name: "Toast" }
-        // add more, e.g. { tag_rfid: "TAG-002", action_name: 2 }
+        { tag_rfid: "TAG-001", action_name: "Toast" },
+        { tag_rfid: "TAG-002", action_name: "Slice" }
+        // add more, e.g. { tag_rfid: "TAG-003", action_name: 2 }
     ],
+
+    // Tag to reset (clears status back to 'Default')
+    resetTag: "TAG-001",
 
     // Order to create + submit
     order_number: "01",       // raw 2-digit wire format
-    food_id: 1,                // must exist in `food` table
-    submitTagMacs: ["TAG-001"] // tags the Counter ESP "scanned" at submission
+    food_id: 1,               // must exist in `food` table
+    submitTagMacs: ["TAG-001", "TAG-002"] // tags the Counter ESP "scanned" at submission
 };
 
 async function post(path, body) {
@@ -106,22 +115,19 @@ async function run() {
         await post("/esp32comms/register", CONFIG.counterStation)
     );
 
-    // 3. Heartbeat ping from General station
+    // 3. Register the Reset station device
     log(
-        "3. Ping (General station)",
+        "3. Register Reset station",
+        await post("/esp32comms/register", CONFIG.resetStation)
+    );
+
+    // 4. Heartbeat ping from General station
+    log(
+        "4. Ping (General station)",
         await post("/esp32comms/listen", {
             device_mac: CONFIG.generalStation.device_mac,
             message_type: "ping",
             payload: {}
-        })
-    );
-
-    // 4. Create an order (mimics the game frontend registering a spawned ticket)
-    log(
-        "4. Create order",
-        await post("/api/orders", {
-            order_number: CONFIG.order_number,
-            food_id: CONFIG.food_id
         })
     );
 
@@ -137,9 +143,30 @@ async function run() {
         );
     }
 
-    // 6. Counter ESP submits the order
+    // 6. Reset a tag using the Reset station
     log(
-        "6. Submit order (Counter station)",
+        `6. Reset tag: ${CONFIG.resetTag}`,
+        await post("/esp32comms/listen", {
+            device_mac: CONFIG.resetStation.device_mac,
+            message_type: "reset",
+            payload: {
+                tag_rfid: CONFIG.resetTag
+            }
+        })
+    );
+
+    // 7. Create an order (mimics the game frontend registering a spawned ticket)
+    log(
+        "7. Create order",
+        await post("/api/orders", {
+            order_number: CONFIG.order_number,
+            food_id: CONFIG.food_id
+        })
+    );
+
+    // 8. Counter ESP submits the order
+    log(
+        "8. Submit order (Counter station)",
         await post("/api/esp/submit", {
             order_number: CONFIG.order_number,
             device_mac: CONFIG.counterStation.device_mac,

@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="/main.css" />
     <title><%= title%></title>
-    <script src="/scripts/esp32setup.js"></script>
 </head>
 <body>
   <header>
@@ -34,13 +33,14 @@
         <% } else { %>
             <% devices.forEach(device => { %>
                 <tr>
-                    <td><%= device.esp32_id %></td>
+                    <td><%= device.device_id %></td>
                     <td><%= device.device_mac %></td>
                     <td><%= device.ip_address || 'N/A' %></td>
                     <td><%= device.last_seen || 'Never' %></td>
                     <td><%= device.station_name || 'Unassigned' %></td>
                     <td>
                         <button type="button" onclick='openEditModal(<%- JSON.stringify(device) %>)'>Edit</button>
+                        <button type="button" onclick="deleteDevice('<%= device.device_id %>', '<%= device.device_mac %>')" style="background:#f44336; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; margin-left:5px;">Delete</button>
                     </td>
                 </tr>
             <% }) %>
@@ -57,7 +57,7 @@
     Register an ESP32 scanner and assign it to a station.
 </p>
 
-<form action="/esp32comms/register" method="POST">
+<form action="/settings/esp32/register" method="POST">
 
     <label>MAC Address:</label>
     <input
@@ -69,17 +69,12 @@
 
     <label>Station:</label>
     <select name="station_id" required>
-
-        <option value="">
-            -- Select Station --
-        </option>
-
+        <option value="">-- Select Station --</option>
         <% stations.forEach(station => { %>
             <option value="<%= station.station_id %>">
                 <%= station.station_name %>
             </option>
         <% }) %>
-
     </select>
 
     <label>IP Address:</label>
@@ -100,7 +95,7 @@
 <!-- ─── ASSIGN TAG → INGREDIENT ──────────────────────── -->
 <h2>Assign Tag to Ingredient</h2>
 <p>Link a <strong>passive tag</strong> (RFID/NFC chip) to an ingredient. Tags are read by tagger devices.</p>
-<form action="/esp32comms/assign-tag" method="POST">
+<form action="/settings/esp32/assign-tag" method="POST">
     <label>RFID Tag:</label>
 
     <input
@@ -163,6 +158,27 @@
 
 <hr>
 
+<!-- ─── RESET TAG STATUS ────────────────────────────────────── -->
+<h2>Reset Tag Status</h2>
+<p>Manually reset a single tag's status back to 'Default'. This is useful for clearing a tag that's stuck in a specific status.</p>
+
+<form id="resetTagForm">
+    <label>RFID Tag:</label>
+    <input
+        type="text"
+        id="resetTagRfid"
+        name="tag_rfid"
+        placeholder="RFID UID"
+        required
+        style="padding:8px; width:200px; margin-right:10px;"
+    >
+    <button type="submit" style="padding:8px 16px; background:#ff9800; color:white; border:none; border-radius:4px; cursor:pointer;">
+        Reset Tag
+    </button>
+</form>
+
+<hr>
+
 <!-- ─── EDIT ASSIGNMENT MODAL ─────────────────────────── -->
 <div id="editAssignmentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
     <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:30px; border-radius:8px; max-width:500px; width:90%; max-height:90vh; overflow-y:auto;">
@@ -195,7 +211,6 @@
 </div>
 
 <!-- ─── EDIT DEVICE MODAL ─────────────────────────────── -->
-
 <div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000;">
 
 <div style="position:absolute; top:50%; left:50%;
@@ -294,7 +309,8 @@
 
 <!-- ─── JAVASCRIPT ─────────────────────────────────────── -->
 <script>
-// Close modals when clicking outside
+// ─── MODAL FUNCTIONS ──────────────────────────────────────────
+
 function openEditModal(device) {
     document.getElementById("editDeviceId").value =
         device.device_id;
@@ -312,6 +328,15 @@ function openEditModal(device) {
         "block";
 }
 
+function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function closeEditAssignmentModal() {
+    document.getElementById('editAssignmentModal').style.display = 'none';
+}
+
+// Close modals when clicking outside
 document.getElementById('editModal').addEventListener('click', function(e) {
     if (e.target === this) {
         closeEditModal();
@@ -324,7 +349,8 @@ document.getElementById('editAssignmentModal').addEventListener('click', functio
     }
 });
 
-// Open edit assignment modal
+// ─── EDIT TAG ASSIGNMENT ──────────────────────────────────────
+
 function editTagAssignment(tag_id, tag_rfid, ingredients_id) {
     document.getElementById('editAssignmentId').value = tag_id;
     document.getElementById('editAssignmentMac').value = tag_rfid;
@@ -332,12 +358,8 @@ function editTagAssignment(tag_id, tag_rfid, ingredients_id) {
     document.getElementById('editAssignmentModal').style.display = 'block';
 }
 
-// Close edit assignment modal
-function closeEditAssignmentModal() {
-    document.getElementById('editAssignmentModal').style.display = 'none';
-}
+// ─── DELETE TAG ASSIGNMENT ────────────────────────────────────
 
-// Delete tag assignment
 function deleteTagAssignment(tag_id) {
     if (confirm('Are you sure you want to delete this tag assignment?')) {
         fetch('/settings/esp32/delete-tag-assignment', {
@@ -361,6 +383,80 @@ function deleteTagAssignment(tag_id) {
         });
     }
 }
+
+// ─── RESET TAG ──────────────────────────────────────────────────
+
+document.getElementById('resetTagForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const tag_rfid = document.getElementById('resetTagRfid').value.trim();
+    
+    if (!tag_rfid) {
+        alert('Please enter a tag RFID.');
+        return;
+    }
+    
+    // Confirm the reset action
+    if (!confirm(`Are you sure you want to reset tag ${tag_rfid} to 'Default'?`)) {
+        return;
+    }
+    
+    fetch('/settings/esp32/reset-tag', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ tag_rfid })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Tag ${data.tag_rfid} reset successfully!\nPrevious status: ${data.previous_status}\nNew status: ${data.new_status}`);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error resetting tag: ' + error);
+    });
+});
+
+// ─── DELETE DEVICE ─────────────────────────────────────────────
+
+function deleteDevice(deviceId, deviceMac) {
+    if (!confirm(`Are you sure you want to permanently remove device ${deviceMac}?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    fetch(`/settings/esp32/device/${deviceId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Device removed successfully!');
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error removing device: ' + error);
+    });
+}
+
+// ─── CLOSE MODALS ON ESC ──────────────────────────────────────
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeEditModal();
+        closeEditAssignmentModal();
+    }
+});
 </script>
 
 </body>

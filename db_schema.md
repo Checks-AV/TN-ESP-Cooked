@@ -157,34 +157,39 @@ CREATE TABLE IF NOT EXISTS OrderActions (
 /* Input your Stations with Mac Address here */
 INSERT INTO station('station_name') VALUES ('General'); --1
 INSERT INTO station('station_name') VALUES ('Counter'); --2
-INSERT INTO station('station_name') VALUES ('Reset'); --3
 
 /* Insert your food here */
-INSERT INTO food (food_name) VALUES ('Mushroom Soup');
-INSERT INTO food (food_name) VALUES ('Chicken Curry Rice');
-INSERT INTO food (food_name) VALUES ('Fish and Chip');
-INSERT INTO food (food_name) VALUES ('Salad');
-INSERT INTO food (food_name) VALUES ('Fish Cake');
-INSERT INTO food (food_name) VALUES ('Golden Gohan');
+INSERT INTO food('food_name') VALUES ('Fried rice');
+INSERT INTO food('food_name') VALUES ('Sushi');
+INSERT INTO food('food_name') VALUES ('Western');
+INSERT INTO food('food_name') VALUES ('Curry chicken rice');
+INSERT INTO food('food_name') VALUES ('Fish soup rice');
 
-/* Insert your ingredients here - UPDATED */
-INSERT INTO ingredients('ingredients_name') VALUES ('Rice');      --1
-INSERT INTO ingredients('ingredients_name') VALUES ('Mushroom');  --2
-INSERT INTO ingredients('ingredients_name') VALUES ('Cheese');    --3 
-INSERT INTO ingredients('ingredients_name') VALUES ('Lettuce');   --4 
-INSERT INTO ingredients('ingredients_name') VALUES ('Fish');      --5
-INSERT INTO ingredients('ingredients_name') VALUES ('Beef');      --6
-INSERT INTO ingredients('ingredients_name') VALUES ('Potato');    --7
-INSERT INTO ingredients('ingredients_name') VALUES ('Chicken');   --8
-INSERT INTO ingredients('ingredients_name') VALUES ('Egg');   --9
+/* Insert your ingredients here */
+INSERT INTO ingredients('ingredients_name') VALUES ('Chicken'); --1
+INSERT INTO ingredients('ingredients_name') VALUES ('Onions'); --2
+INSERT INTO ingredients('ingredients_name') VALUES ('Lettuce'); --3 
+INSERT INTO ingredients('ingredients_name') VALUES ('Beef'); --4 
 
-/* Insert your station actions here - UPDATED */
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Chop');  --1
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Boil');  --2
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Cook');  --3
+/* Insert your INGREDIENT statuses here! */
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Default'); --1 
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Toasted'); --2 
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Cooked'); --3 
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Boiled'); --4 
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Fried'); --5 
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Sliced'); --6 
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Diced'); --7
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Chopped'); --8
+INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Burnt'); --9
+
+/* Insert your station actions here! */
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Toast'); --1
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Cook');  --2
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Boil');  --3
 INSERT INTO preparation_method('preparation_method_name') VALUES ('Fry');   --4
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Stew');  --5
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Slice'); --5
 INSERT INTO preparation_method('preparation_method_name') VALUES ('Dice');  --6
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Chop');  --7
 
 /* Station permissions — which station is allowed to perform which
    preparation method. Without rows here, handleAction() in
@@ -194,35 +199,16 @@ INSERT INTO preparation_method('preparation_method_name') VALUES ('Dice');  --6
    Counter (station_id 2) intentionally gets NO rows here — it only
    ever submits finished orders via /api/esp/submit, never performs
    prep actions on tags (enforced explicitly in handleAction too). */
-INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 1); -- General -> Chop
-INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 2); -- General -> Boil
-INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 3); -- General -> Cook
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 1); -- General -> Toast
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 2); -- General -> Cook
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 3); -- General -> Boil
 INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 4); -- General -> Fry
-INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 5); -- General -> Stew
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 5); -- General -> Slice
 INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 6); -- General -> Dice
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 7); -- General -> Chop
 
 /* Dummy Tag Data here */
--- Insert the ESP32 device for Reset station
-INSERT INTO ESP32Devices (device_mac, ip_address, last_seen) 
-VALUES ('AA:BB:CC:DD:EE:03', '192.168.10.117', datetime('now'));
-
--- Insert the ESP32 device for Counter station
-INSERT INTO ESP32Devices (device_mac, ip_address, last_seen) 
-VALUES ('AA:BB:CC:DD:EE:02', '192.168.10.118', datetime('now'));
-
--- Now assign them to their respective stations
--- First, get the device_ids and station_ids
--- Assign AA:BB:CC:DD:EE:03 to Reset station (station_id = 3)
-INSERT INTO ESP32Tagger (device_id, station_id)
-SELECT 
-    (SELECT device_id FROM ESP32Devices WHERE device_mac = 'AA:BB:CC:DD:EE:03'),
-    (SELECT station_id FROM station WHERE station_name = 'Reset');
-
--- Assign AA:BB:CC:DD:EE:02 to Counter station (station_id = 2)
-INSERT INTO ESP32Tagger (device_id, station_id)
-SELECT 
-    (SELECT device_id FROM ESP32Devices WHERE device_mac = 'AA:BB:CC:DD:EE:02'),
-    (SELECT station_id FROM station WHERE station_name = 'Counter');
+INSERT INTO ESP32Devices('device_mac', 'ip_address', 'last_seen') VALUES ('1C:DB:D4:40:35:38', '192.168.10.116', '2026-05-06T10:25:12.663Z');
 
 
 -- Do we want a login authentication here? 

@@ -5,52 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Overcooked — Ticket Rail</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Fredoka+One&family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800;900&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    /* ... keep your existing styles ... */
     :root {
-      --warm-orange: #e67e22;
-      --warm-red: #e74c3c;
-      --warm-yellow: #f1c40f;
-      --warm-gold: #f39c12;
-      --warm-green: #2ecc71;
-      --warm-blue: #3498db;
-      --warm-dark: #2c3e50;
-      --warm-cream: #fef9e7;
-      --warm-paper: #fdf5e6;
-      --warm-brown: #8d6e63;
-      --warm-shadow: #d5c8b0;
-      --ink: #2c2c2c;
-      --ink-faint: #7f8c8d;
-      --heat-cool: #2ecc71;
-      --heat-warm: #f39c12;
-      --heat-hot: #e74c3c;
-      --line: rgba(255,255,255,0.15);
-      --shadow: 0 8px 32px rgba(0,0,0,0.3);
-      --glow: 0 0 30px rgba(241,196,15,0.1);
+      /* ---- kitchen palette ---- */
+      --teal-deep:  #0a4443;
+      --teal-mid:   #0f6564;
+      --teal-glow:  #1a8f8c;
+      --flame:      #ff7a3d;
+      --flame-dark: #e05a1f;
+      --tomato:     #ef4444;
+      --tomato-dark:#b8281f;
+      --butter:     #ffc94d;
+      --butter-dark:#d99a12;
+      --herb:       #4fbf5f;
+      --herb-dark:  #2c8a3a;
+      --paper:      #fff6e2;
+      --paper-dim:  #ffe9bd;
+      --wood:       #9a6738;
+      --wood-dark:  #603c1e;
+      --ink:        #241609;
+      --ink-soft:   #6b5641;
+      --line-soft:  rgba(255,255,255,0.14);
     }
-    
+
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
       min-height: 100vh;
-      background: radial-gradient(ellipse at top, #f39c12 0%, #d35400 40%, #2c3e50 80%);
-      font-family: 'Inter', sans-serif;
-      color: #ecf0f1;
+      font-family: 'Nunito', sans-serif;
+      color: var(--paper);
       padding-bottom: 40px;
       overflow-x: hidden;
       position: relative;
+      background:
+        radial-gradient(circle at 15% -10%, rgba(255,201,77,0.18), transparent 45%),
+        radial-gradient(circle at 90% 10%, rgba(255,122,61,0.14), transparent 40%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.028) 0 2px, transparent 2px 28px),
+        linear-gradient(180deg, var(--teal-mid), var(--teal-deep) 55%, #052625 100%);
     }
-    
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-    }
+
+    ::selection { background: var(--butter); color: var(--ink); }
 
     /* ===== HEADER ===== */
     header {
@@ -58,326 +54,293 @@
       align-items: center;
       justify-content: space-between;
       padding: 14px 32px;
-      background: linear-gradient(180deg, rgba(44,62,80,0.92), rgba(44,62,80,0.75));
-      border-bottom: 4px solid var(--warm-yellow);
+      background: linear-gradient(180deg, var(--wood), var(--wood-dark));
+      border-bottom: 5px solid var(--ink);
+      box-shadow: 0 6px 0 rgba(0,0,0,0.22), 0 10px 24px rgba(0,0,0,0.35);
       flex-wrap: wrap;
       gap: 12px;
-      backdrop-filter: blur(12px);
       position: sticky;
       top: 0;
       z-index: 50;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
-    .brand {
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand .chef-badge {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--butter);
+      border: 3px solid var(--ink);
       display: flex;
       align-items: center;
-      gap: 14px;
+      justify-content: center;
+      box-shadow: 3px 3px 0 rgba(0,0,0,0.35);
+      animation: bounce 2.2s infinite ease-in-out;
+      flex-shrink: 0;
     }
-    .brand .chef-icon {
-      font-size: 36px;
-      animation: bounce 2s infinite ease-in-out;
-    }
+    .brand .chef-badge svg { width: 24px; height: 24px; color: var(--ink); }
     @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-5px) rotate(-4deg); }
     }
     .brand h1 {
-      font-family: 'Fredoka One', cursive;
-      font-size: 32px;
+      font-family: 'Baloo 2', cursive;
+      font-weight: 800;
+      font-size: 30px;
       margin: 0;
-      background: linear-gradient(135deg, #f1c40f, #e67e22);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      text-shadow: none;
-      letter-spacing: 1px;
+      color: var(--paper);
+      text-shadow: 3px 3px 0 var(--ink);
+      letter-spacing: 0.5px;
     }
     .brand .sub {
       font-size: 11px;
-      letter-spacing: 3px;
-      color: #bdc3c7;
+      letter-spacing: 1.5px;
+      color: var(--ink);
       text-transform: uppercase;
-      font-weight: 600;
-      -webkit-text-fill-color: #bdc3c7;
-      background: none;
-      margin-left: 4px;
+      font-weight: 800;
+      background: var(--flame);
+      border: 2px solid var(--ink);
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-left: 6px;
+      box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
     }
 
-    .header-controls {
-      display: flex;
+    .header-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .icon { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
+    .icon svg { width: 100%; height: 100%; display: block; }
+
+    .status-pill {
+      display: inline-flex;
       align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    .header-controls .status-pill {
-      padding: 6px 18px;
+      gap: 6px;
+      padding: 7px 16px;
       border-radius: 30px;
       font-size: 12px;
-      font-weight: 700;
+      font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      background: rgba(255,255,255,0.05);
-      border: 2px solid rgba(255,255,255,0.1);
-      transition: all 0.3s;
+      background: var(--paper);
+      color: var(--ink);
+      border: 3px solid var(--ink);
+      box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+      transition: all 0.2s;
     }
-    .header-controls .status-pill.running {
-      border-color: var(--warm-green);
-      color: var(--warm-green);
-      animation: pulse-green 1.5s infinite;
-      background: rgba(46,204,113,0.1);
-    }
-    .header-controls .status-pill.paused {
-      border-color: var(--warm-yellow);
-      color: var(--warm-yellow);
-      background: rgba(241,196,15,0.1);
-    }
-    .header-controls .status-pill.idle {
-      border-color: var(--ink-faint);
-      color: var(--ink-faint);
-    }
-    .header-controls .status-pill.ended {
-      border-color: var(--warm-red);
-      color: var(--warm-red);
-      background: rgba(231,76,60,0.1);
-    }
+    .status-pill.running { background: var(--herb); animation: pulse-green 1.6s infinite; }
+    .status-pill.paused  { background: var(--butter); }
+    .status-pill.idle    { background: var(--paper); color: var(--ink-soft); }
+    .status-pill.ended   { background: var(--tomato); color: #fff; }
     @keyframes pulse-green {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(46,204,113,0.2); }
-      50% { box-shadow: 0 0 30px 6px rgba(46,204,113,0.08); }
+      0%, 100% { box-shadow: 3px 3px 0 rgba(0,0,0,0.3); }
+      50% { box-shadow: 3px 3px 0 rgba(0,0,0,0.3), 0 0 18px 3px rgba(79,191,95,0.5); }
     }
 
     .chef-btn {
-      background: rgba(255,255,255,0.08);
-      border: 2px solid rgba(255,255,255,0.12);
-      color: #ecf0f1;
-      padding: 8px 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--paper);
+      border: 3px solid var(--ink);
+      color: var(--ink);
+      padding: 8px 20px;
       border-radius: 30px;
-      font-size: 12px;
-      font-weight: 700;
+      font-size: 13px;
+      font-weight: 800;
       cursor: pointer;
-      transition: all 0.25s;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Nunito', sans-serif;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.35);
+      transition: transform 0.12s, box-shadow 0.12s, opacity 0.2s;
     }
-    .chef-btn:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    }
-    .chef-btn:active:not(:disabled) {
-      transform: scale(0.95);
-    }
-    .chef-btn:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
-      transform: none !important;
-    }
-    .chef-btn.start {
-      background: var(--warm-green);
-      border-color: var(--warm-green);
-      color: #fff;
-      box-shadow: 0 4px 15px rgba(46,204,113,0.3);
-    }
-    .chef-btn.start:hover:not(:disabled) {
-      background: #27ae60;
-      border-color: #27ae60;
-      box-shadow: 0 6px 25px rgba(46,204,113,0.4);
-    }
-    .chef-btn.pause {
-      background: var(--warm-yellow);
-      border-color: var(--warm-yellow);
-      color: #2c3e50;
-      box-shadow: 0 4px 15px rgba(241,196,15,0.3);
-    }
-    .chef-btn.pause:hover:not(:disabled) {
-      background: #f39c12;
-      border-color: #f39c12;
-      box-shadow: 0 6px 25px rgba(241,196,15,0.4);
-    }
+    .chef-btn .icon { width: 13px; height: 13px; }
+    .chef-btn:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.35); }
+    .chef-btn:active:not(:disabled) { transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(0,0,0,0.35); }
+    .chef-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: 2px 2px 0 rgba(0,0,0,0.2); transform: none !important; }
+    .chef-btn.start { background: var(--herb); }
+    .chef-btn.pause { background: var(--butter); }
 
     .param-feedback {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
       font-size: 11px;
-      color: var(--warm-green);
-      padding: 4px 14px;
-      background: rgba(46,204,113,0.15);
+      color: var(--ink);
+      padding: 5px 14px;
+      background: var(--herb);
       border-radius: 30px;
-      border: 2px solid rgba(46,204,113,0.2);
-      display: inline-block;
-      font-weight: 700;
-      animation: popIn 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+      border: 2px solid var(--ink);
+      font-weight: 800;
+      text-transform: uppercase;
+      animation: popIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2);
     }
+    .param-feedback .icon { width: 12px; height: 12px; }
     @keyframes popIn {
-      0% { opacity: 0; transform: scale(0.8); }
+      0% { opacity: 0; transform: scale(0.7); }
       100% { opacity: 1; transform: scale(1); }
     }
 
     /* ===== SERVICE BAR ===== */
-    .service-bar-wrap {
-      padding: 20px 32px 12px;
-      position: relative;
-      z-index: 1;
-    }
+    .service-bar-wrap { padding: 20px 32px 12px; }
     .service-row {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      font-family: 'Courier Prime', monospace;
+      font-family: 'Nunito', sans-serif;
       font-size: 12px;
-      color: rgba(255,255,255,0.6);
+      font-weight: 800;
+      color: rgba(255,246,226,0.65);
       margin-bottom: 6px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
     }
+    .service-row .icon { width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; }
     .service-time {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 32px;
-      color: var(--warm-yellow);
-      letter-spacing: 2px;
-      text-shadow: 0 0 30px rgba(241,196,15,0.15);
+      font-family: 'Baloo 2', cursive;
+      font-weight: 800;
+      font-size: 30px;
+      color: var(--butter);
+      letter-spacing: 1px;
+      text-shadow: 2px 2px 0 var(--ink);
     }
     .service-track {
-      height: 14px;
-      background: rgba(255,255,255,0.08);
+      height: 16px;
+      background: rgba(0,0,0,0.35);
       border-radius: 8px;
       overflow: hidden;
-      border: 1px solid rgba(255,255,255,0.05);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+      border: 3px solid var(--ink);
     }
     .service-fill {
       height: 100%;
       width: 100%;
-      background: linear-gradient(90deg, #2ecc71, #f1c40f 55%, #e74c3c);
-      border-radius: 8px;
+      background: linear-gradient(90deg, var(--herb), var(--butter) 55%, var(--tomato));
       transition: width 0.8s linear;
-      position: relative;
-    }
-    .service-fill::after {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 50%;
-      background: linear-gradient(180deg, rgba(255,255,255,0.2), transparent);
-      border-radius: 8px 8px 0 0;
     }
 
     /* ===== STATS ===== */
     .stat-strip {
       display: flex;
-      padding: 10px 32px;
+      padding: 14px 32px;
       flex-wrap: wrap;
-      gap: 4px 0;
-      background: rgba(0,0,0,0.15);
-      backdrop-filter: blur(4px);
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      position: relative;
-      z-index: 1;
+      gap: 12px;
     }
     .stat {
       flex: 1;
-      min-width: 90px;
-      padding: 4px 16px;
-      border-right: 1px solid rgba(255,255,255,0.05);
+      min-width: 110px;
+      padding: 10px 14px;
+      background: var(--paper);
+      border: 3px solid var(--ink);
+      border-radius: 12px;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
       text-align: center;
     }
-    .stat:last-child { border-right: none; }
     .stat .num {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 34px;
-      letter-spacing: 1px;
+      font-family: 'Baloo 2', cursive;
+      font-weight: 800;
+      font-size: 32px;
+      letter-spacing: 0.5px;
       line-height: 1;
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--ink);
     }
-    .stat .num.gold { color: var(--warm-yellow); text-shadow: 0 0 20px rgba(241,196,15,0.15); }
-    .stat .num.green { color: var(--warm-green); text-shadow: 0 0 20px rgba(46,204,113,0.15); }
-    .stat .num.red { color: var(--warm-red); text-shadow: 0 0 20px rgba(231,76,60,0.15); }
+    .stat .num .icon { width: 20px; height: 20px; }
+    .stat .num.gold .icon, .stat .num.gold { color: var(--butter-dark); }
+    .stat .num.green .icon, .stat .num.green { color: var(--herb-dark); }
+    .stat .num.red .icon, .stat .num.red { color: var(--tomato-dark); }
     .stat .label {
-      font-size: 10px;
+      font-size: 10.5px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
-      color: rgba(255,255,255,0.4);
-      font-weight: 600;
-      margin-top: 2px;
+      color: var(--ink-soft);
+      font-weight: 800;
+      margin-top: 4px;
       display: block;
     }
 
     /* ===== RAIL ===== */
-    .rail-wrap {
-      position: relative;
-      padding: 36px 32px 20px;
-      z-index: 1;
-    }
+    .rail-wrap { position: relative; padding: 40px 32px 20px; }
     .rail-bar {
       position: absolute;
-      top: 28px;
+      top: 30px;
       left: 32px;
       right: 32px;
-      height: 8px;
-      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.3));
-      border-radius: 4px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-      border: 1px solid rgba(255,255,255,0.03);
+      height: 12px;
+      background: linear-gradient(180deg, var(--wood), var(--wood-dark));
+      border: 3px solid var(--ink);
+      border-radius: 6px;
+      box-shadow: 0 5px 14px rgba(0,0,0,0.4);
     }
     .rail-bar::before, .rail-bar::after {
       content: '';
       position: absolute;
       top: -8px;
-      width: 22px;
-      height: 22px;
+      width: 24px;
+      height: 24px;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #7f8c8d, #2c3e50);
-      border: 2px solid rgba(255,255,255,0.05);
-      box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
+      background: radial-gradient(circle at 35% 35%, #cfcfcf, #6b6b6b);
+      border: 3px solid var(--ink);
     }
-    .rail-bar::before { left: -9px; }
-    .rail-bar::after { right: -9px; }
+    .rail-bar::before { left: -12px; }
+    .rail-bar::after { right: -12px; }
 
     .rail {
       display: flex;
-      gap: 28px;
+      gap: 26px;
       overflow-x: auto;
-      padding: 10px 4px 30px;
+      padding: 12px 4px 30px;
       scrollbar-width: thin;
-      min-height: 240px;
+      min-height: 250px;
       align-items: flex-start;
     }
-    .rail::-webkit-scrollbar { height: 8px; }
-    .rail::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); border-radius: 4px; }
-    .rail::-webkit-scrollbar-thumb { 
-      background: linear-gradient(180deg, #f1c40f, #e67e22);
-      border-radius: 4px;
-    }
+    .rail::-webkit-scrollbar { height: 10px; }
+    .rail::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .rail::-webkit-scrollbar-thumb { background: var(--butter); border-radius: 4px; border: 2px solid var(--ink); }
 
     .empty-rail {
-      font-family: 'Courier Prime', monospace;
-      color: rgba(255,255,255,0.5);
-      padding: 60px 10px;
+      color: rgba(255,246,226,0.85);
+      padding: 50px 10px;
       text-align: center;
       width: 100%;
       font-size: 14px;
     }
-    .empty-rail .emoji { font-size: 56px; display: block; margin-bottom: 16px; }
-    .empty-rail .title { font-size: 20px; font-weight: 700; color: rgba(255,255,255,0.7); font-family: 'Fredoka One', cursive; }
-    .empty-rail .sub { font-size: 14px; color: rgba(255,255,255,0.4); margin-top: 4px; }
-    .empty-rail.error .title { color: var(--warm-red); }
-    .empty-rail.loading .title { color: var(--warm-yellow); }
-    .empty-rail.success .title { color: var(--warm-green); }
+    .empty-rail .glyph {
+      width: 64px; height: 64px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: var(--paper);
+      border: 3px solid var(--ink);
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink);
+    }
+    .empty-rail .glyph svg { width: 30px; height: 30px; }
+    .empty-rail .title { font-size: 21px; font-weight: 800; font-family: 'Baloo 2', cursive; color: var(--paper); text-shadow: 2px 2px 0 var(--ink); }
+    .empty-rail .sub { font-size: 13.5px; color: rgba(255,246,226,0.6); margin-top: 6px; max-width: 480px; margin-left: auto; margin-right: auto; }
+    .empty-rail.error .glyph { background: var(--tomato); color: #fff; }
+    .empty-rail.error .title { color: var(--tomato); text-shadow: 2px 2px 0 var(--ink); }
+    .empty-rail.loading .glyph { background: var(--butter); }
+    .empty-rail.success .glyph { background: var(--herb); color: #fff; }
     .empty-rail .retry-btn {
-      background: rgba(255,255,255,0.1);
-      border: 2px solid rgba(255,255,255,0.15);
-      color: #ecf0f1;
-      padding: 10px 28px;
+      display: inline-flex; align-items: center; gap: 7px;
+      background: var(--paper);
+      border: 3px solid var(--ink);
+      color: var(--ink);
+      padding: 10px 24px;
       border-radius: 30px;
       cursor: pointer;
-      margin-top: 16px;
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.2s;
+      margin-top: 18px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+      transition: transform 0.12s, box-shadow 0.12s;
     }
-    .empty-rail .retry-btn:hover {
-      background: rgba(255,255,255,0.2);
-      transform: translateY(-2px);
-    }
+    .empty-rail .retry-btn .icon { width: 13px; height: 13px; }
+    .empty-rail .retry-btn:hover { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 rgba(0,0,0,0.3); }
 
     /* ===== TICKET ===== */
     .ticket {
@@ -398,64 +361,43 @@
       60% { transform: translateX(-5px) rotate(var(--tilt)); }
       80% { transform: translateX(5px) rotate(var(--tilt)); }
     }
-    .ticket.missed .ticket-body { animation: shake 0.4s; filter: grayscale(0.5); }
-    .ticket.completed .ticket-body { filter: grayscale(0.4); opacity: 0.7; transform: scale(0.98); }
-    .ticket.failed .ticket-body { filter: grayscale(0.6); opacity: 0.5; transform: scale(0.95); }
+    .ticket.missed .ticket-body { animation: shake 0.4s; filter: saturate(0.6); }
+    .ticket.completed .ticket-body { filter: saturate(0.6); opacity: 0.75; transform: scale(0.98); }
+    .ticket.failed .ticket-body { filter: saturate(0.6); opacity: 0.55; transform: scale(0.95); }
 
     .clip {
       position: absolute;
-      top: -4px;
+      top: -6px;
       left: 50%;
       transform: translateX(-50%);
-      width: 34px;
-      height: 16px;
-      background: linear-gradient(180deg, #bdc3c7, #7f8c8d);
-      border-radius: 3px 3px 0 0;
-      box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+      width: 38px;
+      height: 20px;
+      background: linear-gradient(180deg, var(--wood), var(--wood-dark));
+      border: 3px solid var(--ink);
+      border-radius: 5px 5px 0 0;
       z-index: 2;
     }
     .clip::after {
       content: '';
       position: absolute;
       left: 50%;
-      top: 50%;
+      top: 55%;
       width: 8px;
       height: 8px;
-      background: #2c3e50;
+      background: var(--ink);
       border-radius: 50%;
       transform: translate(-50%, -50%);
-      border: 1px solid rgba(255,255,255,0.1);
     }
 
     .ticket-body {
-      background: linear-gradient(180deg, #fef9e7, #fdf5e6);
+      background: var(--paper);
       color: var(--ink);
-      border-radius: 8px;
-      box-shadow: var(--shadow), 0 2px 0 var(--warm-shadow) inset;
+      border-radius: 12px;
+      border: 3px solid var(--ink);
+      box-shadow: 6px 6px 0 rgba(0,0,0,0.35);
       transform: rotate(var(--tilt));
       position: relative;
-      font-family: 'Courier Prime', monospace;
       overflow: hidden;
-      border: 2px solid rgba(255,255,255,0.2);
-    }
-    .ticket-body::before {
-      content: '';
-      position: absolute;
-      top: -1px;
-      left: 0;
-      right: 0;
-      height: 8px;
-      background-image: radial-gradient(circle at 6px 4px, transparent 3px, #fdf5e6 3.5px);
-      background-size: 12px 8px;
-      background-repeat: repeat-x;
-    }
-    .ticket-body::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 8px;
-      background: linear-gradient(135deg, rgba(241,196,15,0.03), transparent 50%);
-      pointer-events: none;
     }
 
     .ticket-head {
@@ -463,150 +405,145 @@
       justify-content: space-between;
       align-items: flex-start;
       padding: 14px 16px 8px;
-      border-bottom: 2px dashed #e8ddd0;
-      position: relative;
-      z-index: 1;
+      border-bottom: 3px dashed var(--paper-dim);
+      font-family: 'Baloo 2', cursive;
     }
-    .order-no {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 28px;
-      letter-spacing: 1px;
-      line-height: 1;
-      color: #2c3e50;
-    }
-    .order-no .hash { color: #b8a990; font-size: 16px; }
+    .order-no { font-size: 26px; font-weight: 800; line-height: 1; color: var(--ink); }
+    .order-no .hash { color: var(--ink-soft); font-size: 13px; font-family: 'Nunito', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 2px; }
 
     .status-badge {
-      font-size: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
       text-transform: uppercase;
-      letter-spacing: 1px;
-      padding: 4px 14px;
+      letter-spacing: 0.5px;
+      padding: 5px 12px;
       border-radius: 30px;
-      font-family: 'Inter', sans-serif;
+      font-family: 'Nunito', sans-serif;
       font-weight: 800;
       white-space: nowrap;
-      position: relative;
-      z-index: 1;
+      border: 2px solid var(--ink);
     }
-    .status-badge.cooking { background: #f39c12; color: #fff; box-shadow: 0 2px 10px rgba(243,156,18,0.3); }
-    .status-badge.late { background: var(--warm-red); color: #fff; animation: blink 0.8s infinite; box-shadow: 0 2px 10px rgba(231,76,60,0.3); }
-    .status-badge.missed { background: #7f8c8d; color: #fff; }
-    .status-badge.completed { background: var(--warm-green); color: #fff; box-shadow: 0 2px 10px rgba(46,204,113,0.3); }
-    .status-badge.waiting { background: var(--warm-yellow); color: #2c3e50; box-shadow: 0 2px 10px rgba(241,196,15,0.3); }
-    .status-badge.failed { background: #c0392b; color: #fff; }
-    .status-badge.validating { background: var(--warm-blue); color: #fff; }
-    @keyframes blink { 50% { opacity: 0.4; } }
+    .status-badge .icon { width: 11px; height: 11px; }
+    .status-badge.cooking { background: var(--flame); color: #fff; }
+    .status-badge.late { background: var(--tomato); color: #fff; animation: blink 0.8s infinite; }
+    .status-badge.missed { background: #9a9a9a; color: #fff; }
+    .status-badge.completed { background: var(--herb); color: #fff; }
+    .status-badge.waiting { background: var(--butter); color: var(--ink); }
+    .status-badge.failed { background: var(--tomato-dark); color: #fff; }
+    .status-badge.validating { background: var(--teal-glow); color: #fff; }
+    @keyframes blink { 50% { opacity: 0.45; } }
 
     .dish-name {
       padding: 10px 16px 2px;
-      font-size: 20px;
+      font-size: 19px;
       font-weight: 800;
       line-height: 1.2;
-      color: #2c3e50;
-      font-family: 'Inter', sans-serif;
-      position: relative;
-      z-index: 1;
+      color: var(--ink);
+      font-family: 'Baloo 2', cursive;
     }
     .points-tag {
-      font-size: 11px;
-      color: #27ae60;
-      font-weight: 700;
-      padding: 0 16px 4px;
-      font-family: 'Inter', sans-serif;
-      position: relative;
-      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--herb-dark);
+      font-weight: 800;
+      padding: 4px 16px 6px;
     }
+    .points-tag .icon { width: 13px; height: 13px; color: var(--butter-dark); }
 
-    .ingredient-list {
-      padding: 6px 16px 10px;
-      position: relative;
-      z-index: 1;
-    }
+    .ingredient-list { padding: 6px 16px 10px; }
     .ingredient-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 12px;
-      color: var(--ink-faint);
-      padding: 3px 0;
-      border-bottom: 1px dashed rgba(0,0,0,0.05);
+      font-size: 12.5px;
+      color: var(--ink-soft);
+      padding: 4px 0;
+      border-bottom: 1px dashed rgba(36,22,9,0.12);
+      font-family: 'Courier Prime', monospace;
     }
     .ingredient-item:last-child { border-bottom: none; }
-    .ingredient-item .name { font-weight: 600; color: var(--ink); }
-    .ingredient-item .steps { 
-      font-size: 10px; 
-      color: #7a6f5a; 
-      background: rgba(0,0,0,0.04); 
-      padding: 2px 12px; 
+    .ingredient-item .name { font-weight: 700; color: var(--ink); }
+    .ingredient-item .steps {
+      font-size: 10px;
+      color: var(--ink-soft);
+      background: rgba(36,22,9,0.07);
+      padding: 2px 12px;
       border-radius: 20px;
-      font-weight: 600;
+      font-weight: 700;
+      font-family: 'Nunito', sans-serif;
+      text-transform: uppercase;
     }
     .ingredient-item .status-dot {
       display: inline-block;
-      width: 10px;
-      height: 10px;
+      width: 11px;
+      height: 11px;
       border-radius: 50%;
       margin-right: 8px;
-      border: 2px solid rgba(0,0,0,0.05);
+      border: 2px solid var(--ink);
       transition: all 0.3s;
     }
-    .status-dot.pending { background: var(--warm-yellow); }
-    .status-dot.done { background: var(--warm-green); box-shadow: 0 0 10px rgba(46,204,113,0.3); }
-    .status-dot.failed { background: var(--warm-red); }
+    .status-dot.pending { background: var(--butter); }
+    .status-dot.done { background: var(--herb); }
+    .status-dot.failed { background: var(--tomato); }
 
-    .timer-zone {
-      padding: 6px 16px 14px;
-      background: rgba(0,0,0,0.02);
-      position: relative;
-      z-index: 1;
-    }
+    .timer-zone { padding: 6px 16px 14px; background: rgba(36,22,9,0.035); }
     .timer-row {
       display: flex;
       justify-content: space-between;
+      align-items: center;
       font-size: 12px;
       margin-bottom: 6px;
-      font-weight: 700;
-      color: #2c3e50;
-      font-family: 'Inter', sans-serif;
-    }
-    .timer-row .time-left {
-      font-size: 14px;
       font-weight: 800;
-      color: var(--warm-red);
+      color: var(--ink);
+      font-family: 'Nunito', sans-serif;
+    }
+    .timer-row .label { display: flex; align-items: center; gap: 5px; text-transform: uppercase; letter-spacing: 0.5px; font-size: 10.5px; color: var(--ink-soft); }
+    .timer-row .label .icon { width: 12px; height: 12px; }
+    .timer-row .time-left {
+      font-family: 'Baloo 2', cursive;
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--tomato-dark);
     }
     .heat-gauge {
-      height: 8px;
+      height: 10px;
       width: 100%;
-      background: #e8ddd0;
-      border-radius: 4px;
+      background: rgba(36,22,9,0.12);
+      border-radius: 6px;
       overflow: hidden;
-      box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+      border: 2px solid var(--ink);
     }
     .heat-fill {
       height: 100%;
       width: 100%;
-      background: var(--heat-cool);
+      background: var(--herb);
       transition: width 1s linear, background 0.4s;
-      border-radius: 4px;
     }
 
     .ticket-foot {
       display: flex;
-      border-top: 2px dashed #e8ddd0;
-      padding: 8px 16px;
-      font-size: 11px;
-      color: var(--ink-faint);
+      align-items: center;
       justify-content: center;
-      font-family: 'Inter', sans-serif;
-      font-weight: 600;
-      position: relative;
-      z-index: 1;
+      gap: 6px;
+      border-top: 3px dashed var(--paper-dim);
+      padding: 9px 16px;
+      font-size: 11.5px;
+      color: var(--ink-soft);
+      font-family: 'Nunito', sans-serif;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
-    .ticket-foot .status-text.waiting { color: var(--warm-gold); }
-    .ticket-foot .status-text.completed { color: var(--warm-green); }
-    .ticket-foot .status-text.missed { color: var(--warm-red); }
-    .ticket-foot .status-text.failed { color: var(--warm-red); }
-    .ticket-foot .status-text.validating { color: var(--warm-blue); }
+    .ticket-foot .icon { width: 12px; height: 12px; }
+    .ticket-foot .status-text.waiting { color: var(--butter-dark); }
+    .ticket-foot .status-text.completed { color: var(--herb-dark); }
+    .ticket-foot .status-text.missed { color: var(--tomato-dark); }
+    .ticket-foot .status-text.failed { color: var(--tomato-dark); }
+    .ticket-foot .status-text.validating { color: var(--teal-glow); }
 
     /* ===== TOAST ===== */
     .toast {
@@ -614,113 +551,124 @@
       top: 100px;
       left: 50%;
       transform: translateX(-50%);
-      font-family: 'Fredoka One', cursive;
-      font-size: 28px;
-      letter-spacing: 2px;
-      padding: 14px 32px;
+      font-family: 'Baloo 2', cursive;
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      padding: 14px 30px;
       border-radius: 16px;
       z-index: 60;
       opacity: 0;
       pointer-events: none;
-      box-shadow: var(--shadow);
-      border: 2px solid rgba(255,255,255,0.1);
+      border: 4px solid var(--ink);
+      box-shadow: 6px 6px 0 rgba(0,0,0,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
     }
+    .toast .icon { width: 22px; height: 22px; }
     .toast.show { animation: toastPop 1.2s cubic-bezier(0.2, 0.9, 0.3, 1.2) forwards; }
     @keyframes toastPop {
       0% { opacity: 0; transform: translate(-50%, 20px) scale(0.8); }
-      15% { opacity: 1; transform: translate(-50%, 0) scale(1.05); }
+      15% { opacity: 1; transform: translate(-50%, 0) scale(1.06); }
       25% { transform: translate(-50%, 0) scale(1); }
       80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
       100% { opacity: 0; transform: translate(-50%, -30px) scale(0.95); }
     }
-    .toast.good { background: linear-gradient(135deg, #2ecc71, #27ae60); color: #fff; }
-    .toast.bad { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; }
-    .toast.info { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+    .toast.good { background: var(--herb); color: #fff; }
+    .toast.bad { background: var(--tomato); color: #fff; }
+    .toast.info { background: var(--teal-glow); color: #fff; }
 
     /* ===== OVERLAY ===== */
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.85);
+      background: rgba(5,20,20,0.82);
       display: none;
       align-items: center;
       justify-content: center;
       z-index: 100;
       padding: 20px;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(4px);
     }
     .overlay.show { display: flex; animation: fadeIn 0.4s ease; }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .overlay-card {
-      background: linear-gradient(180deg, #fef9e7, #fdf5e6);
+      background: var(--paper);
       color: var(--ink);
       border-radius: 20px;
-      padding: 40px 48px;
+      padding: 40px 44px;
       text-align: center;
       max-width: 420px;
       width: 100%;
-      box-shadow: var(--shadow);
-      border: 4px solid var(--warm-yellow);
+      border: 5px solid var(--ink);
+      box-shadow: 8px 8px 0 rgba(0,0,0,0.4);
       animation: popIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.2);
     }
-    .overlay-card .chef-icon { font-size: 56px; display: block; margin-bottom: 8px; }
+    .overlay-card .plate-badge {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: var(--butter);
+      border: 3px solid var(--ink);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 10px;
+      box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+    }
+    .overlay-card .plate-badge svg { width: 32px; height: 32px; color: var(--ink); }
     .overlay-card h2 {
-      font-family: 'Fredoka One', cursive;
-      font-size: 36px;
-      letter-spacing: 2px;
+      font-family: 'Baloo 2', cursive;
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
       margin: 0 0 4px;
-      color: #2c3e50;
+      color: var(--ink);
     }
-    .overlay-card .stars {
-      font-size: 36px;
-      letter-spacing: 10px;
-      margin: 12px 0 20px;
-    }
+    .stars { display: flex; justify-content: center; gap: 8px; margin: 12px 0 20px; }
+    .stars .icon { width: 34px; height: 34px; color: var(--paper-dim); }
+    .stars .icon.filled { color: var(--butter-dark); }
     .overlay-stats {
       font-family: 'Courier Prime', monospace;
       font-size: 14px;
       text-align: left;
       line-height: 2.4;
-      color: #4a453a;
+      color: var(--ink-soft);
       margin-bottom: 24px;
-      background: rgba(0,0,0,0.03);
+      background: rgba(36,22,9,0.05);
       padding: 16px 24px;
       border-radius: 12px;
-      border: 1px solid rgba(0,0,0,0.05);
+      border: 2px solid rgba(36,22,9,0.1);
     }
-    .overlay-stats b { float: right; color: #2c3e50; font-size: 16px; }
+    .overlay-stats b { float: right; color: var(--ink); font-size: 16px; }
 
     .status-msg {
-      font-family: 'Courier Prime', monospace;
-      font-size: 11px;
-      color: rgba(255,255,255,0.4);
-      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: 'Nunito', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      color: rgba(255,246,226,0.55);
+      padding: 10px 20px;
       text-align: center;
-      border-top: 1px solid rgba(255,255,255,0.05);
-      margin-top: 8px;
-      position: relative;
-      z-index: 1;
     }
-    .status-msg.error { color: var(--warm-red); }
-    .status-msg.success { color: var(--warm-green); }
+    .status-msg .icon { width: 12px; height: 12px; }
+    .status-msg.error { color: var(--tomato); }
+    .status-msg.success { color: var(--herb); }
 
     @media (max-width: 640px) {
       header { flex-direction: column; align-items: stretch; padding: 12px 16px; }
       .brand { justify-content: center; }
-      .brand h1 { font-size: 26px; }
-      .brand .chef-icon { font-size: 28px; }
+      .brand h1 { font-size: 24px; }
       .header-controls { justify-content: center; flex-wrap: wrap; gap: 8px; }
-      .stat { flex: 1 1 45%; border-right: none; padding: 4px 8px; }
-      .stat-strip { padding: 8px 12px; gap: 4px; }
+      .stat { flex: 1 1 40%; }
+      .stat-strip { padding: 10px 12px; }
       .ticket { flex: 0 0 240px; }
-      .rail-wrap { padding: 30px 12px 12px; }
+      .rail-wrap { padding: 32px 12px 12px; }
       .rail-bar { left: 12px; right: 12px; }
       .service-bar-wrap { padding: 12px 16px; }
       .overlay-card { padding: 28px 20px; }
-      .service-time { font-size: 26px; }
+      .service-time { font-size: 24px; }
     }
   </style>
 </head>
@@ -728,60 +676,60 @@
 
 <header>
   <div class="brand">
-    <span class="chef-icon">🍳</span>
+    <span class="chef-badge" id="chefIconSlot"></span>
     <h1>Overcooked</h1>
     <span class="sub">Ticket Rail</span>
   </div>
   <div class="header-controls">
-    <span class="status-pill idle" id="controllerStatus">⏸ idle</span>
-    <button class="chef-btn start" id="manualStartBtn" disabled>▶ Start</button>
-    <button class="chef-btn pause" id="manualPauseBtn" disabled>⏸ Pause</button>
-    <span id="paramFeedback" class="param-feedback" style="display:none;">✨ Updated</span>
+    <span class="status-pill idle" id="controllerStatus"></span>
+    <button class="chef-btn start" id="manualStartBtn" disabled></button>
+    <button class="chef-btn pause" id="manualPauseBtn" disabled></button>
+    <span id="paramFeedback" class="param-feedback" style="display:none;"></span>
   </div>
 </header>
 
 <div class="service-bar-wrap">
   <div class="service-row">
-    <span>⏱ Service Time</span>
+    <span id="serviceLabelSlot"></span>
     <span class="service-time" id="serviceTime">05:00</span>
   </div>
   <div class="service-track"><div class="service-fill" id="serviceFill"></div></div>
 </div>
 
 <div class="stat-strip">
-  <div class="stat"><span class="num gold" id="statScore">0</span><span class="label">⭐ Score</span></div>
-  <div class="stat"><span class="num green" id="statServed">0</span><span class="label">✅ Served</span></div>
-  <div class="stat"><span class="num red" id="statMissed">0</span><span class="label">❌ Missed</span></div>
-  <div class="stat"><span class="num red" id="statFailed">0</span><span class="label">💀 Failed</span></div>
+  <div class="stat"><span class="num gold" id="statScore"></span><span class="label">Score</span></div>
+  <div class="stat"><span class="num green" id="statServed"></span><span class="label">Served</span></div>
+  <div class="stat"><span class="num red" id="statMissed"></span><span class="label">Missed</span></div>
+  <div class="stat"><span class="num red" id="statFailed"></span><span class="label">Failed</span></div>
 </div>
 
 <div class="rail-wrap">
   <div class="rail-bar"></div>
   <div class="rail" id="rail">
     <div class="empty-rail loading" id="emptyMsg">
-      <span class="emoji">👨‍🍳</span>
-      <div class="title">Loading Recipes...</div>
-      <div class="sub">Getting the kitchen ready!</div>
+      <div class="glyph"></div>
+      <div class="title">Loading recipes...</div>
+      <div class="sub">Getting the kitchen ready.</div>
     </div>
   </div>
 </div>
 
-<div class="status-msg" id="statusMsg">🔄 Connecting to kitchen...</div>
+<div class="status-msg" id="statusMsg"></div>
 
 <div class="toast" id="toast"></div>
 
 <div class="overlay" id="overlay">
   <div class="overlay-card">
-    <span class="chef-icon">🍽️</span>
-    <h2>Service Complete!</h2>
-    <div class="stars" id="overlayStars">☆☆☆</div>
+    <span class="plate-badge" id="plateBadgeSlot"></span>
+    <h2>Service Complete</h2>
+    <div class="stars" id="overlayStars"></div>
     <div class="overlay-stats">
       <div>Final Score <b id="ovScore">0</b></div>
       <div>Orders Served <b id="ovServed">0</b></div>
       <div>Orders Missed <b id="ovMissed">0</b></div>
       <div>Orders Failed <b id="ovFailed">0</b></div>
     </div>
-    <button class="chef-btn start" id="playAgainBtn" style="width:100%; padding:14px; font-size:16px; border-radius:30px;">🔄 New Service</button>
+    <button class="chef-btn start" id="playAgainBtn" style="width:100%; padding:14px; font-size:15px; border-radius:30px; justify-content:center;"></button>
   </div>
 </div>
 
@@ -789,6 +737,31 @@
   /* =========================================================
      OVERCOOKED — TICKET RAIL GAME
      ========================================================= */
+
+  // ----- ICONS (inline SVG, no emoji) -----
+  const ICONS = {
+    flame: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1.2 3.2-2 4.4-2 7.6a4 4 0 0 0 8 0c0-1.2-.6-2.2-1.1-3.2 1.3.1 3.1 2.2 3.1 5.2a6 6 0 0 1-12 0c0-4.3 3.2-5.6 4-9.6z"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>',
+    starOutline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01z"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>',
+    x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+    alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12" y2="16.6"/></svg>',
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>',
+    refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.3-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.3 6.4L3 16"/><path d="M3 21v-5h5"/></svg>',
+    hat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 12.5a5 5 0 0 1 3.5-8.9 3 3 0 0 1 5.9 1A4 4 0 0 1 17 12.5"/><path d="M6.5 12.5h11L17 20H7z"/></svg>',
+    plate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>',
+    ticket: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"/></svg>',
+    wifi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.9 12.6a10 10 0 0 1 14.2 0"/><path d="M8.2 16a5.4 5.4 0 0 1 7.6 0"/><line x1="12" y1="19.5" x2="12" y2="19.6"/></svg>',
+    bolt: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2 3 14h7l-1 8 10-13h-7z"/></svg>'
+  };
+  function ic(name, extraClass) { return `<span class="icon${extraClass ? ' ' + extraClass : ''}">${ICONS[name]}</span>`; }
+  function withIcon(name, text) { return `${ic(name)}<span>${text}</span>`; }
+
+  document.getElementById('chefIconSlot').innerHTML = ICONS.hat;
+  document.getElementById('plateBadgeSlot').innerHTML = ICONS.plate;
+  document.getElementById('serviceLabelSlot').innerHTML = withIcon('clock', 'Service Time');
 
   // ----- STATE -----
   let recipes = [];
@@ -824,37 +797,48 @@
   const playAgainBtn = document.getElementById('playAgainBtn');
   const paramFeedback = document.getElementById('paramFeedback');
 
+  manualStartBtn.innerHTML = withIcon('play', 'Start');
+  manualPauseBtn.innerHTML = withIcon('pause', 'Pause');
+  playAgainBtn.innerHTML = withIcon('refresh', 'New Service');
+  paramFeedback.innerHTML = withIcon('bolt', 'Updated');
+  statusMsg.innerHTML = withIcon('refresh', 'Connecting to kitchen...');
+  updateStatusPillLabel();
+
+  function updateStatusPillLabel() {
+    controllerStatus.innerHTML = withIcon('clock', 'Idle');
+  }
+
   // ============================================
   // LOAD RECIPES
   // ============================================
-  
+
   async function loadRecipesFromDB() {
     if (recipesLoading) return;
     recipesLoading = true;
-    
+
     try {
       emptyMsg.className = 'empty-rail loading';
       emptyMsg.innerHTML = `
-        <span class="emoji">👨‍🍳</span>
-        <div class="title">Loading Recipes...</div>
-        <div class="sub">Getting the kitchen ready!</div>
+        <div class="glyph">${ICONS.hat}</div>
+        <div class="title">Loading recipes...</div>
+        <div class="sub">Getting the kitchen ready.</div>
       `;
-      statusMsg.textContent = '🔄 Loading recipes...';
+      statusMsg.innerHTML = withIcon('refresh', 'Loading recipes...');
       statusMsg.className = 'status-msg';
       manualStartBtn.disabled = true;
-      
+
       const response = await fetch('/api/recipes');
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (!data || data.length === 0) {
         throw new Error('No recipes found in database');
       }
-      
+
       recipes = data.map(recipe => ({
         id: recipe.id,
         name: recipe.name,
@@ -862,42 +846,42 @@
         ingredients: recipe.ingredients || [],
         prepMethods: recipe.prepMethods || []
       }));
-      
+
       recipesLoaded = true;
       recipesLoading = false;
-      
-      console.log(`✅ Loaded ${recipes.length} recipes`);
-      
+
+      console.log(`Loaded ${recipes.length} recipes`);
+
       emptyMsg.className = 'empty-rail success';
       emptyMsg.innerHTML = `
-        <span class="emoji">🍳</span>
-        <div class="title">${recipes.length} Recipes Ready!</div>
+        <div class="glyph">${ICONS.ticket}</div>
+        <div class="title">${recipes.length} Recipes Ready</div>
         <div class="sub">${recipes.map(r => r.name).join(' • ')}</div>
-        <div style="margin-top: 12px; font-size:16px; color:rgba(255,255,255,0.6);">🧑‍🍳 Click "Start" to begin cooking!</div>
+        <div class="sub" style="margin-top: 10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; color: rgba(255,246,226,0.75);">Tap Start to begin cooking</div>
       `;
-      statusMsg.textContent = `✅ ${recipes.length} recipes ready to cook!`;
+      statusMsg.innerHTML = withIcon('check', `${recipes.length} recipes ready to cook`);
       statusMsg.className = 'status-msg success';
       manualStartBtn.disabled = false;
-      manualStartBtn.textContent = '▶ Start Cooking';
-      
+      manualStartBtn.innerHTML = withIcon('play', 'Start Cooking');
+
       return true;
-      
+
     } catch (error) {
-      console.error('❌ Error loading recipes:', error);
+      console.error('Error loading recipes:', error);
       recipesLoaded = false;
       recipesLoading = false;
-      
+
       emptyMsg.className = 'empty-rail error';
       emptyMsg.innerHTML = `
-        <span class="emoji">😱</span>
-        <div class="title">Oops! Kitchen Trouble!</div>
+        <div class="glyph">${ICONS.alert}</div>
+        <div class="title">Kitchen Trouble</div>
         <div class="sub">${error.message}</div>
-        <button class="retry-btn" onclick="loadRecipesFromDB()">🔄 Try Again</button>
+        <button class="retry-btn" onclick="loadRecipesFromDB()">${ic('refresh')}<span>Try Again</span></button>
       `;
-      statusMsg.textContent = `❌ Error: ${error.message}`;
+      statusMsg.innerHTML = withIcon('alert', `Error: ${error.message}`);
       statusMsg.className = 'status-msg error';
       manualStartBtn.disabled = true;
-      
+
       return false;
     }
   }
@@ -907,9 +891,9 @@
   // ============================================
   // HELPERS
   // ============================================
-  
-  function showToast(text, kind) {
-    toastEl.textContent = text;
+
+  function showToast(text, kind, iconName) {
+    toastEl.innerHTML = `${ic(iconName || (kind === 'good' ? 'star' : kind === 'bad' ? 'x' : 'bolt'))}<span>${text}</span>`;
     toastEl.className = 'toast ' + kind;
     void toastEl.offsetWidth;
     toastEl.classList.add('show');
@@ -929,24 +913,24 @@
   }
 
   function updateStats() {
-    document.getElementById('statScore').textContent = score;
-    document.getElementById('statServed').textContent = served;
-    document.getElementById('statMissed').textContent = missed;
-    document.getElementById('statFailed').textContent = failed;
+    document.getElementById('statScore').innerHTML = `${ic('star')}<span>${score}</span>`;
+    document.getElementById('statServed').innerHTML = `${ic('check')}<span>${served}</span>`;
+    document.getElementById('statMissed').innerHTML = `${ic('clock')}<span>${missed}</span>`;
+    document.getElementById('statFailed').innerHTML = `${ic('x')}<span>${failed}</span>`;
   }
 
   function updateStatusPill() {
     if (running && !paused) {
-      controllerStatus.textContent = '🔥 Cooking';
+      controllerStatus.innerHTML = withIcon('flame', 'Cooking');
       controllerStatus.className = 'status-pill running';
     } else if (running && paused) {
-      controllerStatus.textContent = '⏸ Paused';
+      controllerStatus.innerHTML = withIcon('pause', 'Paused');
       controllerStatus.className = 'status-pill paused';
     } else if (serviceRemaining <= 0 && running === false) {
-      controllerStatus.textContent = '🏁 Done';
+      controllerStatus.innerHTML = withIcon('check', 'Done');
       controllerStatus.className = 'status-pill ended';
     } else {
-      controllerStatus.textContent = '⏸ Idle';
+      controllerStatus.innerHTML = withIcon('clock', 'Idle');
       controllerStatus.className = 'status-pill idle';
     }
   }
@@ -954,7 +938,7 @@
   // ============================================
   // SPAWN ORDERS
   // ============================================
-  
+
   function spawnOrder() {
     if (!running || paused) return;
     if (!recipes.length) {
@@ -971,14 +955,14 @@
     let ingredientsHtml = '';
     const ingredientList = recipe.ingredients || [];
     const prepList = recipe.prepMethods || [];
-    
+
     if (ingredientList.length > 0) {
       ingredientList.forEach((ing, idx) => {
         const step = prepList[idx] || 'Ready';
         ingredientsHtml += `
           <div class="ingredient-item">
             <span><span class="status-dot pending" id="dot-${orderNo}-${idx}"></span><span class="name">${ing}</span></span>
-            <span class="steps">→ ${step}</span>
+            <span class="steps">${step}</span>
           </div>
         `;
       });
@@ -994,20 +978,20 @@
       <div class="clip"></div>
       <div class="ticket-body">
         <div class="ticket-head">
-          <div class="order-no"><span class="hash">Order</span> ${orderNo}</div>
-          <div class="status-badge waiting">⏳ Waiting</div>
+          <div class="order-no"><span class="hash">Order</span>${orderNo}</div>
+          <div class="status-badge waiting">${ic('clock')}<span>Waiting</span></div>
         </div>
         <div class="dish-name">${recipe.name}</div>
-        <div class="points-tag">⭐ +${points} pts</div>
+        <div class="points-tag">${ic('star')}<span>+${points} pts</span></div>
         <div class="ingredient-list">
           ${ingredientsHtml}
         </div>
         <div class="timer-zone">
-          <div class="timer-row"><span>⏱ Time left</span><span class="time-left">${duration}s</span></div>
+          <div class="timer-row"><span class="label">${ic('clock')}<span>Time left</span></span><span class="time-left">${duration}s</span></div>
           <div class="heat-gauge"><div class="heat-fill"></div></div>
         </div>
         <div class="ticket-foot">
-          <span class="status-text waiting">👨‍🍳 Waiting for Counter...</span>
+          <span class="status-text waiting">${ic('hat')}<span>Waiting on counter</span></span>
         </div>
       </div>
     `;
@@ -1044,16 +1028,16 @@
       .then(r => r.json())
       .then(data => {
         if (!data.success) {
-          console.error(`❌ Failed to register order ${orderNo}:`, data.message || data.error);
+          console.error(`Failed to register order ${orderNo}:`, data.message || data.error);
         } else {
-          console.log(`✅ Order ${orderNo} registered as wire #${wireOrderNumber}`);
+          console.log(`Order ${orderNo} registered as wire #${wireOrderNumber}`);
         }
       })
-      .catch(err => console.error(`❌ Error registering order ${orderNo}:`, err));
+      .catch(err => console.error(`Error registering order ${orderNo}:`, err));
 
     updateStats();
     scheduleNextSpawn();
-    
+
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'state-report', payload: getState() });
@@ -1080,47 +1064,42 @@
   // ============================================
   // ORDER PROCESSING
   // ============================================
-  
+
   function processOrderComplete(orderNumber, result) {
-    console.log(`📨 Processing order complete: ${orderNumber}`, result);
-    console.log(`📋 Active orders:`, activeOrders.map(o => ({ 
-        orderNo: o.orderNo, 
-        wireOrderNumber: o.wireOrderNumber 
+    console.log(`Processing order complete: ${orderNumber}`, result);
+    console.log(`Active orders:`, activeOrders.map(o => ({
+        orderNo: o.orderNo,
+        wireOrderNumber: o.wireOrderNumber
     })));
-    
-    // Try multiple formats to find the order
-    const order = activeOrders.find(o => 
-        o.orderNo === orderNumber || 
+
+    const order = activeOrders.find(o =>
+        o.orderNo === orderNumber ||
         o.wireOrderNumber === orderNumber ||
         o.orderNo === '#' + String(orderNumber).padStart(2, '0') ||
         o.wireOrderNumber === String(orderNumber).padStart(2, '0')
     );
-    
+
     if (!order) {
-      console.warn(`⚠️ Order ${orderNumber} not found in active orders`);
-      console.log('📋 Current active orders:', activeOrders.map(o => ({ 
-          orderNo: o.orderNo, 
-          wireOrderNumber: o.wireOrderNumber 
-      })));
+      console.warn(`Order ${orderNumber} not found in active orders`);
       return;
     }
-    
-    console.log(`📋 Found order: ${order.orderNo} (wire: ${order.wireOrderNumber})`);
-    console.log(`📋 Order status: completed=${order.completed}, missed=${order.missed}, failed=${order.failed}`);
-    
+
+    console.log(`Found order: ${order.orderNo} (wire: ${order.wireOrderNumber})`);
+    console.log(`Order status: completed=${order.completed}, missed=${order.missed}, failed=${order.failed}`);
+
     if (order.completed || order.missed || order.failed) {
-      console.log(`⏭️ Order ${order.orderNo} already processed, skipping`);
+      console.log(`Order ${order.orderNo} already processed, skipping`);
       return;
     }
-    
+
     order.received = true;
     order.validated = true;
-    
+
     if (result.success) {
-      console.log(`✅ Order ${order.orderNo} validation PASSED`);
+      console.log(`Order ${order.orderNo} validation passed`);
       completeOrder(order, result);
     } else {
-      console.log(`❌ Order ${order.orderNo} validation FAILED:`, result.message || result.reason || 'Unknown error');
+      console.log(`Order ${order.orderNo} validation failed:`, result.message || result.reason || 'Unknown error');
       failOrder(order, result);
     }
   }
@@ -1128,24 +1107,24 @@
   function completeOrder(order, result) {
     if (order.missed || order.completed || order.failed) return;
     order.completed = true;
-    
+
     const now = Date.now();
     const remainingMs = Math.max(0, order.endsAt - now);
     const remainingFrac = remainingMs / (order.duration * 1000);
     const earned = Math.max(Math.round(order.points * (0.4 + 0.6 * remainingFrac)), Math.round(order.points * 0.2));
     score += earned;
     served += 1;
-    
+
     const badge = order.el.querySelector('.status-badge');
-    badge.textContent = '✅ Served';
+    badge.innerHTML = withIcon('check', 'Served');
     badge.className = 'status-badge completed';
-    
+
     const foot = order.el.querySelector('.ticket-foot .status-text');
     if (foot) {
-      foot.textContent = `🎉 +${earned} pts!`;
+      foot.innerHTML = withIcon('star', `+${earned} pts`);
       foot.className = 'status-text completed';
     }
-    
+
     if (result.details && result.details.length > 0) {
       result.details.forEach((detail, idx) => {
         const dot = document.getElementById(`dot-${order.orderNo}-${idx}`);
@@ -1159,15 +1138,15 @@
         if (dot) dot.className = 'status-dot done';
       });
     }
-    
+
     order.el.classList.add('completed');
-    
-    showToast('⭐ +' + earned + ' pts!', 'good');
+
+    showToast(`+${earned} pts`, 'good', 'star');
     updateStats();
-    
+
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
-      channel.postMessage({ 
+      channel.postMessage({
         type: 'esp-submit-result',
         payload: {
           success: true,
@@ -1178,7 +1157,7 @@
       });
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
-    
+
     setTimeout(() => removeTicket(order), 800);
   }
 
@@ -1186,20 +1165,20 @@
     if (order.missed || order.completed || order.failed) return;
     order.failed = true;
     failed += 1;
-    
-    console.log(`💀 Order ${order.orderNo} failed:`, result.message || 'Validation failed');
-    
+
+    console.log(`Order ${order.orderNo} failed:`, result.message || 'Validation failed');
+
     const badge = order.el.querySelector('.status-badge');
-    badge.textContent = '💀 Failed';
+    badge.innerHTML = withIcon('x', 'Failed');
     badge.className = 'status-badge failed';
-    
+
     const foot = order.el.querySelector('.ticket-foot .status-text');
     if (foot) {
       const reason = result.message || result.reason || 'Validation failed';
-      foot.textContent = `❌ ${reason}`;
+      foot.innerHTML = withIcon('alert', reason);
       foot.className = 'status-text failed';
     }
-    
+
     if (result.details && result.details.length > 0) {
       result.details.forEach((detail, idx) => {
         const dot = document.getElementById(`dot-${order.orderNo}-${idx}`);
@@ -1213,15 +1192,15 @@
         if (dot) dot.className = 'status-dot failed';
       });
     }
-    
+
     order.el.classList.add('failed');
-    
-    showToast('💀 Order failed!', 'bad');
+
+    showToast('Order failed', 'bad', 'x');
     updateStats();
-    
+
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
-      channel.postMessage({ 
+      channel.postMessage({
         type: 'esp-submit-result',
         payload: {
           success: false,
@@ -1233,8 +1212,8 @@
       });
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
-    
-    console.log(`🗑️ Will remove failed order ${order.orderNo} in 1.5s`);
+
+    console.log(`Will remove failed order ${order.orderNo} in 1.5s`);
     setTimeout(() => removeTicket(order), 1500);
   }
 
@@ -1244,11 +1223,11 @@
     order.missed = true;
     missed += 1;
 
-    console.log(`⏰ Order ${order.orderNo} missed (timed out)`);
+    console.log(`Order ${order.orderNo} missed (timed out)`);
 
     const badge = order.el.querySelector('.status-badge');
     if (badge) {
-      badge.textContent = '⏰ Missed';
+      badge.innerHTML = withIcon('clock', 'Missed');
       badge.className = 'status-badge missed';
     }
 
@@ -1256,7 +1235,7 @@
 
     const foot = order.el.querySelector('.ticket-foot .status-text');
     if (foot) {
-      foot.textContent = '⏰ Order timed out!';
+      foot.innerHTML = withIcon('clock', 'Timed out');
       foot.className = 'status-text missed';
     }
 
@@ -1265,7 +1244,7 @@
       if (dot) dot.className = 'status-dot failed';
     });
 
-    showToast('⏰ Order missed', 'bad');
+    showToast('Order missed', 'bad', 'clock');
     updateStats();
 
     try {
@@ -1278,11 +1257,11 @@
       if (!response.ok || !data.success) {
         throw new Error(data.message || 'Failed to update missed order');
       }
-      console.log(`✅ Order ${order.wireOrderNumber} marked as missed in database`);
+      console.log(`Order ${order.wireOrderNumber} marked as missed in database`);
     } catch (error) {
-      console.error(`❌ Could not mark order ${order.wireOrderNumber} as missed:`, error);
+      console.error(`Could not mark order ${order.wireOrderNumber} as missed:`, error);
       if (foot) {
-        foot.textContent = '⚠️ Missed (update failed)';
+        foot.innerHTML = withIcon('alert', 'Missed (update failed)');
       }
     }
 
@@ -1308,21 +1287,21 @@
   }
 
   function removeTicket(order) {
-    console.log(`🗑️ Removing ticket ${order.orderNo}`);
+    console.log(`Removing ticket ${order.orderNo}`);
     order.el.style.transition = 'opacity 0.3s, transform 0.3s';
     order.el.style.opacity = '0';
     order.el.style.transform = 'translateY(-16px) rotate(var(--tilt))';
     setTimeout(() => {
       order.el.remove();
       activeOrders = activeOrders.filter(o => o !== order);
-      console.log(`✅ Ticket ${order.orderNo} removed. ${activeOrders.length} orders remaining`);
+      console.log(`Ticket ${order.orderNo} removed. ${activeOrders.length} orders remaining`);
       if (!activeOrders.length && !running) {
         emptyMsg.style.display = 'block';
         emptyMsg.className = 'empty-rail success';
         emptyMsg.innerHTML = `
-          <span class="emoji">🍳</span>
-          <div class="title">${recipes.length} Recipes Ready!</div>
-          <div class="sub">Click "Start Cooking" to begin! 🧑‍🍳</div>
+          <div class="glyph">${ICONS.ticket}</div>
+          <div class="title">${recipes.length} Recipes Ready</div>
+          <div class="sub">Tap Start Cooking to begin</div>
         `;
       }
       if (!activeOrders.length && running) emptyMsg.style.display = 'none';
@@ -1333,7 +1312,7 @@
   // ============================================
   // TICK
   // ============================================
-  
+
   function tick() {
     if (!running || paused) return;
     const now = Date.now();
@@ -1341,7 +1320,7 @@
     for (let i = activeOrders.length - 1; i >= 0; i--) {
       const order = activeOrders[i];
       if (order.missed || order.completed || order.failed) continue;
-      
+
       const remainingMs = order.endsAt - now;
       const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
       const pct = Math.max(0, Math.min(100, (remainingMs / (order.duration * 1000)) * 100));
@@ -1355,22 +1334,22 @@
       } else {
         timeLeftLabel.textContent = remainingSec + 's';
         if (pct > 50) {
-          fill.style.background = 'var(--heat-cool)';
+          fill.style.background = 'var(--herb)';
           if (!order.received) {
             badge.className = 'status-badge waiting';
-            badge.textContent = '⏳ Waiting';
+            badge.innerHTML = withIcon('clock', 'Waiting');
           }
         } else if (pct > 20) {
-          fill.style.background = 'var(--heat-warm)';
+          fill.style.background = 'var(--butter)';
           if (!order.received) {
             badge.className = 'status-badge cooking';
-            badge.textContent = '🔥 Cooking';
+            badge.innerHTML = withIcon('flame', 'Cooking');
           }
         } else {
-          fill.style.background = 'var(--heat-hot)';
+          fill.style.background = 'var(--tomato)';
           if (!order.received) {
             badge.className = 'status-badge late';
-            badge.textContent = '⚠️ Almost Late!';
+            badge.innerHTML = withIcon('alert', 'Almost late');
           }
         }
       }
@@ -1400,45 +1379,45 @@
   // ============================================
   // SERVICE LIFECYCLE
   // ============================================
-  
+
   function startService() {
     if (running) return;
-    
+
     if (!recipesLoaded) {
-      statusMsg.textContent = '⏳ Please wait for recipes to load...';
+      statusMsg.innerHTML = withIcon('clock', 'Please wait for recipes to load...');
       statusMsg.className = 'status-msg';
       return;
     }
-    
+
     if (recipes.length === 0) {
-      statusMsg.textContent = '❌ No recipes available. Reload the page.';
+      statusMsg.innerHTML = withIcon('alert', 'No recipes available. Reload the page.');
       statusMsg.className = 'status-msg error';
       return;
     }
-    
+
     if (serviceRemaining <= 0) {
       resetService();
       setTimeout(() => startService(), 100);
       return;
     }
-    
+
     running = true;
     paused = false;
     emptyMsg.style.display = 'none';
-    statusMsg.textContent = '🔥 Kitchen is open! Send those orders!';
+    statusMsg.innerHTML = withIcon('flame', "Kitchen's open — fire those tickets!");
     statusMsg.className = 'status-msg success';
     manualStartBtn.disabled = true;
-    manualStartBtn.textContent = '▶ Cooking';
+    manualStartBtn.innerHTML = withIcon('flame', 'Cooking');
     manualPauseBtn.disabled = false;
-    manualPauseBtn.textContent = '⏸ Pause';
+    manualPauseBtn.innerHTML = withIcon('pause', 'Pause');
     updateStatusPill();
-    
+
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'game-started' });
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
-    
+
     scheduleNextSpawn();
     mainTickInterval = setInterval(tick, 1000);
     setTimeout(() => { if (running && !paused) spawnOrder(); }, 400);
@@ -1447,17 +1426,17 @@
   function togglePause() {
     if (!running) return;
     paused = !paused;
-    statusMsg.textContent = paused ? '⏸ Paused — take a break!' : '▶ Back to work!';
+    statusMsg.innerHTML = paused ? withIcon('pause', 'Paused — take a break') : withIcon('flame', 'Back to work');
     statusMsg.className = 'status-msg';
-    manualPauseBtn.textContent = paused ? '▶ Resume' : '⏸ Pause';
+    manualPauseBtn.innerHTML = paused ? withIcon('play', 'Resume') : withIcon('pause', 'Pause');
     updateStatusPill();
-    
+
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'game-paused', payload: { paused } });
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
-    
+
     if (!paused) scheduleNextSpawn();
   }
 
@@ -1466,19 +1445,19 @@
     paused = false;
     if (spawnTimeout) clearTimeout(spawnTimeout);
     if (mainTickInterval) clearInterval(mainTickInterval);
-    statusMsg.textContent = '🏁 Service complete! Great job, chef!';
+    statusMsg.innerHTML = withIcon('check', 'Service complete — nice work, chef');
     statusMsg.className = 'status-msg';
     manualStartBtn.disabled = false;
-    manualStartBtn.textContent = '▶ New Service';
+    manualStartBtn.innerHTML = withIcon('play', 'New Service');
     manualPauseBtn.disabled = true;
-    manualPauseBtn.textContent = '⏸ Pause';
+    manualPauseBtn.innerHTML = withIcon('pause', 'Pause');
     updateStatusPill();
-    
+
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
-    
+
     showGameOver();
   }
 
@@ -1502,7 +1481,7 @@
     serviceRemaining = totalServiceTime;
     orderCounter = 0;
 
-    statusMsg.textContent = '🔄 Clearing previous orders...';
+    statusMsg.innerHTML = withIcon('refresh', 'Clearing previous orders...');
     statusMsg.className = 'status-msg';
     manualStartBtn.disabled = true;
 
@@ -1510,37 +1489,37 @@
       const res = await fetch('/api/orders/clear', { method: 'POST' });
       const data = await res.json();
       if (!data.success) {
-        console.warn('⚠️ /api/orders/clear did not report success:', data);
+        console.warn('/api/orders/clear did not report success:', data);
       } else {
-        console.log(`🔄 Server cleared ${data.orders_cleared} old orders, tags reset`);
+        console.log(`Server cleared ${data.orders_cleared} old orders, tags reset`);
       }
     } catch (err) {
-      console.error('❌ Failed to clear orders on the server before resetting:', err);
-      statusMsg.textContent = '⚠️ Could not reach server to clear old orders — a new service may fail on the first submit.';
+      console.error('Failed to clear orders on the server before resetting:', err);
+      statusMsg.innerHTML = withIcon('alert', 'Could not reach server to clear old orders — a new service may fail on the first submit.');
       statusMsg.className = 'status-msg error';
     }
-    
+
     if (recipesLoaded && recipes.length > 0) {
       emptyMsg.style.display = 'block';
       emptyMsg.className = 'empty-rail success';
       emptyMsg.innerHTML = `
-        <span class="emoji">🍳</span>
-        <div class="title">${recipes.length} Recipes Ready!</div>
-        <div class="sub">Click "Start Cooking" to begin! 🧑‍🍳</div>
+        <div class="glyph">${ICONS.ticket}</div>
+        <div class="title">${recipes.length} Recipes Ready</div>
+        <div class="sub">Tap Start Cooking to begin</div>
       `;
     }
-    
-    statusMsg.textContent = '🔄 Ready for a new service!';
+
+    statusMsg.innerHTML = withIcon('check', 'Ready for a new service');
     statusMsg.className = 'status-msg';
     manualStartBtn.disabled = false;
-    manualStartBtn.textContent = '▶ Start Cooking';
+    manualStartBtn.innerHTML = withIcon('play', 'Start Cooking');
     manualPauseBtn.disabled = true;
-    manualPauseBtn.textContent = '⏸ Pause';
+    manualPauseBtn.innerHTML = withIcon('pause', 'Pause');
     updateServiceClock();
     updateStats();
     updateStatusPill();
     overlay.classList.remove('show');
-    
+
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
       channel.postMessage({ type: 'game-reset' });
@@ -1554,70 +1533,71 @@
     document.getElementById('ovMissed').textContent = missed;
     document.getElementById('ovFailed').textContent = failed;
     const ratio = served / Math.max(1, served + missed + failed);
-    let stars = '☆☆☆';
-    if (ratio >= 0.9 && missed <= 1) stars = '⭐⭐⭐';
-    else if (ratio >= 0.7) stars = '⭐⭐☆';
-    else if (ratio >= 0.4) stars = '⭐☆☆';
-    document.getElementById('overlayStars').textContent = stars;
+    let starCount = 0;
+    if (ratio >= 0.9 && missed <= 1) starCount = 3;
+    else if (ratio >= 0.7) starCount = 2;
+    else if (ratio >= 0.4) starCount = 1;
+    const starsEl = document.getElementById('overlayStars');
+    starsEl.innerHTML = [0,1,2].map(i => `<span class="icon${i < starCount ? ' filled' : ''}">${i < starCount ? ICONS.star : ICONS.starOutline}</span>`).join('');
     overlay.classList.add('show');
   }
 
   // ============================================
   // SSE CONNECTION - REAL-TIME UPDATES FROM SERVER
   // ============================================
-  
+
   let sseConnected = false;
   let sseRetryCount = 0;
   const maxSSERetries = 10;
 
   function connectSSE() {
-    console.log('📡 Connecting to SSE stream at /api/events...');
-    
+    console.log('Connecting to SSE stream at /api/events...');
+
     try {
       const sse = new EventSource('/api/events');
-      
+
       sse.onopen = function(event) {
-        console.log('✅ SSE connection established!');
+        console.log('SSE connection established');
         sseConnected = true;
         sseRetryCount = 0;
-        statusMsg.textContent = '✅ Connected to kitchen!';
+        statusMsg.innerHTML = withIcon('wifi', 'Connected to kitchen');
         statusMsg.className = 'status-msg success';
       };
-      
+
       sse.onmessage = function(event) {
         try {
-          console.log('📨 SSE raw data received:', event.data);
+          console.log('SSE raw data received:', event.data);
           const msg = JSON.parse(event.data);
-          console.log('📨 SSE message parsed:', msg.type, msg.payload || '');
-          
+          console.log('SSE message parsed:', msg.type, msg.payload || '');
+
           handleMessage(msg);
-          
+
         } catch (error) {
-          console.error('❌ Error parsing SSE message:', error, event.data);
+          console.error('Error parsing SSE message:', error, event.data);
         }
       };
-      
+
       sse.onerror = function(error) {
-        console.error('❌ SSE error:', error);
+        console.error('SSE error:', error);
         sseConnected = false;
-        
+
         if (sse.readyState === EventSource.CLOSED) {
-          console.log('🔴 SSE connection closed');
+          console.log('SSE connection closed');
           if (sseRetryCount < maxSSERetries) {
             sseRetryCount++;
-            console.log(`🔄 SSE reconnecting (attempt ${sseRetryCount}/${maxSSERetries})...`);
+            console.log(`SSE reconnecting (attempt ${sseRetryCount}/${maxSSERetries})...`);
             setTimeout(connectSSE, 3000 * sseRetryCount);
           } else {
-            statusMsg.textContent = '⚠️ Connection lost. Please refresh the page.';
+            statusMsg.innerHTML = withIcon('alert', 'Connection lost. Please refresh the page.');
             statusMsg.className = 'status-msg error';
           }
         }
       };
-      
+
       window.sseConnection = sse;
-      
+
     } catch (error) {
-      console.error('❌ Failed to create SSE connection:', error);
+      console.error('Failed to create SSE connection:', error);
       setTimeout(connectSSE, 5000);
     }
   }
@@ -1625,10 +1605,10 @@
   // ============================================
   // SHARED MESSAGE HANDLER
   // ============================================
-  
+
   function handleMessage(msg) {
-    console.log(`📨 Handling message: ${msg.type}`, msg.payload || '');
-    
+    console.log(`Handling message: ${msg.type}`, msg.payload || '');
+
     switch (msg.type) {
       case 'params':
         const oldTotalTime = totalServiceTime;
@@ -1646,9 +1626,9 @@
           }
         }
         updateServiceClock();
-        statusMsg.textContent = `📡 Kitchen updated! (min ${params.spawnMin}s, max ${params.spawnMax}s, prep ${params.prepTime}s)`;
+        statusMsg.innerHTML = withIcon('bolt', `Kitchen updated (min ${params.spawnMin}s, max ${params.spawnMax}s, prep ${params.prepTime}s)`);
         statusMsg.className = 'status-msg success';
-        paramFeedback.style.display = 'inline-block';
+        paramFeedback.style.display = 'inline-flex';
         setTimeout(() => { paramFeedback.style.display = 'none'; }, 3000);
         if (running && !paused) {
           if (spawnTimeout) {
@@ -1656,7 +1636,7 @@
             scheduleNextSpawn();
           }
         }
-        console.log('📡 Params updated:', params);
+        console.log('Params updated:', params);
         break;
 
       case 'start':
@@ -1681,22 +1661,22 @@
       case 'esp-order-complete':
         const payload = msg.payload;
         if (payload.order_number) {
-          console.log(`📨 Order complete via SSE: ${payload.order_number}`, payload.success ? '✅ SUCCESS' : '❌ FAILURE');
+          console.log(`Order complete via SSE: ${payload.order_number}`, payload.success ? 'success' : 'failure');
           const orderNum = payload.order_number;
           processOrderComplete(orderNum, payload);
         }
         break;
 
       case 'esp-submit-result':
-        console.log('📨 ESP submit result:', msg.payload);
+        console.log('ESP submit result:', msg.payload);
         break;
 
       case 'order-missed':
         const missPayload = msg.payload;
         if (missPayload.order_number) {
-          console.log(`📨 Order missed: ${missPayload.order_number}`);
-          const orderToRemove = activeOrders.find(o => 
-            o.wireOrderNumber === missPayload.order_number || 
+          console.log(`Order missed: ${missPayload.order_number}`);
+          const orderToRemove = activeOrders.find(o =>
+            o.wireOrderNumber === missPayload.order_number ||
             o.orderNo === missPayload.order_number ||
             o.orderNo === '#' + String(missPayload.order_number).padStart(2, '0')
           );
@@ -1705,11 +1685,11 @@
             missed += 1;
             const badge = orderToRemove.el.querySelector('.status-badge');
             if (badge) {
-              badge.textContent = '⏰ Missed';
+              badge.innerHTML = withIcon('clock', 'Missed');
               badge.className = 'status-badge missed';
             }
             orderToRemove.el.classList.add('missed');
-            showToast('⏰ Order missed!', 'bad');
+            showToast('Order missed', 'bad', 'clock');
             updateStats();
             setTimeout(() => removeTicket(orderToRemove), 900);
           }
@@ -1717,7 +1697,7 @@
         break;
 
       case 'orders-cleared':
-        console.log('📨 Orders cleared:', msg.payload);
+        console.log('Orders cleared:', msg.payload);
         break;
 
       case 'server-log':
@@ -1727,31 +1707,31 @@
         break;
 
       case 'connected':
-        console.log('✅ SSE connected:', msg.payload);
+        console.log('SSE connected:', msg.payload);
         break;
 
       default:
-        console.log('📨 Unknown SSE message type:', msg.type);
+        console.log('Unknown SSE message type:', msg.type);
     }
   }
 
   // ============================================
   // BROADCAST CHANNEL - For tab-to-tab communication
   // ============================================
-  
+
   const channel = new BroadcastChannel('ticket-rail-control');
 
   channel.onmessage = (event) => {
     const msg = event.data;
     if (!msg) return;
-    console.log('📨 BroadcastChannel received:', msg.type, msg.payload || '');
+    console.log('BroadcastChannel received:', msg.type, msg.payload || '');
     handleMessage(msg);
   };
 
   // ============================================
   // MANUAL CONTROLS
   // ============================================
-  
+
   manualStartBtn.addEventListener('click', startService);
   manualPauseBtn.addEventListener('click', togglePause);
   playAgainBtn.addEventListener('click', resetService);
@@ -1759,36 +1739,36 @@
   // ============================================
   // INIT
   // ============================================
-  
+
   async function init() {
     await resetService();
-    statusMsg.textContent = '🔄 Loading recipes from kitchen...';
+    statusMsg.innerHTML = withIcon('refresh', 'Loading recipes from kitchen...');
     statusMsg.className = 'status-msg';
-    controllerStatus.textContent = '⏸ loading...';
+    controllerStatus.innerHTML = withIcon('refresh', 'Loading...');
     manualStartBtn.disabled = true;
-    
+
     await loadRecipesFromDB();
-    
+
     if (recipesLoaded && recipes.length > 0) {
       manualStartBtn.disabled = false;
       updateStatusPill();
     }
-    
+
     setTimeout(() => {
       connectSSE();
     }, 1000);
-    
+
     try {
       channel.postMessage({ type: 'game-ready' });
     } catch(e) {}
-    
-    console.log('🍳 Overcooked Ticket Rail ready!');
-    console.log('📊 Active orders:', activeOrders.length);
+
+    console.log('Overcooked Ticket Rail ready');
+    console.log('Active orders:', activeOrders.length);
   }
 
   window.addEventListener('beforeunload', function() {
     if (window.sseConnection) {
-      console.log('📡 Closing SSE connection');
+      console.log('Closing SSE connection');
       window.sseConnection.close();
     }
   });

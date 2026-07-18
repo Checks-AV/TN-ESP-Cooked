@@ -115,22 +115,9 @@
 
 <div class="grid">
 
-  <!-- REGISTER -->
-  <div class="card">
-    <h2>1 · Register device</h2>
-    <div class="desc">POST /esp32comms/register — registers an ESP32 and assigns it to a station.</div>
-    <div class="field"><label>device_mac</label><input id="reg_mac" value="AA:BB:CC:DD:EE:01"></div>
-    <div class="row2">
-      <div class="field"><label>station_id</label><input id="reg_station" value="1"></div>
-      <div class="field"><label>ip_address (optional)</label><input id="reg_ip" value="192.168.1.101"></div>
-    </div>
-    <div class="payload-preview" id="reg_preview"></div>
-    <button class="send" onclick="sendRegister()">Send register</button>
-  </div>
-
   <!-- PING -->
   <div class="card">
-    <h2>2 · Heartbeat ping</h2>
+    <h2>1 · Heartbeat ping</h2>
     <div class="desc">POST /esp32comms/listen — message_type "ping". Updates last_seen.</div>
     <div class="field"><label>device_mac</label><input id="ping_mac" value="AA:BB:CC:DD:EE:01"></div>
     <div class="payload-preview" id="ping_preview"></div>
@@ -139,32 +126,30 @@
 
   <!-- ACTION -->
   <div class="card">
-    <h2>3 · Station action</h2>
+    <h2>2 · Station action</h2>
     <div class="desc">POST /esp32comms/listen — message_type "action". action_name can be a name or a numeric preparation_method_id.</div>
     <div class="field"><label>device_mac (station)</label><input id="act_mac" value="AA:BB:CC:DD:EE:01"></div>
     <div class="row2">
       <div class="field"><label>tag_rfid</label><input id="act_tag" value="TAG-001"></div>
-      <div class="field"><label>action_name</label><input id="act_name" value="Toast"></div>
+      <div class="field"><label>action_name</label><input id="act_name" value="Cook"></div>
     </div>
     <div class="payload-preview" id="act_preview"></div>
     <button class="send" onclick="sendAction()">Send action</button>
   </div>
 
-  <!-- CREATE ORDER -->
+  <!-- RESET -->
   <div class="card">
-    <h2>4 · Create order</h2>
-    <div class="desc">POST /api/orders — registers a pending order (mimics the game spawning a ticket).</div>
-    <div class="row2">
-      <div class="field"><label>order_number (2-digit)</label><input id="ord_number" value="01"></div>
-      <div class="field"><label>food_id</label><input id="ord_food" value="1"></div>
-    </div>
-    <div class="payload-preview" id="ord_preview"></div>
-    <button class="send" onclick="sendCreateOrder()">Create order</button>
+    <h2>3 · Reset tag</h2>
+    <div class="desc">POST /esp32comms/listen — message_type "reset". Clears a tag's current_status back to 'Default'. Only the "Reset" station can perform this.</div>
+    <div class="field"><label>device_mac (Reset station)</label><input id="reset_mac" value="AA:BB:CC:DD:EE:03"></div>
+    <div class="field"><label>tag_rfid</label><input id="reset_tag" value="TAG-001"></div>
+    <div class="payload-preview" id="reset_preview"></div>
+    <button class="send" onclick="sendReset()">Send reset</button>
   </div>
 
   <!-- SUBMIT -->
-  <div class="card" style="grid-column: 1 / -1;">
-    <h2>5 · Counter submit</h2>
+  <div class="card">
+    <h2>4 · Counter submit</h2>
     <div class="desc">POST /api/esp/submit — device_mac must belong to the "Counter" station. tag_macs is comma-separated below.</div>
     <div class="row2">
       <div class="field"><label>order_number</label><input id="sub_number" value="01"></div>
@@ -200,13 +185,6 @@
     updatePreview(previewId, buildFn());
   }
 
-  function buildRegister(){
-    return {
-      device_mac: document.getElementById('reg_mac').value,
-      station_id: Number(document.getElementById('reg_station').value),
-      ip_address: document.getElementById('reg_ip').value || undefined
-    };
-  }
   function buildPing(){
     return {
       device_mac: document.getElementById('ping_mac').value,
@@ -214,6 +192,7 @@
       payload: {}
     };
   }
+
   function buildAction(){
     const raw = document.getElementById('act_name').value;
     const action_name = /^\d+$/.test(raw.trim()) ? Number(raw) : raw;
@@ -226,12 +205,17 @@
       }
     };
   }
-  function buildCreateOrder(){
+
+  function buildReset(){
     return {
-      order_number: document.getElementById('ord_number').value,
-      food_id: Number(document.getElementById('ord_food').value)
+      device_mac: document.getElementById('reset_mac').value,
+      message_type: "reset",
+      payload: {
+        tag_rfid: document.getElementById('reset_tag').value
+      }
     };
   }
+
   function buildSubmit(){
     const tags = document.getElementById('sub_tags').value.split(',').map(t => t.trim()).filter(Boolean);
     return {
@@ -241,10 +225,9 @@
     };
   }
 
-  wirePreview(['reg_mac','reg_station','reg_ip'], 'reg_preview', buildRegister);
   wirePreview(['ping_mac'], 'ping_preview', buildPing);
   wirePreview(['act_mac','act_tag','act_name'], 'act_preview', buildAction);
-  wirePreview(['ord_number','ord_food'], 'ord_preview', buildCreateOrder);
+  wirePreview(['reset_mac','reset_tag'], 'reset_preview', buildReset);
   wirePreview(['sub_number','sub_mac','sub_tags'], 'sub_preview', buildSubmit);
 
   async function sendRequest(path, body){
@@ -292,10 +275,9 @@
     }
   }
 
-  function sendRegister(){ sendRequest('/esp32comms/register', buildRegister()); }
   function sendPing(){ sendRequest('/esp32comms/listen', buildPing()); }
   function sendAction(){ sendRequest('/esp32comms/listen', buildAction()); }
-  function sendCreateOrder(){ sendRequest('/api/orders', buildCreateOrder()); }
+  function sendReset(){ sendRequest('/esp32comms/listen', buildReset()); }
   function sendSubmit(){ sendRequest('/api/esp/submit', buildSubmit()); }
 
   function clearLog(){
