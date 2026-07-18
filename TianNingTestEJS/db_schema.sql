@@ -170,14 +170,6 @@ INSERT INTO ingredients('ingredients_name') VALUES ('Chicken'); --1
 INSERT INTO ingredients('ingredients_name') VALUES ('Onions'); --2
 INSERT INTO ingredients('ingredients_name') VALUES ('Lettuce'); --3 
 INSERT INTO ingredients('ingredients_name') VALUES ('Beef'); --4 
-INSERT INTO ingredients('ingredients_name') VALUES ('Bread'); --5 
-INSERT INTO ingredients('ingredients_name') VALUES ('Rice'); --6 
-INSERT INTO ingredients('ingredients_name') VALUES ('Cabbage'); --7 
-INSERT INTO ingredients('ingredients_name') VALUES ('Fish'); --8
-INSERT INTO ingredients('ingredients_name') VALUES ('Seaweed'); --9
-INSERT INTO ingredients('ingredients_name') VALUES ('Egg'); --10
-INSERT INTO ingredients('ingredients_name') VALUES ('Mushroom'); --11
-INSERT INTO ingredients('ingredients_name') VALUES ('Potato'); --12
 
 /* Insert your INGREDIENT statuses here! */
 INSERT INTO ingredientstatus('ingredientstatus_name') VALUES ('Default'); --1 
