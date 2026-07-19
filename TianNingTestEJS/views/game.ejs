@@ -1040,6 +1040,20 @@
 
     try {
       const channel = new BroadcastChannel('ticket-rail-control');
+      // The dashboard's mini-rail preview listens for this specific
+      // shape (orderNo, dish, duration, points) — without it, the
+      // dashboard's activeOrders list never gets populated and the
+      // "Active orders (preview)" panel stays permanently empty.
+      channel.postMessage({
+        type: 'order-spawned',
+        payload: {
+          orderNo,
+          wireOrderNumber,
+          dish: recipe.name,
+          duration,
+          points
+        }
+      });
       channel.postMessage({ type: 'state-report', payload: getState() });
     } catch(e) {}
   }
@@ -1152,7 +1166,8 @@
           success: true,
           order_number: order.orderNo,
           food: order.recipe.name,
-          score_earned: earned
+          score_earned: earned,
+          details: result.details || []
         }
       });
       channel.postMessage({ type: 'state-report', payload: getState() });
@@ -1360,6 +1375,25 @@
     if (serviceRemaining <= 0) endService('time-up');
     updateStats();
     updateStatusPill();
+
+    // Broadcast a full snapshot of active orders every tick (once a
+    // second) so the dashboard's mini-rail preview always reflects the
+    // real remaining time — and self-heals even if it missed an
+    // individual order-spawned/complete event for any reason.
+    try {
+      const channel = new BroadcastChannel('ticket-rail-control');
+      channel.postMessage({
+        type: 'orders-snapshot',
+        payload: activeOrders
+          .filter(o => !o.missed && !o.completed && !o.failed)
+          .map(o => ({
+            orderNo: o.orderNo,
+            dish: o.recipe.name,
+            remaining: Math.max(0, Math.ceil((o.endsAt - now) / 1000)),
+            status: o.received ? 'validating' : 'waiting'
+          }))
+      });
+    } catch(e) {}
   }
 
   function getState() {

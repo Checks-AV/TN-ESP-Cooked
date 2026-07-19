@@ -40,29 +40,57 @@
 
   /* ── SIDEBAR: device tabs ── */
   .sidebar{
-    width:230px; flex-shrink:0; border-right:1px solid var(--line);
+    width:250px; flex-shrink:0; border-right:1px solid var(--line);
     overflow-y:auto; padding:12px;
+  }
+  .sidebar-section-label{
+    font-size:10px; color:#6b6558; text-transform:uppercase; letter-spacing:0.5px;
+    padding:6px 4px 4px; margin-top:4px;
   }
   .tab{
     display:flex; align-items:center; justify-content:space-between;
-    padding:10px 12px; border-radius:8px; margin-bottom:4px; cursor:pointer;
-    border:1px solid transparent; transition:0.12s;
+    padding:9px 10px; border-radius:8px; margin-bottom:4px; cursor:pointer;
+    border:1px solid transparent; transition:0.12s; gap:6px;
   }
   .tab:hover{ background:rgba(255,255,255,0.04); }
+  .tab:hover .tab-actions{ opacity:1; }
   .tab.active{ background:rgba(74,157,110,0.12); border-color:rgba(74,157,110,0.35); }
-  .tab-info{ overflow:hidden; }
+  .tab.muted{ opacity:0.55; }
+  .tab-info{ overflow:hidden; flex:1; }
   .tab-mac{
     font-family:'Courier Prime', monospace; font-size:12px; color:#f5f2ea;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    display:flex; align-items:center; gap:5px;
   }
   .tab-station{ font-size:10px; color:#8a8f92; text-transform:uppercase; letter-spacing:0.5px; margin-top:2px; }
   .tab-badge{
     background:rgba(255,255,255,0.08); color:#e9e6de; font-size:10px; font-weight:700;
-    padding:2px 7px; border-radius:10px; flex-shrink:0; margin-left:6px;
+    padding:2px 7px; border-radius:10px; flex-shrink:0;
   }
   .tab-badge.new{ background:var(--good); color:#12241a; }
+  .tab-badge.muted-count{ background:rgba(223,166,46,0.2); color:var(--warn); }
+  .mute-icon{ font-size:10px; opacity:0.8; }
+
+  .tab-actions{
+    display:flex; gap:4px; opacity:0; transition:0.12s; flex-shrink:0;
+  }
+  .tab.active .tab-actions{ opacity:1; }
+  .icon-btn{
+    background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08);
+    color:#b5aea0; width:22px; height:22px; border-radius:5px; cursor:pointer;
+    font-size:11px; display:flex; align-items:center; justify-content:center;
+    line-height:1; padding:0;
+  }
+  .icon-btn:hover{ background:rgba(255,255,255,0.12); color:#f5f2ea; }
+  .icon-btn.active-toggle{ background:rgba(223,166,46,0.2); border-color:rgba(223,166,46,0.4); color:var(--warn); }
 
   .sidebar-empty{ color:#6b6558; font-size:12px; padding:20px 8px; text-align:center; line-height:1.6; }
+
+  .hidden-summary{
+    margin-top:10px; padding:8px 10px; border-radius:8px; background:rgba(255,255,255,0.02);
+    border:1px dashed rgba(255,255,255,0.1); font-size:11px; color:#8a8f92; cursor:pointer;
+  }
+  .hidden-summary:hover{ color:#e9e6de; border-color:rgba(255,255,255,0.2); }
 
   /* ── MAIN LOG PANEL ── */
   .main{ flex:1; display:flex; flex-direction:column; overflow:hidden; }
@@ -72,13 +100,26 @@
   }
   .main-head h2{
     font-family:'Bebas Neue', sans-serif; font-size:18px; letter-spacing:1px; margin:0;
+    display:flex; align-items:center; gap:8px;
   }
   .main-head .meta{ font-size:11px; color:#8a8f92; font-family:'Courier Prime',monospace; margin-top:2px; }
-  .clear-btn{
+  .head-btns{ display:flex; gap:8px; }
+  .clear-btn, .mute-btn, .hide-btn{
     background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); color:#b5aea0;
     padding:6px 16px; border-radius:16px; font-size:11px; cursor:pointer; font-family:'Inter',sans-serif;
   }
-  .clear-btn:hover{ background:rgba(255,255,255,0.08); color:#f5f2ea; }
+  .clear-btn:hover, .mute-btn:hover, .hide-btn:hover{ background:rgba(255,255,255,0.08); color:#f5f2ea; }
+  .mute-btn.on{ background:rgba(223,166,46,0.18); border-color:rgba(223,166,46,0.4); color:var(--warn); }
+
+  .muted-banner{
+    margin:12px 20px 0; padding:8px 12px; border-radius:8px;
+    background:rgba(223,166,46,0.1); border:1px solid rgba(223,166,46,0.3);
+    color:var(--warn); font-size:12px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .muted-banner button{
+    background:none; border:1px solid rgba(223,166,46,0.5); color:var(--warn);
+    padding:3px 10px; border-radius:12px; font-size:11px; cursor:pointer;
+  }
 
   .log{ flex:1; overflow-y:auto; padding:16px 20px; }
   .log-empty{ color:#6b6558; font-size:13px; text-align:center; padding:60px 0; }
@@ -130,8 +171,11 @@
         <h2 id="mainTitle">All devices</h2>
         <div class="meta" id="mainMeta">Interleaved view of every device</div>
       </div>
-      <button class="clear-btn" onclick="clearActive()">Clear this view</button>
+      <div class="head-btns" id="headBtns">
+        <button class="clear-btn" onclick="clearActive()">Clear this view</button>
+      </div>
     </div>
+    <div id="mutedBannerSlot"></div>
     <div class="log" id="log">
       <div class="log-empty">Waiting for ESP32 traffic…</div>
     </div>
@@ -139,10 +183,13 @@
 </div>
 
 <script>
-  // deviceKey -> { mac, station, entries: [], unread: 0 }
+  // deviceKey -> { mac, station, entries: [], unread, hidden, muted, mutedCount }
+  // hidden/muted state lives only in this tab's memory — reloading the
+  // page or restarting the server both reset it. That's intentional:
+  // this is a decluttering tool for the live view, not device config.
   const devices = new Map();
   const ALL_KEY = '__all__';
-  devices.set(ALL_KEY, { mac: 'All devices', station: null, entries: [], unread: 0 });
+  devices.set(ALL_KEY, { mac: 'All devices', station: null, entries: [], unread: 0, hidden: false, muted: false, mutedCount: 0 });
 
   let activeKey = ALL_KEY;
 
@@ -151,6 +198,8 @@
   const log = document.getElementById('log');
   const mainTitle = document.getElementById('mainTitle');
   const mainMeta = document.getElementById('mainMeta');
+  const headBtns = document.getElementById('headBtns');
+  const mutedBannerSlot = document.getElementById('mutedBannerSlot');
   const connDot = document.getElementById('connDot');
   const connLabel = document.getElementById('connLabel');
 
@@ -161,7 +210,15 @@
   function ensureDevice(mac, station) {
     const key = keyFor(mac);
     if (!devices.has(key)) {
-      devices.set(key, { mac: mac || 'Unknown device', station: station || null, entries: [], unread: 0 });
+      devices.set(key, {
+        mac: mac || 'Unknown device',
+        station: station || null,
+        entries: [],
+        unread: 0,
+        hidden: false,
+        muted: false,
+        mutedCount: 0
+      });
       renderSidebar();
     } else if (station && !devices.get(key).station) {
       devices.get(key).station = station;
@@ -171,43 +228,133 @@
   }
 
   function renderSidebar() {
-    sidebarEmpty.style.display = devices.size <= 1 ? 'block' : 'none';
-
-    const existingTabs = sidebar.querySelectorAll('.tab');
+    const existingTabs = sidebar.querySelectorAll('.tab, .hidden-summary, .sidebar-section-label');
     existingTabs.forEach(t => t.remove());
 
-    appendTab(ALL_KEY, devices.get(ALL_KEY));
-
-    [...devices.entries()]
+    const visible = [...devices.entries()]
       .filter(([key]) => key !== ALL_KEY)
-      .sort((a, b) => a[1].mac.localeCompare(b[1].mac))
-      .forEach(([key, dev]) => appendTab(key, dev));
+      .filter(([, dev]) => !dev.hidden)
+      .sort((a, b) => a[1].mac.localeCompare(b[1].mac));
+
+    const hiddenList = [...devices.entries()]
+      .filter(([key]) => key !== ALL_KEY)
+      .filter(([, dev]) => dev.hidden);
+
+    sidebarEmpty.style.display = (devices.size <= 1) ? 'block' : 'none';
+
+    appendTab(ALL_KEY, devices.get(ALL_KEY));
+    visible.forEach(([key, dev]) => appendTab(key, dev));
+
+    if (hiddenList.length > 0) {
+      const summary = document.createElement('div');
+      summary.className = 'hidden-summary';
+      summary.textContent = `${hiddenList.length} device${hiddenList.length > 1 ? 's' : ''} cleared — click to restore all`;
+      summary.onclick = () => {
+        hiddenList.forEach(([key]) => devices.get(key).hidden = false);
+        renderSidebar();
+      };
+      sidebar.appendChild(summary);
+    }
   }
 
   function appendTab(key, dev) {
     const el = document.createElement('div');
-    el.className = 'tab' + (key === activeKey ? ' active' : '');
+    el.className = 'tab' + (key === activeKey ? ' active' : '') + (dev.muted ? ' muted' : '');
     el.onclick = () => selectDevice(key);
+
+    const badge = dev.muted
+      ? (dev.mutedCount > 0 ? `<span class="tab-badge muted-count">${dev.mutedCount} muted</span>` : '')
+      : (dev.unread > 0 ? `<span class="tab-badge new">${dev.unread}</span>` : (dev.entries.length ? `<span class="tab-badge">${dev.entries.length}</span>` : ''));
+
+    const actions = key === ALL_KEY ? '' : `
+      <div class="tab-actions">
+        <button class="icon-btn${dev.muted ? ' active-toggle' : ''}" title="${dev.muted ? 'Unmute' : 'Mute'}" onclick="toggleMute('${key}', event)">${dev.muted ? '🔇' : '🔈'}</button>
+        <button class="icon-btn" title="Clear from list" onclick="hideDevice('${key}', event)">✕</button>
+      </div>
+    `;
+
     el.innerHTML = `
       <div class="tab-info">
-        <div class="tab-mac">${dev.mac}</div>
+        <div class="tab-mac">${dev.mac}${dev.muted ? '<span class="mute-icon">muted</span>' : ''}</div>
         ${dev.station ? `<div class="tab-station">${dev.station}</div>` : ''}
       </div>
-      ${dev.unread > 0 ? `<span class="tab-badge new">${dev.unread}</span>` : (dev.entries.length ? `<span class="tab-badge">${dev.entries.length}</span>` : '')}
+      ${badge}
+      ${actions}
     `;
     sidebar.appendChild(el);
+  }
+
+  function hideDevice(key, evt) {
+    evt.stopPropagation();
+    const dev = devices.get(key);
+    if (!dev) return;
+    dev.hidden = true;
+    if (activeKey === key) selectDevice(ALL_KEY);
+    renderSidebar();
+  }
+
+  function toggleMute(key, evt) {
+    if (evt) evt.stopPropagation();
+    const dev = devices.get(key);
+    if (!dev) return;
+    dev.muted = !dev.muted;
+    if (!dev.muted) dev.mutedCount = 0;
+    renderSidebar();
+    if (activeKey === key) selectDevice(key); // refresh header/banner state
   }
 
   function selectDevice(key) {
     activeKey = key;
     const dev = devices.get(key);
     dev.unread = 0;
-    mainTitle.textContent = key === ALL_KEY ? 'All devices' : dev.mac;
+    if (dev.muted) dev.mutedCount = 0;
+
+    mainTitle.innerHTML = key === ALL_KEY
+      ? 'All devices'
+      : `${dev.mac}`;
     mainMeta.textContent = key === ALL_KEY
       ? 'Interleaved view of every device'
       : (dev.station ? `Station: ${dev.station}` : 'Station: unassigned');
+
+    renderHeadBtns(key, dev);
     renderSidebar();
     renderLog();
+  }
+
+  function renderHeadBtns(key, dev) {
+    headBtns.innerHTML = '';
+
+    if (key !== ALL_KEY) {
+      const muteBtn = document.createElement('button');
+      muteBtn.className = 'mute-btn' + (dev.muted ? ' on' : '');
+      muteBtn.textContent = dev.muted ? 'Unmute' : 'Mute';
+      muteBtn.onclick = () => toggleMute(key);
+      headBtns.appendChild(muteBtn);
+
+      const hideBtn = document.createElement('button');
+      hideBtn.className = 'hide-btn';
+      hideBtn.textContent = 'Clear from list';
+      hideBtn.onclick = () => hideDevice(key, { stopPropagation(){} });
+      headBtns.appendChild(hideBtn);
+    }
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'clear-btn';
+    clearBtn.textContent = 'Clear this view';
+    clearBtn.onclick = () => clearActive();
+    headBtns.appendChild(clearBtn);
+
+    mutedBannerSlot.innerHTML = '';
+    if (dev.muted) {
+      const banner = document.createElement('div');
+      banner.className = 'muted-banner';
+      banner.innerHTML = `<span>This device is muted — new messages are being counted but not shown live.</span>`;
+      const btn = document.createElement('button');
+      btn.textContent = 'Unmute';
+      btn.onclick = () => toggleMute(key);
+      banner.appendChild(btn);
+      mutedBannerSlot.appendChild(banner);
+    }
   }
 
   function clearActive() {
@@ -252,11 +399,28 @@
 
   function handleEvent(event) {
     const key = ensureDevice(event.device_mac, null);
+    const dev = devices.get(key);
 
-    devices.get(key).entries.push(event);
+    // A device that had been cleared from the sidebar reappears the
+    // instant it sends anything new — clearing only hides it while
+    // it's quiet, it never permanently drops a device.
+    if (dev.hidden) {
+      dev.hidden = false;
+    }
+
+    // Always keep history, even while muted, so unmuting (or clicking
+    // into the tab) shows the full picture rather than gaps.
+    dev.entries.push(event);
     devices.get(ALL_KEY).entries.push(event);
 
-    if (key !== activeKey) devices.get(key).unread++;
+    if (dev.muted) {
+      // Muted: count quietly, don't badge, don't live-append anywhere.
+      dev.mutedCount++;
+      renderSidebar();
+      return;
+    }
+
+    if (key !== activeKey) dev.unread++;
     if (ALL_KEY !== activeKey) devices.get(ALL_KEY).unread++;
 
     if (activeKey === key || activeKey === ALL_KEY) {
@@ -304,6 +468,7 @@
     })
     .catch(() => {});
 
+  renderHeadBtns(ALL_KEY, devices.get(ALL_KEY));
   renderSidebar();
   connect();
 </script>
