@@ -49,11 +49,11 @@
 
   .field{ margin-bottom:10px; }
   .field label{ display:block; font-size:11px; color:#b5aea0; margin-bottom:4px; letter-spacing:0.3px; }
-  .field input{
+  .field input, .field select{
     width:100%; background:#1e2124; border:1px solid #3d4347; color:#f5f2ea;
     padding:8px 10px; border-radius:6px; font-family:'Courier Prime',monospace; font-size:13px;
   }
-  .field input:focus{ outline:none; border-color:var(--good); }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--good); }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
   button.send{
@@ -160,6 +160,27 @@
     <button class="send" onclick="sendSubmit()">Submit order</button>
   </div>
 
+  <!-- LOG -->
+  <div class="card">
+    <h2>5 · Remote log</h2>
+    <div class="desc">POST /esp32comms/log — same shape the Counter ESP32's logMsg() sends. Requires the /log route added to esp32comms.js; check /esp-monitor.html to see it land there too.</div>
+    <div class="row2">
+      <div class="field"><label>device_mac</label><input id="log_mac" value="AA:BB:CC:DD:EE:02"></div>
+      <div class="field"><label>station_id</label><input id="log_station" value="2"></div>
+    </div>
+    <div class="field">
+      <label>level</label>
+      <select id="log_level">
+        <option value="info" selected>info</option>
+        <option value="warn">warn</option>
+        <option value="error">error</option>
+      </select>
+    </div>
+    <div class="field"><label>message</label><input id="log_message" value="Test log line from console"></div>
+    <div class="payload-preview" id="log_preview"></div>
+    <button class="send" onclick="sendLog()">Send log</button>
+  </div>
+
 </div>
 
 <div class="log-card">
@@ -180,7 +201,9 @@
   // live preview updates
   function wirePreview(fieldIds, previewId, buildFn){
     fieldIds.forEach(id => {
-      document.getElementById(id).addEventListener('input', () => updatePreview(previewId, buildFn()));
+      const el = document.getElementById(id);
+      const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(evt, () => updatePreview(previewId, buildFn()));
     });
     updatePreview(previewId, buildFn());
   }
@@ -225,10 +248,22 @@
     };
   }
 
+  function buildLog(){
+    const stationRaw = document.getElementById('log_station').value;
+    return {
+      device_mac: document.getElementById('log_mac').value,
+      station_id: stationRaw === '' ? null : Number(stationRaw),
+      level: document.getElementById('log_level').value,
+      message: document.getElementById('log_message').value,
+      uptime_ms: Date.now() % 100000
+    };
+  }
+
   wirePreview(['ping_mac'], 'ping_preview', buildPing);
   wirePreview(['act_mac','act_tag','act_name'], 'act_preview', buildAction);
   wirePreview(['reset_mac','reset_tag'], 'reset_preview', buildReset);
   wirePreview(['sub_number','sub_mac','sub_tags'], 'sub_preview', buildSubmit);
+  wirePreview(['log_mac','log_station','log_level','log_message'], 'log_preview', buildLog);
 
   async function sendRequest(path, body){
     const logEl = document.getElementById('log');
@@ -279,6 +314,7 @@
   function sendAction(){ sendRequest('/esp32comms/listen', buildAction()); }
   function sendReset(){ sendRequest('/esp32comms/listen', buildReset()); }
   function sendSubmit(){ sendRequest('/api/esp/submit', buildSubmit()); }
+  function sendLog(){ sendRequest('/esp32comms/log', buildLog()); }
 
   function clearLog(){
     document.getElementById('log').innerHTML = '<div class="empty-log">No requests sent yet.</div>';

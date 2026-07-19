@@ -129,6 +129,36 @@ router.post("/register", (req, res, next) => {
     );
 });
 
+// ─── POST /esp32comms/log ─────────────────────────────────────
+// Remote logging endpoint — the Counter ESP32's logMsg() posts here so
+// you can see its activity without a serial cable plugged in.
+// Body: { device_mac, station_id, level, message, uptime_ms }
+//
+// esplisten.js already watches everything under /esp32comms, so once
+// this route exists, every call here is automatically captured into
+// its history buffer and pushed live to /api/esp-monitor/stream —
+// nothing else needs to change for it to show up on /esp-monitor.html.
+router.post("/log", (req, res) => {
+    const { device_mac, station_id, level, message, uptime_ms } = req.body;
+
+    if (!device_mac || !message) {
+        return res.status(400).json({
+            success: false,
+            error: "Missing device_mac or message"
+        });
+    }
+
+    const safeLevel = level || "info";
+    const uptimeSec = typeof uptime_ms === "number" ? (uptime_ms / 1000).toFixed(1) : "?";
+
+    console.log(
+        `[ESP-LOG] ${device_mac} (station ${station_id ?? "?"}) ` +
+        `[${safeLevel}] +${uptimeSec}s | ${message}`
+    );
+
+    res.json({ success: true });
+});
+
 // ─── POST /esp32comms/listen ──────────────────────────────────
 // Always-on listener: every ESP32 message comes here
 // Body: { device_mac, message_type, payload }
