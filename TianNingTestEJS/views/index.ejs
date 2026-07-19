@@ -5,29 +5,115 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="/main.css" />
     <title><%= title%></title>
+    <style>
+        /* Make everything bigger */
+        h1 {
+            font-size: 42px !important;
+        }
+        p {
+            font-size: 18px !important;
+        }
+        button {
+            font-size: 20px !important;
+            padding: 16px 24px !important;
+            width: 100% !important;
+            border-radius: 8px !important;
+            border: 2px solid transparent !important;
+            cursor: pointer !important;
+            transition: 0.15s !important;
+            font-weight: 600 !important;
+        }
+        button:hover {
+            transform: scale(1.02);
+            opacity: 0.9;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        header {
+            max-width: 600px !important;
+            margin: 0 auto !important;
+            padding: 30px !important;
+        }
+        /* Light color buttons */
+        .btn-game {
+            background: #a8d5ba !important;
+            color: #1a3d2a !important;
+            border-color: #7bc49a !important;
+        }
+        .btn-settings {
+            background: #ffd9a3 !important;
+            color: #5a3d0a !important;
+            border-color: #f5c27b !important;
+        }
+        .btn-monitor {
+            background: #d4b5e6 !important;
+            color: #3a1a5a !important;
+            border-color: #c299db !important;
+        }
+        .btn-setup {
+            background: #b5d4e6 !important;
+            color: #0a3a5a !important;
+            border-color: #8bbfdb !important;
+        }
+        .btn-test {
+            background: #a8d4f0 !important;
+            color: #0a2a4a !important;
+            border-color: #7bbfe8 !important;
+        }
+        .btn-extra {
+            background: #c5cbd0 !important;
+            color: #2a2e33 !important;
+            border-color: #aab2b8 !important;
+        }
+        .btn-credits {
+            background: #d4c9b5 !important;
+            color: #3a2a1a !important;
+            border-color: #c4b59a !important;
+        }
+        .label-text {
+            color: #b0b5b8 !important;
+            font-size: 18px !important;
+            margin-bottom: 6px !important;
+            margin-top: 16px !important;
+            font-weight: 500 !important;
+            letter-spacing: 0.5px !important;
+        }
+    </style>
 </head>
 <body>
   <header>
-    <!-- Requirement: Main Page, Redirects to Settings AND Start of Game-->
-    <h1>Welcome Avan, Redirect to Stage Setting here</h1>
+    <!-- Main Title -->
+    <h1>Welcome To Overcooked</h1>
     
-    <!-- Requirement: Redirect to <<Order Slips Page>> Section-->
-    <button type="button" onclick="window.location.href='/game'">Go to Game</button> <br>
+    <!-- For participants to see -->
+    <p class="label-text">For participants to see</p>
+    <button class="btn-game" onclick="window.location.href='/game'">Game</button> <br>
     
-    <!-- NEW: Game Settings Button -->
-    <button type="button" onclick="window.location.href='/game/settings'" style="background: #FF9800; color: white;">Game Settings</button> <br>
+    <!-- For Control -->
+    <p class="label-text">For Control</p>
+    <button class="btn-settings" onclick="window.location.href='/game/settings'">Game Settings</button> <br>
     
-    <!-- Requirement: Redirect to <<Setup Page>> Section-->
-    <button type="button" onclick="window.location.href='/settings'">Settings</button> <br>
+    <!-- For Monitor -->
+    <p class="label-text">For Monitor</p>
+    <button class="btn-monitor" onclick="window.location.href='/esp-monitor.html'">ESP32 Monitor</button> <br>
     
-    <!-- NEW: ESP Dashboard Button -->
-    <button type="button" onclick="window.location.href='/espdashboard'" style="background: #4CAF50; color: white;">ESP Dashboard</button> <br>
+    <!-- For Setup -->
+    <p class="label-text">For Setup</p>
+    <button class="btn-setup" onclick="window.location.href='/settings'">Settings</button> <br>
     
-    <!-- Requirement: Redirect to <<Leaderboards Page>> Section-->
-    <button type="button" onclick="window.location.href='/leaderboards'">Leaderboards</button> <br>
+    <!-- For Testing -->
+    <p class="label-text">For Testing</p>
+    <button class="btn-test" onclick="window.location.href='/esp-test-console.html'">Test Console</button> <br>
     
-    <!-- Requirement: Redirect to <<Credits Page>> Section-->
-    <button type="button" onclick="window.location.href='/credits'">Credits</button> <br>
+    <!-- Extra -->
+    <p class="label-text">Extra</p>
+    <button class="btn-extra" onclick="window.location.href='/how-it-works.html'">How Ticket Rail Works</button> <br>
+    
+    <!-- Leaderboards & Credits grouped together -->
+    <p class="label-text">Credits</p>
+    <button class="btn-credits" onclick="window.location.href='/leaderboards'">Leaderboards (not done)</button> <br>
+    <button class="btn-credits" onclick="window.location.href='/credits'">Credits</button> <br>
   </header>
 </body>
 </html>

@@ -1,242 +1,298 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" type="text/css" href="/main.css" />
-    <title><%= title%></title>
-    <style>
-        .credits-container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        .credits-container h1 {
-            font-size: 48px;
-            margin-bottom: 4px;
-            color: #f5f2ea;
-        }
-        .credits-container .subtitle {
-            color: #6b6558;
-            font-size: 16px;
-            margin-bottom: 30px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enitio 2026 — Credits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --espresso: #1b1613;
+    --espresso-2: #241d18;
+    --parchment: #f1e6cf;
+    --parchment-dim: #cdbf9e;
+    --gold: #b8923f;
+    --gold-light: #d9b56a;
+    --rust: #8a3c2b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(184,146,63,0.10), transparent 55%),
+      var(--espresso);
+    color:var(--parchment);
+    font-family:'Cormorant Garamond', serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:56px 20px;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size:3px 3px;
+    pointer-events:none;
+    mix-blend-mode:overlay;
+  }
 
-        .credit-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 12px;
-            padding: 24px 28px;
-            margin-bottom: 20px;
-        }
-        .credit-card h2 {
-            color: #f5f2ea;
-            margin: 0 0 12px 0;
-            font-size: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
-            padding-bottom: 10px;
-        }
-        .credit-card .name {
-            font-size: 18px;
-            font-weight: 600;
-            color: #f5f2ea;
-        }
-        .credit-card .role {
-            color: #6b6558;
-            font-size: 14px;
-            margin-left: 12px;
-        }
-        .credit-card p {
-            color: #b5aea0;
-            margin: 6px 0;
-            font-size: 14px;
-            line-height: 1.6;
-        }
-        .credit-card .year {
-            color: #4a9d6e;
-            font-weight: 600;
-        }
+  .card{
+    position:relative;
+    width:100%;
+    max-width:620px;
+    padding:64px 56px 52px;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.015), transparent 20%),
+      var(--espresso-2);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+  }
+  .card::before{
+    content:'';
+    position:absolute; inset:14px;
+    border:1px solid rgba(184,146,63,0.55);
+    pointer-events:none;
+  }
+  .card::after{
+    content:'';
+    position:absolute; inset:19px;
+    border:1px solid rgba(184,146,63,0.22);
+    pointer-events:none;
+  }
 
-        .system-section {
-            background: rgba(255,255,255,0.02);
-            border: 1px solid rgba(255,255,255,0.04);
-            border-radius: 12px;
-            padding: 24px 28px;
-            margin-top: 10px;
-        }
-        .system-section h3 {
-            color: #f5f2ea;
-            font-size: 18px;
-            margin: 0 0 12px 0;
-        }
-        .system-section p {
-            color: #b5aea0;
-            font-size: 14px;
-            line-height: 1.8;
-            margin: 8px 0;
-        }
-        .system-section ul {
-            color: #b5aea0;
-            font-size: 14px;
-            line-height: 2;
-            padding-left: 20px;
-            margin: 8px 0;
-        }
-        .system-section li {
-            margin-bottom: 4px;
-        }
-        .system-section strong {
-            color: #e9e6de;
-        }
-        .highlight {
-            color: #4a9d6e;
-            font-weight: 600;
-        }
-        .highlight-warn {
-            color: #dfa62e;
-            font-weight: 600;
-        }
-        .highlight-danger {
-            color: #d9463c;
-            font-weight: 600;
-        }
+  .seal{
+    width:52px; height:52px;
+    margin:0 auto 22px;
+    border-radius:50%;
+    border:1.5px solid var(--gold);
+    display:flex; align-items:center; justify-content:center;
+    position:relative;
+    z-index:1;
+  }
+  .seal::before{
+    content:'';
+    position:absolute; inset:5px;
+    border:1px solid rgba(184,146,63,0.5);
+    border-radius:50%;
+  }
+  .seal span{
+    font-family:'Cinzel', serif;
+    font-size:19px;
+    font-weight:600;
+    color:var(--gold-light);
+    letter-spacing:1px;
+  }
 
-        .back-btn {
-            margin-top: 30px;
-            padding: 12px 30px;
-            border: none;
-            border-radius: 6px;
-            background: #666;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            transition: 0.15s;
-        }
-        .back-btn:hover {
-            background: #555;
-        }
-        .footer-text {
-            color: #6b6558;
-            font-size: 12px;
-            margin-top: 30px;
-            border-top: 1px solid rgba(255,255,255,0.04);
-            padding-top: 20px;
-            text-align: center;
-        }
-    </style>
+  .eyebrow{
+    text-align:center;
+    font-family:'Inter', sans-serif;
+    font-size:10.5px;
+    font-weight:600;
+    letter-spacing:4px;
+    text-transform:uppercase;
+    color:var(--parchment-dim);
+    margin:0 0 18px;
+    position:relative;
+    z-index:1;
+  }
+
+  h1{
+    text-align:center;
+    font-family:'Cinzel', serif;
+    font-weight:600;
+    font-size:clamp(40px, 7vw, 54px);
+    letter-spacing:6px;
+    margin:0;
+    color:var(--parchment);
+    text-shadow:0 1px 0 rgba(0,0,0,0.4);
+    position:relative;
+    z-index:1;
+  }
+
+  .year{
+    text-align:center;
+    font-family:'Cinzel', serif;
+    font-size:15px;
+    letter-spacing:8px;
+    color:var(--gold);
+    margin:6px 0 0;
+    position:relative;
+    z-index:1;
+  }
+
+  .rule-orn{
+    display:flex; align-items:center; gap:14px;
+    margin:26px 0 22px;
+    position:relative; z-index:1;
+  }
+  .rule-orn .line{ flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold) 50%, transparent); }
+  .rule-orn svg{ width:14px; height:14px; flex-shrink:0; }
+
+  .elaboration{
+    text-align:center;
+    font-style:italic;
+    font-weight:500;
+    font-size:20px;
+    letter-spacing:1.5px;
+    color:var(--parchment-dim);
+    margin:0 0 6px;
+    position:relative; z-index:1;
+  }
+  .elaboration-sub{
+    text-align:center;
+    font-family:'Inter', sans-serif;
+    font-size:10px;
+    letter-spacing:3.5px;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin:0 0 40px;
+    position:relative; z-index:1;
+  }
+
+  .course{
+    position:relative; z-index:1;
+    margin-bottom:34px;
+  }
+  .course:last-of-type{ margin-bottom:0; }
+
+  .course-title{
+    text-align:center;
+    font-family:'Cinzel', serif;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:5px;
+    text-transform:uppercase;
+    color:var(--gold-light);
+    margin:0 0 4px;
+  }
+  .course-desc{
+    text-align:center;
+    font-family:'Inter', sans-serif;
+    font-style:normal;
+    font-size:10.5px;
+    letter-spacing:1.5px;
+    color:var(--parchment-dim);
+    text-transform:uppercase;
+    opacity:0.6;
+    margin:0 0 22px;
+  }
+
+  .entry{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+    padding:10px 0;
+  }
+  .entry + .entry{
+    border-top:1px solid rgba(184,146,63,0.16);
+  }
+  .entry .name{
+    flex:0 0 auto;
+    font-size:21px;
+    font-weight:500;
+    letter-spacing:0.5px;
+    color:var(--parchment);
+    white-space:nowrap;
+  }
+  .entry .leader{
+    flex:1 1 auto;
+    border-bottom:1px dotted rgba(205,191,158,0.35);
+    margin-bottom:6px;
+    min-width:20px;
+  }
+  .entry .role{
+    flex:0 0 auto;
+    font-family:'Inter', sans-serif;
+    font-size:10.5px;
+    font-weight:500;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--gold);
+    white-space:nowrap;
+    text-align:right;
+  }
+
+  .footer-rule{
+    margin:44px 0 20px;
+    height:1px;
+    background:linear-gradient(90deg, transparent, rgba(184,146,63,0.5) 50%, transparent);
+    position:relative; z-index:1;
+  }
+  .footer-note{
+    text-align:center;
+    font-style:italic;
+    font-size:14px;
+    color:var(--parchment-dim);
+    letter-spacing:0.5px;
+    position:relative; z-index:1;
+    margin:0;
+  }
+
+  @media (max-width:520px){
+    .card{ padding:48px 26px 40px; }
+    .entry{ flex-wrap:wrap; }
+    .entry .name{ font-size:18px; }
+    .entry .leader{ display:none; }
+    .entry .role{ flex:1 1 100%; text-align:left; margin-top:2px; }
+    h1{ letter-spacing:3px; }
+  }
+</style>
 </head>
 <body>
-    <div class="credits-container">
-        <h1>👏 Credits</h1>
-        <p class="subtitle">Ticket Rail — Smart Kitchen Order Management System</p>
 
-        <!-- Creators -->
-        <div class="credit-card">
-            <h2>🎯 Created By</h2>
-            <p><span class="name">Avan</span> <span class="role">— Lead Developer & System Architect</span></p>
-            <p><span class="name">Tian Ning</span> <span class="role">— Developer & System Designer</span></p>
-            <p style="margin-top: 10px; color: #6b6558;">
-                <span class="year">© 2026</span> — Built with passion for smart kitchen automation
-            </p>
-        </div>
+<div class="card">
 
-        <!-- System Overview -->
-        <div class="system-section">
-            <h3>📋 What is Ticket Rail?</h3>
-            <p>
-                <strong>Ticket Rail</strong> is a <span class="highlight">real-time cooking game</span> and 
-                <span class="highlight">order management system</span> that uses ESP32 microcontrollers 
-                to track ingredient preparation through every step of the cooking process.
-            </p>
-            <p>
-                The system ensures that orders are prepared correctly by <span class="highlight-warn">validating</span> 
-                each ingredient's preparation status against the recipe requirements before an order can be completed.
-            </p>
-        </div>
+  <div class="seal"><span>E</span></div>
+  <div class="eyebrow">Presented by the Brigade</div>
 
-        <!-- How It Works -->
-        <div class="system-section" style="margin-top: 16px;">
-            <h3>⚙️ How It Works</h3>
-            
-            <p><strong>1. Hardware Components</strong></p>
-            <ul>
-                <li><strong>Tag ESP32</strong> — Passive RFID/NFC chips attached to ingredients (e.g., "Beef", "Lettuce")</li>
-                <li><strong>Tagger ESP32</strong> — Station scanners placed at cooking stations (e.g., "Grill", "Prep")</li>
-                <li><strong>Counter ESP32</strong> — Submission device that sends completed orders for validation</li>
-            </ul>
+  <h1>Enitio</h1>
+  <div class="year">2026</div>
 
-            <p><strong>2. Setup Phase</strong></p>
-            <ul>
-                <li>Staff registers all ESP32 devices in the system</li>
-                <li>Each Tag ESP32 is <span class="highlight">assigned to an ingredient</span> (e.g., MAC "AA:BB:CC" → "Beef")</li>
-                <li>Each Tagger ESP32 is <span class="highlight">assigned to a station</span> (e.g., MAC "DD:EE:FF" → "Grill Station")</li>
-                <li>Recipes are created linking ingredients to <span class="highlight-warn">required preparation steps</span></li>
-            </ul>
+  <div class="rule-orn">
+    <span class="line"></span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="#b8923f" stroke-width="1.4"><path d="M12 3l2.4 6.6L21 12l-6.6 2.4L12 21l-2.4-6.6L3 12l6.6-2.4L12 3z"/></svg>
+    <span class="line"></span>
+  </div>
 
-            <p><strong>3. Order Flow</strong></p>
-            <ul>
-                <li><span class="highlight">Order Created</span> — System generates a new order with a unique number (e.g., "K-001")</li>
-                <li><span class="highlight-warn">Ingredients Prepared</span> — Chef scans tags at stations:
-                    <br>• Beef tag scanned at Grill → <span class="highlight-warn">current_status: "Default → Cook"</span>
-                    <br>• Lettuce tag scanned at Prep → <span class="highlight-warn">current_status: "Default → Chop"</span>
-                    <br>• Bun tag scanned at Toaster → <span class="highlight-warn">current_status: "Default → Toast"</span>
-                </li>
-                <li><span class="highlight">Order Submitted</span> — Counter ESP sends all scanned tag MACs to server</li>
-                <li><span class="highlight-warn">Validation</span> — Server checks each tag's current_status against recipe requirements:
-                    <br>• Beef → "Default → Cook" ✅ Expected: "Default → Cook"
-                    <br>• Lettuce → "Default → Chop" ✅ Expected: "Default → Chop"
-                    <br>• Bun → "Default → Toast" ✅ Expected: "Default → Toast"
-                </li>
-                <li><span class="highlight">Result</span> — If <span class="highlight">ALL PASS</span>, order is 
-                    <span class="highlight">COMPLETED</span> ✅ and all tags reset to "Default"
-                    <br>If <span class="highlight-danger">ANY FAIL</span>, order is <span class="highlight-danger">FAILED</span> ❌
-                </li>
-            </ul>
-        </div>
+  <p class="elaboration">Overcooked</p>
+  <p class="elaboration-sub">A Ticket Rail Production</p>
 
-        <!-- System Features -->
-        <div class="system-section" style="margin-top: 16px;">
-            <h3>✨ Key Features</h3>
-            <ul>
-                <li><strong>Real-time Status Tracking</strong> — Each ingredient tag maintains a <span class="highlight-warn">status chain</span> (e.g., "Default → Chop → Cook → Plate")</li>
-                <li><strong>Automatic Validation</strong> — Server automatically validates orders against recipe requirements</li>
-                <li><strong>Live Game Dashboard</strong> — Visual display of active orders with ingredient status dots</li>
-                <li><strong>Control Dashboard</strong> — Adjust game parameters (spawn rate, prep time, service duration)</li>
-                <li><strong>ESP Monitoring</strong> — Real-time status of all connected ESP32 devices</li>
-                <li><strong>Leaderboards</strong> — Track top performers by score, orders served, and accuracy</li>
-                <li><strong>Recipe Management</strong> — Create and edit recipes with ingredient requirements and preparation steps</li>
-            </ul>
-        </div>
-
-        <!-- Technology Stack -->
-        <div class="system-section" style="margin-top: 16px;">
-            <h3>🛠️ Technology Stack</h3>
-            <ul>
-                <li><strong>Backend:</strong> Node.js, Express.js, SQLite3</li>
-                <li><strong>Frontend:</strong> HTML5, CSS3, JavaScript, EJS Templates</li>
-                <li><strong>Hardware:</strong> ESP32 Microcontrollers, RFID/NFC Tags</li>
-                <li><strong>Communication:</strong> HTTP/REST APIs, BroadcastChannel API</li>
-                <li><strong>Database:</strong> SQLite with foreign key constraints and transaction support</li>
-            </ul>
-        </div>
-
-        <!-- System Flow Diagram -->
-        <div class="system-section" style="margin-top: 16px;">
-            <h3>🔄 System Flow</h3>
-            <p style="font-family: 'Courier Prime', monospace; color: #6b6558; font-size: 13px; line-height: 2;">
-                <span class="highlight">ESP32 Tag</span> → <span class="highlight-warn">Tagger scans</span> → <span class="highlight">Server updates status</span><br>
-                <span style="color: #4a9d6e;">↓</span><br>
-                <span class="highlight">Counter ESP submits</span> → <span class="highlight-warn">Server validates</span> → <span class="highlight">Order COMPLETED ✅</span><br>
-                <span style="color: #d9463c;">OR</span><br>
-                <span class="highlight">Counter ESP submits</span> → <span class="highlight-warn">Server validates</span> → <span class="highlight-danger">Order FAILED ❌</span>
-            </p>
-        </div>
-
-        <button class="back-btn" onclick="window.location.href='/'">⬅ Back to Home</button>
-        
-        <div class="footer-text">
-            &copy; 2026 Ticket Rail — Smart Kitchen Order Management System
-        </div>
+  <div class="course">
+    <div class="course-title">Software</div>
+    <div class="course-desc">The Recipe &amp; The Rail</div>
+    <div class="entry">
+      <span class="name">Tian&nbsp;Ning</span>
+      <span class="leader"></span>
+      <span class="role">Lead Software Developer</span>
     </div>
+    <div class="entry">
+      <span class="name">Avan</span>
+      <span class="leader"></span>
+      <span class="role">Software Developer</span>
+    </div>
+  </div>
+
+  <div class="course">
+    <div class="course-title">Hardware</div>
+    <div class="course-desc">The Pass &amp; The Counter</div>
+    <div class="entry">
+      <span class="name">En&nbsp;Hui</span>
+      <span class="leader"></span>
+      <span class="role">Lead Hardware Engineer</span>
+    </div>
+    <div class="entry">
+      <span class="name">Yong&nbsp;Ying</span>
+      <span class="leader"></span>
+      <span class="role">Hardware Engineer</span>
+    </div>
+  </div>
+
+  <div class="footer-rule"></div>
+  <p class="footer-note">Service concluded — thank you for playing.</p>
+
+</div>
+
 </body>
 </html>

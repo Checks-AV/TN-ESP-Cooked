@@ -69,6 +69,7 @@ curl http://localhost:3000/api/stations
   }
 }
 
+http://localhost:4000/esp-monitor.html
 http://localhost:4000/esp-test-console.html
 node inspect-db.js
 cd C:\Users\CTN\Documents\GitHub\TN-ESP-Cooked\TianNingTestEJS

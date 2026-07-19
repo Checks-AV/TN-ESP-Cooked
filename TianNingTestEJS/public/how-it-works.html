@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Ticket Rail Works — Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --steel-dark:#1c1f21; --steel:#24282b; --panel:#2a2f32;
+    --line:rgba(255,255,255,0.08);
+    --ink:#e9e6de; --ink-faint:#8a8f92; --ink-dim:#5f6467;
+    --gold:#dfa62e; --green:#4a9d6e; --red:#d9463c; --blue:#4a6a9d;
+    --ticket:#f3ecd8; --ticket-ink:#26241f;
+    --code-bg:#151719;
+  }
+  * { box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0; background:var(--steel-dark); color:var(--ink);
+    font-family:'Inter', sans-serif; line-height:1.65;
+  }
+
+  /* ── HERO ── */
+  .hero{
+    padding:64px 48px 48px; border-bottom:4px solid var(--gold);
+    background:
+      radial-gradient(ellipse at top left, rgba(223,166,46,0.08), transparent 60%),
+      var(--steel);
+    position:relative;
+  }
+  .hero .eyebrow{
+    font-family:'Courier Prime', monospace; font-size:12px; letter-spacing:3px;
+    text-transform:uppercase; color:var(--gold); margin-bottom:14px;
+  }
+  .hero h1{
+    font-family:'Bebas Neue', sans-serif; font-size:56px; letter-spacing:1px;
+    margin:0 0 10px; color:#f5f2ea; line-height:1;
+  }
+  .hero p.lede{
+    font-size:17px; color:var(--ink-faint); max-width:720px; margin:0;
+  }
+
+  /* ── LAYOUT ── */
+  .layout{ display:flex; max-width:1280px; margin:0 auto; }
+  nav.toc{
+    width:250px; flex-shrink:0; padding:40px 20px 40px 48px;
+    position:sticky; top:0; align-self:flex-start; max-height:100vh; overflow-y:auto;
+  }
+  nav.toc .toc-label{
+    font-family:'Courier Prime', monospace; font-size:11px; letter-spacing:2px;
+    text-transform:uppercase; color:var(--ink-dim); margin-bottom:14px;
+  }
+  nav.toc a{
+    display:block; font-size:13px; color:var(--ink-faint); text-decoration:none;
+    padding:6px 0; border-left:2px solid transparent; padding-left:12px;
+    transition:0.15s;
+  }
+  nav.toc a:hover{ color:var(--ink); border-left-color:var(--ink-dim); }
+
+  main{ flex:1; padding:40px 48px 100px; min-width:0; }
+
+  section{ margin-bottom:64px; scroll-margin-top:24px; }
+  section h2{
+    font-family:'Bebas Neue', sans-serif; font-size:30px; letter-spacing:1px;
+    color:#f5f2ea; margin:0 0 6px; padding-bottom:12px; border-bottom:1px solid var(--line);
+  }
+  section h2 .num{ color:var(--gold); margin-right:10px; }
+  section h3{
+    font-family:'Inter', sans-serif; font-weight:700; font-size:16px;
+    color:#f0ede4; margin:28px 0 10px;
+  }
+  section p{ color:#cfcbc0; font-size:15px; max-width:760px; }
+  section ul, section ol{ color:#cfcbc0; font-size:15px; max-width:760px; padding-left:22px; }
+  section li{ margin-bottom:6px; }
+  code{
+    font-family:'Courier Prime', monospace; background:rgba(255,255,255,0.06);
+    padding:1px 6px; border-radius:4px; font-size:0.9em; color:#f5d78a;
+  }
+  pre{
+    background:var(--code-bg); border:1px solid var(--line); border-radius:8px;
+    padding:16px 18px; overflow-x:auto; font-family:'Courier Prime', monospace;
+    font-size:13px; line-height:1.55; color:#d8d4c8; max-width:760px;
+  }
+  pre code{ background:none; padding:0; color:inherit; }
+
+  /* ── ROLE CARDS ── */
+  .role-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; max-width:900px; margin-top:16px; }
+  .role-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 20px;
+  }
+  .role-card .role-name{
+    font-family:'Bebas Neue', sans-serif; font-size:20px; letter-spacing:1px; margin-bottom:6px;
+  }
+  .role-card.general .role-name{ color:var(--green); }
+  .role-card.counter .role-name{ color:var(--blue); }
+  .role-card.reset .role-name{ color:var(--red); }
+  .role-card p{ font-size:13px; color:var(--ink-faint); margin:0; }
+  .role-card .role-tag{
+    display:inline-block; font-family:'Courier Prime', monospace; font-size:10px;
+    background:rgba(255,255,255,0.06); padding:2px 8px; border-radius:10px;
+    color:var(--ink-faint); margin-top:10px;
+  }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow{
+    display:flex; align-items:stretch; gap:0; margin:24px 0; flex-wrap:wrap;
+  }
+  .flow-step{
+    background:var(--panel); border:1px solid var(--line); border-radius:8px;
+    padding:14px 16px; flex:1; min-width:150px; position:relative;
+  }
+  .flow-step .step-num{
+    font-family:'Bebas Neue', sans-serif; color:var(--gold); font-size:13px; letter-spacing:1px;
+  }
+  .flow-step .step-title{ font-weight:700; font-size:13px; margin:4px 0 4px; color:#f0ede4; }
+  .flow-step .step-desc{ font-size:11.5px; color:var(--ink-faint); line-height:1.4; }
+  .flow-arrow{
+    display:flex; align-items:center; justify-content:center; color:var(--ink-dim);
+    font-size:20px; padding:0 6px; flex-shrink:0;
+  }
+
+  /* ── TABLE ── */
+  table{
+    border-collapse:collapse; width:100%; max-width:760px; margin:16px 0;
+    font-size:13.5px; font-family:'Courier Prime', monospace;
+  }
+  th, td{ text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); }
+  th{ color:var(--gold); font-size:11px; text-transform:uppercase; letter-spacing:1px; }
+  td{ color:#cfcbc0; }
+  tr:hover td{ background:rgba(255,255,255,0.02); }
+
+  /* ── TICKET MOCKUP ── */
+  .ticket-mock{
+    display:inline-block; background:var(--ticket); color:var(--ticket-ink);
+    border-radius:6px; padding:14px 18px; font-family:'Courier Prime', monospace;
+    font-size:13px; box-shadow:0 8px 20px rgba(0,0,0,0.35); margin:16px 0;
+  }
+  .ticket-mock .t-head{ font-weight:700; font-size:15px; border-bottom:1px dashed #b8ad8c; padding-bottom:6px; margin-bottom:6px; }
+  .ticket-mock .t-row{ display:flex; justify-content:space-between; gap:24px; }
+
+  /* ── STATUS CHAIN ── */
+  .chain{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0; font-family:'Courier Prime', monospace; font-size:13px; }
+  .chain .link{ background:var(--panel); border:1px solid var(--line); border-radius:20px; padding:5px 14px; }
+  .chain .link.default{ color:var(--ink-faint); }
+  .chain .link.step{ color:var(--gold); border-color:rgba(223,166,46,0.35); }
+  .chain .arrow{ color:var(--ink-dim); }
+
+  .callout{
+    border-left:3px solid var(--gold); background:rgba(223,166,46,0.06);
+    padding:12px 16px; border-radius:0 8px 8px 0; max-width:740px; margin:16px 0;
+    font-size:13.5px; color:#e8dcc0;
+  }
+  .callout.warn{ border-left-color:var(--red); background:rgba(217,70,60,0.06); color:#f0cfc9; }
+
+  footer{
+    text-align:center; padding:32px; color:var(--ink-dim); font-size:12px;
+    border-top:1px solid var(--line); font-family:'Courier Prime', monospace;
+  }
+
+  @media (max-width: 900px){
+    nav.toc{ display:none; }
+    main{ padding:32px 20px 80px; }
+    .hero{ padding:40px 20px; }
+    .hero h1{ font-size:38px; }
+    .role-grid{ grid-template-columns:1fr; }
+    .flow{ flex-direction:column; }
+    .flow-arrow{ transform:rotate(90deg); padding:4px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="eyebrow">Ticket Rail — Documentation</div>
+  <h1>How the game actually works</h1>
+  <p class="lede">A full walkthrough of the architecture: how a ticket becomes a database row, how a physical RFID scan becomes a status update, and how three kinds of ESP32 stations cooperate to validate a dish in real time.</p>
+</div>
+
+<div class="layout">
+  <nav class="toc">
+    <div class="toc-label">Contents</div>
+    <a href="#overview">Overview</a>
+    <a href="#architecture">System architecture</a>
+    <a href="#stations">The three station roles</a>
+    <a href="#schema">Database model</a>
+    <a href="#chain">The status chain</a>
+    <a href="#lifecycle">Order lifecycle</a>
+    <a href="#messages">ESP32 message reference</a>
+    <a href="#realtime">Real-time updates (SSE)</a>
+    <a href="#tools">Testing &amp; monitoring tools</a>
+    <a href="#gotchas">Known gotchas</a>
+  </nav>
+
+  <main>
+
+    <section id="overview">
+      <h2><span class="num">01</span>Overview</h2>
+      <p>Ticket Rail is a physical-digital cooking game in the spirit of Overcooked. Orders ("tickets") spawn on a screen with a random dish and a countdown timer. Real ESP32 microcontrollers, stationed around a physical kitchen, read RFID tags glued to plastic "ingredients." As players carry ingredients between stations and scan them, the server tracks what's been done to each one. When a finished dish is presented at the Counter station and scanned there, the server checks whether every ingredient went through the correct sequence of steps — and the ticket is marked served or failed accordingly.</p>
+      <p>The interesting design problem is that the game logic lives almost entirely on the server, not in the browser or on the microcontrollers. ESP32s are deliberately kept dumb: they scan a tag, know which station they're bolted to, and POST a small JSON message. All the recipe knowledge, validation, and scoring happens in one place — <code>routes/ticketrail.js</code> and <code>routes/esp32comms.js</code> — which makes the system easy to reason about and easy to test without any hardware at all.</p>
+    </section>
+
+    <section id="architecture">
+      <h2><span class="num">02</span>System architecture</h2>
+      <p>Four kinds of things talk to the Express server, each over plain HTTP (and one over Server-Sent Events for push updates):</p>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="step-title">Game screen</div>
+          <div class="step-desc"><code>game.ejs</code> — spawns tickets, shows timers, plays sound/visual feedback. Runs entirely client-side except for two things: registering a new order, and receiving pass/fail results.</div>
+        </div>
+        <div class="flow-arrow">⇄</div>
+        <div class="flow-step">
+          <div class="step-title">Express server</div>
+          <div class="step-desc">SQLite-backed. Owns the recipe data, the live order table, and every RFID tag's current status. This is the only place validation logic lives.</div>
+        </div>
+        <div class="flow-arrow">⇄</div>
+        <div class="flow-step">
+          <div class="step-title">ESP32 stations</div>
+          <div class="step-desc">General (prep), Counter (submit), Reset (utility). Each just POSTs small JSON payloads — no game logic on the device.</div>
+        </div>
+        <div class="flow-arrow">⇄</div>
+        <div class="flow-step">
+          <div class="step-title">RFID tags</div>
+          <div class="step-desc">Passive stickers, one per physical ingredient prop. They don't talk to anything themselves — a station's RFID reader scans them and reports the UID to the server.</div>
+        </div>
+      </div>
+      <p>The control dashboard (<code>gamesettings.ejs</code>) is a fifth participant, but it only talks to the game screen — never directly to the server — via the browser's own <code>BroadcastChannel</code> API (see <a href="#realtime">Real-time updates</a> for why that matters).</p>
+    </section>
+
+    <section id="stations">
+      <h2><span class="num">03</span>The three station roles</h2>
+      <p>Every physical ESP32 is registered once and permanently assigned to exactly one <em>station</em> — a row in the <code>station</code> table. The station's <em>name</em> is what determines what kind of message the server will accept from that device. This is enforced on the server, not trusted from the device, so a misconfigured or spoofed ESP32 can't do another station's job.</p>
+      <div class="role-grid">
+        <div class="role-card general">
+          <div class="role-name">General</div>
+          <p>Prep stations. Read a tag, report a <code>preparation_method</code> (Chop, Cook, Boil, etc.) performed on it. The server checks <code>station_preparation_method</code> to confirm that particular station is allowed to do that particular action before updating the tag.</p>
+          <span class="role-tag">message_type: "action"</span>
+        </div>
+        <div class="role-card counter">
+          <div class="role-name">Counter</div>
+          <p>Exactly one of these. Scans the finished dish's ingredient tags and submits the order number. This is the only station allowed to call the order-validation endpoint — every other station gets a 403 if it tries.</p>
+          <span class="role-tag">POST /api/esp/submit</span>
+        </div>
+        <div class="role-card reset">
+          <div class="role-name">Reset</div>
+          <p>A utility station with one job: clear a single tag's status back to <code>Default</code> without touching any order. Useful for un-jamming a tag mid-service without resetting the whole kitchen.</p>
+          <span class="role-tag">message_type: "reset"</span>
+        </div>
+      </div>
+      <div class="callout">New ESP32s that boot and register without specifying a <code>station_id</code> are automatically assigned to <strong>General</strong> — so adding a new prep station to the kitchen needs zero manual setup in the admin UI.</div>
+    </section>
+
+    <section id="schema">
+      <h2><span class="num">04</span>Database model</h2>
+      <p>The schema separates three concerns that are easy to conflate: what a dish <em>requires</em>, what a physical device <em>is</em>, and what has <em>actually happened</em> during a live service.</p>
+      <table>
+        <tr><th>Table</th><th>Purpose</th></tr>
+        <tr><td>food</td><td>Menu items — "Fried rice", "Sushi", etc.</td></tr>
+        <tr><td>ingredients</td><td>Ingredient types — "Chicken", "Rice", etc. (not tied to any one dish)</td></tr>
+        <tr><td>food_ingredients</td><td>Which ingredients a dish needs, and how many</td></tr>
+        <tr><td>preparation_method</td><td>The vocabulary of actions — Chop, Cook, Boil, Fry, Slice, Dice, Toast</td></tr>
+        <tr><td>food_ingredient_preparation</td><td>The <em>ordered</em> sequence of prep steps a given dish's ingredient needs</td></tr>
+        <tr><td>station</td><td>Physical stations — General, Counter, Reset</td></tr>
+        <tr><td>station_preparation_method</td><td>Which station is allowed to perform which prep method</td></tr>
+        <tr><td>ESP32Devices</td><td>Every physical device that has ever registered, by MAC address</td></tr>
+        <tr><td>ESP32Tagger</td><td>Which station a given device is currently assigned to</td></tr>
+        <tr><td>RFIDTags</td><td>Which physical ingredient prop a tag represents, and its live status chain</td></tr>
+        <tr><td>Orders</td><td>Live tickets — one row per spawned order, with a pending/completed/failed/missed status</td></tr>
+      </table>
+      <p>Notice there's no table storing "what a completed dish looks like" as a single flag — a dish's requirements are always derived on the fly from <code>food_ingredients</code> joined through <code>food_ingredient_preparation</code>, so editing a recipe in the admin UI takes effect on the very next order with no extra sync step.</p>
+    </section>
+
+    <section id="chain">
+      <h2><span class="num">05</span>The status chain</h2>
+      <p>Each <code>RFIDTags</code> row has one column, <code>current_status</code>, that stores the entire history of actions performed on that tag since it was last reset — as a single arrow-joined string, not a foreign key to a fixed list of states.</p>
+      <div class="chain">
+        <span class="link default">Default</span>
+        <span class="arrow">→</span>
+        <span class="link step">Chop</span>
+        <span class="arrow">→</span>
+        <span class="link step">Cook</span>
+      </div>
+      <p>Every time a General station reports an action, the server reads the tag's current chain, appends the new step's name, and writes the whole string back. When the Counter station submits an order, the server independently builds the <em>expected</em> chain for each ingredient from <code>food_ingredient_preparation</code>'s ordered steps, and does a plain string comparison. This means the ordering of steps matters — chopping then cooking is a different chain from cooking then chopping — which mirrors how the physical game actually plays.</p>
+      <div class="callout">This chain-as-a-string approach was chosen over a normalized "current step index" column specifically because it fails loudly and visibly: if you print a tag's <code>current_status</code>, you can read exactly what happened to it, in order, without joining anything.</div>
+    </section>
+
+    <section id="lifecycle">
+      <h2><span class="num">06</span>Order lifecycle</h2>
+      <p>Here's the full path a single ticket takes, end to end:</p>
+      <ol>
+        <li><strong>Spawn.</strong> The game screen's timer picks a random recipe from the ones loaded via <code>GET /api/recipes</code>, builds a ticket element, and starts its own local countdown.</li>
+        <li><strong>Register.</strong> In the same moment, the game POSTs <code>{ order_number, food_id }</code> to <code>/api/orders</code>. This is the only place an <code>Orders</code> row actually gets created — the ticket the player sees is purely a visual representation of that row until this call resolves.</li>
+        <li><strong>Prep.</strong> Players carry the physical ingredient props to General stations and scan them. Each scan is a <code>POST /esp32comms/listen</code> with <code>message_type: "action"</code>, which appends to that tag's status chain (see above).</li>
+        <li><strong>Submit.</strong> The finished dish's tags are scanned at the Counter station, which sends <code>POST /api/esp/submit</code> with the order number, its own MAC, and the list of scanned tag UIDs.</li>
+        <li><strong>Validate.</strong> The server looks up the order's recipe, builds the expected chain per ingredient, and compares it against each tag's actual <code>current_status</code>. It also checks for extra tags that don't belong to the recipe, and required tags that are missing from the scan.</li>
+        <li><strong>Resolve.</strong> The order's row is updated to <code>completed</code> or <code>failed</code>. Either way, <em>every</em> tag in the system is reset back to <code>Default</code>, so the next order starts clean.</li>
+        <li><strong>Push.</strong> The result is broadcast over Server-Sent Events to the game screen, which marks the ticket served or failed and animates it off the rail.</li>
+      </ol>
+      <p>There's a parallel path if nothing happens in time: the game screen's own local timer runs out first, and it calls <code>POST /api/esp/missed</code> itself — no ESP32 involved. This only succeeds if the order is still <code>pending</code>, so a submit that arrives a split second before the timeout wins the race safely; the missed-update simply affects zero rows.</p>
+      <div class="ticket-mock">
+        <div class="t-head">#K-07 — Fried rice</div>
+        <div class="t-row"><span>Rice</span><span>Default → Cook</span></div>
+        <div class="t-row"><span>Egg</span><span>Default → Chop → Fry</span></div>
+      </div>
+    </section>
+
+    <section id="messages">
+      <h2><span class="num">07</span>ESP32 message reference</h2>
+
+      <h3>Register (any station, on boot)</h3>
+      <pre><code>POST /esp32comms/register
+{
+  "device_mac": "AA:BB:CC:DD:EE:01",
+  "station_id": 1,          // optional — omit to auto-assign to "General"
+  "ip_address": "192.168.1.101"
+}</code></pre>
+
+      <h3>Heartbeat</h3>
+      <pre><code>POST /esp32comms/listen
+{ "device_mac": "AA:BB:CC:DD:EE:01", "message_type": "ping", "payload": {} }</code></pre>
+
+      <h3>Prep action (General station)</h3>
+      <pre><code>POST /esp32comms/listen
+{
+  "device_mac": "AA:BB:CC:DD:EE:01",
+  "message_type": "action",
+  "payload": {
+    "tag_rfid": "TAG-001",
+    "action_name": "Chop"   // or a numeric preparation_method_id — both work
+  }
+}</code></pre>
+
+      <h3>Clear a tag (Reset station)</h3>
+      <pre><code>POST /esp32comms/listen
+{
+  "device_mac": "AA:BB:CC:DD:EE:03",
+  "message_type": "reset",
+  "payload": { "tag_rfid": "TAG-001" }
+}</code></pre>
+
+      <h3>Submit a finished dish (Counter station)</h3>
+      <pre><code>POST /api/esp/submit
+{
+  "order_number": "07",              // raw 2-digit string, not "K-07"
+  "device_mac": "AA:BB:CC:DD:EE:02",
+  "tag_macs": ["TAG-001", "TAG-002"]
+}</code></pre>
+
+      <p>Every one of these is rejected with a clear error if the sending device isn't registered, has no station assigned, or is the wrong <em>kind</em> of station for that message — a General station can't submit, a Counter station can't perform prep actions, and only the Reset station can send <code>reset</code> messages.</p>
+    </section>
+
+    <section id="realtime">
+      <h2><span class="num">08</span>Real-time updates (SSE)</h2>
+      <p>Order results need to reach the game screen the instant they happen, not on the next poll. This is done with <strong>Server-Sent Events</strong>, not the browser's <code>BroadcastChannel</code> API — those are two unrelated things that happen to share a name. Node's <code>BroadcastChannel</code> only lets threads inside the same Node process talk to each other; it can never reach an actual browser tab over the network. The game screen opens <code>new EventSource('/api/events')</code>, and the server pushes <code>esp-order-complete</code> events down that connection the moment <code>/api/esp/submit</code> resolves.</p>
+      <p>The browser's own <code>BroadcastChannel</code> is still used, but only for what it's actually good for: syncing the game tab and the control dashboard tab, which really are two tabs in the same browser. The game screen re-broadcasts anything the dashboard needs to know onto that channel after it receives it over SSE.</p>
+    </section>
+
+    <section id="tools">
+      <h2><span class="num">09</span>Testing &amp; monitoring tools</h2>
+      <table>
+        <tr><th>Tool</th><th>What it's for</th></tr>
+        <tr><td>esp-test-console.html</td><td>Manually fire any single ESP message from a form, see the raw response</td></tr>
+        <tr><td>simulate-esp.js</td><td>Node script that walks through register → action → submit in one run, for quick end-to-end checks without touching a browser</td></tr>
+        <tr><td>esp-monitor.html</td><td>Live view of <em>every</em> ESP message any device sends, auto-sorted into a tab per device MAC</td></tr>
+        <tr><td>inspect-db.js</td><td>Dumps every key table to the terminal — no <code>sqlite3</code> CLI install needed</td></tr>
+      </table>
+      <p>The monitor works without any changes to the actual game routes: it's a single piece of middleware (<code>routes/esplisten.js</code>) that intercepts just the <code>/esp32comms/*</code> and <code>/api/esp/*</code> paths, mounted before those routers so it sees the request first.</p>
+    </section>
+
+    <section id="gotchas">
+      <h2><span class="num">10</span>Known gotchas</h2>
+      <ul>
+        <li><code>Orders.order_number</code> is <code>UNIQUE</code> across the table's <em>entire history</em>, not just among pending rows — a new service must call <code>POST /api/orders/clear</code> before spawning ticket <code>#01</code> again, or the insert fails.</li>
+        <li>The reset-all-tags step after every submit is global — it doesn't scope to just the tags involved in that one order, so two orders in flight at once will interfere with each other's prep progress.</li>
+        <li>The <code>ingredientstatus</code> table still exists in the schema but nothing reads or writes it anymore — tag state lives entirely in <code>RFIDTags.current_status</code> now.</li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+
+<footer>Ticket Rail — internal documentation, generated for reference during development.</footer>
+
+</body>
+</html>

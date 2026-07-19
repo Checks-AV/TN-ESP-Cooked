@@ -32,8 +32,25 @@ app.use('/', appRoutes);
 const settingsRoutes = require('./routes/settings');
 app.use('/settings', settingsRoutes);
 
+// esplisten MUST be mounted before esp32comms/ticketrail so it can see
+// each request first and wrap res.json (and res.redirect) before the
+// real route handler responds — that's how it captures both the
+// "received" and "result" side of every ESP message without needing
+// any changes to esp32comms.js or ticketrail.js themselves.
+const esplistenRoutes = require('./routes/esplisten');
+app.use(esplistenRoutes);
+
 const esp32Routes = require('./routes/esp32comms');
 app.use('/esp32comms', esp32Routes);
+
+// NOTE: this was missing entirely in the previous version of this file.
+// Without it, every route defined in routes/ticketrail.js — /api/recipes,
+// /api/orders, /api/orders/clear, /api/esp/status, /api/esp/missed,
+// /api/esp/submit, /api/events (SSE for the game), /game, and
+// /game/settings — would all 404, since Express never knew this router
+// existed.
+const ticketrailRoutes = require('./routes/ticketrail');
+app.use(ticketrailRoutes);
 
 app.use(express.text());
 /* app.post('/', (req, res) => {
