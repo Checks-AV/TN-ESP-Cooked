@@ -5,486 +5,1024 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Ticket Rail — Control Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    /* =========================================================
+       DESIGN TOKENS - Refined
+       ========================================================= */
+    :root {
+      /* surfaces */
+      --bg-primary: #0f1113;
+      --bg-secondary: #181a1d;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --bg-card-hover: rgba(255, 255, 255, 0.06);
+      --bg-well: rgba(0, 0, 0, 0.4);
+      --border-subtle: rgba(255, 255, 255, 0.06);
+      --border-medium: rgba(255, 255, 255, 0.1);
+
+      /* ink */
+      --ink: #e8e4dc;
+      --ink-bright: #f5f2ea;
+      --ink-dim: #a89f8f;
+      --ink-faint: #6b6558;
+
+      /* accents */
+      --green: #4a9d6e;
+      --green-bg: rgba(74, 157, 110, 0.15);
+      --green-glow: rgba(74, 157, 110, 0.3);
+      
+      --amber: #dfa62e;
+      --amber-bg: rgba(223, 166, 46, 0.15);
+      
+      --red: #d9463c;
+      --red-bg: rgba(217, 70, 60, 0.15);
+      --red-glow: rgba(217, 70, 60, 0.3);
+      
+      --blue: #6cb4ee;
+      --violet: #c96ad6;
+      --teal: #4ad6d6;
+
+      /* ticket */
+      --ticket-bg: #f3ecd8;
+      --ticket-ink: #26241f;
+
+      /* type */
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'Courier Prime', monospace;
+
+      /* spacing */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 24px;
+      --space-6: 32px;
+      --space-7: 48px;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --radius-pill: 999px;
+    }
+
     * { box-sizing: border-box; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
-      background: radial-gradient(ellipse at top, #363c40 0%, #24282b 60%);
-      font-family: 'Inter', sans-serif;
-      color: #e9e6de;
-      padding: 20px 32px 40px;
+      background: var(--bg-primary);
+      font-family: var(--font-body);
+      color: var(--ink);
+      padding: var(--space-5);
+      background-image: 
+        radial-gradient(ellipse at 20% 50%, rgba(74, 157, 110, 0.03) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 50%, rgba(217, 70, 60, 0.03) 0%, transparent 60%);
     }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-secondary); }
+    ::-webkit-scrollbar-thumb { background: #3a3f44; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #4a5054; }
+
+    /* =========================================================
+       HEADER
+       ========================================================= */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      padding: var(--space-4) var(--space-5);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-5);
+      flex-wrap: wrap;
+    }
+
     .brand {
       display: flex;
       align-items: baseline;
-      gap: 12px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      padding-bottom: 16px;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
+      gap: var(--space-3);
     }
     .brand h1 {
-      font-family: 'Bebas Neue', sans-serif;
+      font-family: var(--font-display);
       font-size: 32px;
-      letter-spacing: 3px;
+      letter-spacing: 2px;
       margin: 0;
-      color: #f5f2ea;
+      background: linear-gradient(135deg, var(--ink-bright) 0%, var(--ink-dim) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
     }
-    .brand span.sub {
+    .brand .sub {
       font-size: 11px;
       letter-spacing: 2px;
-      color: #6b6558;
+      color: var(--ink-faint);
       text-transform: uppercase;
+      font-weight: 600;
     }
-    .panel-grid {
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--bg-well);
+      border: 1px solid var(--border-subtle);
+    }
+    .status-badge .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-badge .dot.online { background: var(--green); box-shadow: 0 0 8px var(--green-glow); }
+    .status-badge .dot.offline { background: var(--red); }
+    .status-badge .dot.idle { background: var(--ink-faint); }
+
+    /* =========================================================
+       LAYOUT
+       ========================================================= */
+    .dashboard-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 24px;
-      margin-bottom: 32px;
+      gap: var(--space-5);
+      margin-bottom: var(--space-5);
     }
-    @media (max-width: 800px) {
-      .panel-grid { grid-template-columns: 1fr; }
+    @media (max-width: 1200px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
     }
+
     .card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(255,255,255,0.06);
-      border-radius: 12px;
-      padding: 20px 24px;
-      backdrop-filter: blur(2px);
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-5);
+      transition: border-color 0.2s, background 0.2s;
     }
-    .card h2 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 22px;
-      letter-spacing: 1px;
-      margin: 0 0 16px 0;
-      color: #f0ede4;
-      border-bottom: 1px solid rgba(255,255,255,0.06);
-      padding-bottom: 8px;
+    .card:hover {
+      border-color: var(--border-medium);
+      background: var(--bg-card-hover);
     }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .card-header h2 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      letter-spacing: 0.5px;
+      margin: 0;
+      color: var(--ink-bright);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    .card-header .badge {
+      font-family: var(--font-body);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 12px;
+      border-radius: var(--radius-pill);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-green { background: var(--green-bg); color: var(--green); }
+    .badge-red { background: var(--red-bg); color: var(--red); }
+    .badge-amber { background: var(--amber-bg); color: var(--amber); }
+    .badge-dim { background: rgba(255,255,255,0.05); color: var(--ink-faint); }
+
+    /* =========================================================
+       CONTROLS
+       ========================================================= */
     .control-group {
       display: flex;
       flex-wrap: wrap;
-      gap: 16px 24px;
+      gap: var(--space-3) var(--space-4);
       align-items: center;
     }
+    .control-group + .control-group {
+      margin-top: var(--space-4);
+    }
+
     .control-item {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 14px;
+      gap: var(--space-2);
+      flex: 1;
+      min-width: 160px;
     }
     .control-item label {
-      color: #b5aea0;
-      font-weight: 500;
-      min-width: 70px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ink-dim);
+      min-width: 80px;
+      letter-spacing: 0.3px;
     }
     .control-item input[type="range"] {
-      width: 200px;
-      accent-color: #4a9d6e;
-      background: #2f3438;
+      flex: 1;
+      min-width: 80px;
       height: 4px;
       border-radius: 2px;
+      background: var(--bg-well);
+      -webkit-appearance: none;
+      appearance: none;
+      outline: none;
     }
-    .control-item input[type="number"] {
-      width: 72px;
-      background: #1e2124;
-      border: 1px solid #3d4347;
-      color: #f5f2ea;
-      padding: 6px 8px;
-      border-radius: 6px;
-      font-family: 'Courier Prime', monospace;
-      font-size: 14px;
+    .control-item input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--ink-bright);
+      cursor: pointer;
+      border: 2px solid var(--bg-primary);
+      transition: transform 0.15s;
     }
-    .control-item .value-badge {
-      background: #1e2124;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-family: 'Courier Prime', monospace;
-      font-size: 13px;
-      color: #b5aea0;
-      min-width: 60px;
+    .control-item input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    .control-item input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--ink-bright);
+      cursor: pointer;
+      border: 2px solid var(--bg-primary);
+    }
+
+    .control-item input[type="range"].accent-green::-webkit-slider-thumb { background: var(--green); }
+    .control-item input[type="range"].accent-red::-webkit-slider-thumb { background: var(--red); }
+    .control-item input[type="range"].accent-amber::-webkit-slider-thumb { background: var(--amber); }
+    .control-item input[type="range"].accent-violet::-webkit-slider-thumb { background: var(--violet); }
+
+    .value-badge {
+      background: var(--bg-well);
+      padding: 2px 10px;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--ink-dim);
+      min-width: 48px;
       text-align: center;
+      font-weight: 600;
+      border: 1px solid var(--border-subtle);
     }
+
+    /* =========================================================
+       PRESETS
+       ========================================================= */
     .preset-row {
       display: flex;
-      gap: 8px;
+      gap: var(--space-2);
       flex-wrap: wrap;
-      margin-top: 12px;
+      margin-top: var(--space-3);
     }
     .preset-btn {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: #e9e6de;
-      padding: 6px 16px;
-      border-radius: 30px;
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
+      background: var(--bg-well);
+      border: 1px solid var(--border-subtle);
+      color: var(--ink-dim);
+      padding: 5px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
     }
     .preset-btn:hover {
-      background: rgba(74, 157, 110, 0.2);
-      border-color: #4a9d6e;
+      background: var(--green-bg);
+      border-color: var(--green);
+      color: var(--green);
+      transform: translateY(-1px);
     }
-    .stat-row {
+
+    /* =========================================================
+       BUTTONS
+       ========================================================= */
+    .btn {
+      padding: 8px 18px;
+      border: none;
+      border-radius: var(--radius-pill);
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    .btn:not(:disabled):hover {
+      transform: translateY(-2px);
+    }
+    .btn:not(:disabled):active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: var(--green);
+      color: #fff;
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: #3d8a5e;
+      box-shadow: 0 4px 16px var(--green-glow);
+    }
+
+    .btn-secondary {
+      background: var(--bg-well);
+      color: var(--ink);
+      border: 1px solid var(--border-subtle);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--border-medium);
+    }
+
+    .btn-danger {
+      background: var(--red);
+      color: #fff;
+    }
+    .btn-danger:hover:not(:disabled) {
+      background: #c23d34;
+      box-shadow: 0 4px 16px var(--red-glow);
+    }
+
+    .btn-peak {
+      background: var(--red);
+      color: #fff;
+      animation: pulse-peak 2s infinite;
+    }
+    .btn-peak:hover:not(:disabled) {
+      background: #c23d34;
+      box-shadow: 0 4px 20px var(--red-glow);
+    }
+    @keyframes pulse-peak {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(217, 70, 60, 0.3); }
+      50% { box-shadow: 0 0 20px 8px rgba(217, 70, 60, 0.15); }
+    }
+
+    .btn-full {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .btn-row {
       display: flex;
-      gap: 24px;
+      gap: var(--space-2);
       flex-wrap: wrap;
-      background: rgba(0,0,0,0.2);
-      border-radius: 40px;
-      padding: 8px 20px;
-      margin-top: 6px;
+    }
+
+    /* =========================================================
+       STATS
+       ========================================================= */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-3);
+      margin-top: var(--space-3);
+    }
+    @media (max-width: 600px) {
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
     }
     .stat-item {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-      font-size: 13px;
-      color: #b5aea0;
+      background: var(--bg-well);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      text-align: center;
+      border: 1px solid var(--border-subtle);
     }
     .stat-item .num {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 26px;
-      color: #f5f2ea;
-      letter-spacing: 0.5px;
+      font-family: var(--font-display);
+      font-size: 28px;
+      display: block;
+      color: var(--ink-bright);
+      letter-spacing: 1px;
     }
-    .stat-item .num.warn { color: #dfa62e; }
-    .stat-item .num.danger { color: #d9463c; }
-    .toggle-btn {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.1);
-      color: #f5f2ea;
-      padding: 10px 24px;
-      border-radius: 40px;
+    .stat-item .label {
+      font-size: 10px;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 0.5px;
-      cursor: pointer;
-      transition: 0.15s;
-      font-family: 'Inter', sans-serif;
     }
-    .toggle-btn.active {
-      background: #4a9d6e;
-      border-color: #4a9d6e;
-      color: #12241a;
+    .stat-item .num.score { color: var(--amber); }
+    .stat-item .num.served { color: var(--green); }
+    .stat-item .num.missed { color: var(--red); }
+    .stat-item .num.failed { color: var(--red); }
+
+    /* =========================================================
+       SERVICE CLOCK
+       ========================================================= */
+    .service-clock {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      margin-top: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-well);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
     }
-    .toggle-btn:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
+    .service-clock .time {
+      font-family: var(--font-display);
+      font-size: 28px;
+      color: var(--ink-bright);
+      min-width: 72px;
+      letter-spacing: 2px;
     }
-    .toggle-btn:active { transform: scale(0.96); }
-    .footnote {
-      font-family: 'Courier Prime', monospace;
+    .service-clock .track {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .service-clock .track .fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, var(--green), var(--amber) 65%, var(--red));
+      transition: width 0.5s ease;
+      border-radius: 3px;
+    }
+    .service-clock .label {
       font-size: 11px;
-      color: #6b6558;
-      margin-top: 20px;
-      border-top: 1px solid rgba(255,255,255,0.04);
-      padding-top: 16px;
-      text-align: center;
+      color: var(--ink-faint);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
-    .live-indicator {
+
+    /* =========================================================
+       SWITCH (Peak Toggle)
+       ========================================================= */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-4);
+      margin-bottom: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-well);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+    }
+    .switch-label {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .switch-label .desc {
+      display: block;
+      font-size: 11px;
+      color: var(--ink-faint);
+      font-weight: 400;
+      margin-top: 2px;
+    }
+    .switch {
+      position: relative;
       display: inline-block;
+      width: 48px;
+      height: 26px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      cursor: pointer;
+      z-index: 2;
+    }
+    .slider-toggle {
+      position: absolute;
+      pointer-events: none;
+      inset: 0;
+      background: #3d4347;
+      transition: background 0.25s;
+      border-radius: var(--radius-pill);
+    }
+    .slider-toggle::before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--ink);
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      border-radius: 50%;
+    }
+    .switch input:checked + .slider-toggle {
+      background: var(--red);
+    }
+    .switch input:checked + .slider-toggle::before {
+      transform: translateX(22px);
+    }
+
+    /* =========================================================
+       PEAK STATUS
+       ========================================================= */
+    .peak-status {
+      margin-top: var(--space-4);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-well);
+      transition: all 0.3s;
+    }
+    .peak-status .dot {
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #4a9d6e;
-      margin-right: 8px;
-      box-shadow: 0 0 8px #4a9d6e;
-      transition: 0.2s;
+      flex-shrink: 0;
+      transition: all 0.3s;
     }
-    .live-indicator.paused { background: #dfa62e; box-shadow: 0 0 8px #dfa62e; }
-    .live-indicator.off { background: #6b6558; box-shadow: none; }
+    .peak-status .dot.idle {
+      background: var(--ink-faint);
+    }
+    .peak-status .dot.active {
+      background: var(--red);
+      box-shadow: 0 0 16px var(--red-glow);
+      animation: pulse-dot 0.8s infinite;
+    }
+    .peak-status .dot.manual {
+      background: #ff6b4a;
+      box-shadow: 0 0 20px rgba(255, 107, 74, 0.5);
+      animation: pulse-dot 0.4s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+    .peak-status.active {
+      border-color: var(--red);
+      background: var(--red-bg);
+    }
+    .peak-status.manual {
+      border-color: #ff6b4a;
+      background: rgba(255, 107, 74, 0.1);
+    }
 
+    /* =========================================================
+       MINI RAIL
+       ========================================================= */
     .mini-rail {
       display: flex;
-      gap: 12px;
-      padding: 12px 0;
+      gap: var(--space-3);
+      padding: var(--space-3) 0;
       overflow-x: auto;
-      min-height: 60px;
+      min-height: 56px;
       align-items: center;
+      flex-wrap: nowrap;
     }
-    .mini-rail::-webkit-scrollbar { height: 6px; }
-    .mini-rail::-webkit-scrollbar-thumb { background: #4a5054; border-radius: 3px; }
+    .mini-rail::-webkit-scrollbar { height: 4px; }
+    .mini-rail::-webkit-scrollbar-thumb { background: #4a5054; border-radius: 2px; }
+
     .mini-ticket {
-      background: #f3ecd8;
-      color: #26241f;
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-family: 'Courier Prime', monospace;
+      background: var(--ticket-bg);
+      color: var(--ticket-ink);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
       font-size: 11px;
       white-space: nowrap;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
       transform: rotate(var(--tilt, 0deg));
       flex: 0 0 auto;
       animation: miniDrop 0.3s ease-out;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     @keyframes miniDrop {
       from { transform: translateY(-10px) rotate(var(--tilt, 0deg)); opacity: 0; }
       to { transform: translateY(0) rotate(var(--tilt, 0deg)); opacity: 1; }
     }
-    .mini-ticket .dish { font-weight: 700; font-size: 13px; }
-    .mini-ticket .time { color: #6b6558; font-size: 10px; }
-    .mini-ticket .status-badge-mini {
+    .mini-ticket .dish { font-weight: 700; font-size: 12px; }
+    .mini-ticket .time { color: var(--ticket-faint); font-size: 10px; }
+    .mini-ticket .status {
       font-size: 8px;
-      padding: 1px 6px;
-      border-radius: 8px;
-      margin-left: 4px;
-      font-weight: 600;
+      padding: 1px 8px;
+      border-radius: var(--radius-pill);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
-    .mini-ticket .status-badge-mini.waiting { background: #dfa62e; color: #2d2410; }
-    .mini-ticket .status-badge-mini.completed { background: #4a9d6e; color: #12241a; }
-    .mini-ticket .status-badge-mini.missed { background: #d9463c; color: #fff; }
-    .mini-ticket .status-badge-mini.failed { background: #d9463c; color: #fff; }
-    .mini-ticket .status-badge-mini.cooking { background: #e3ddc6; color: #5a5334; }
-    
-    .empty-rail-mini {
-      color: #6b6558;
-      font-family: 'Courier Prime', monospace;
+    .status.waiting { background: var(--amber); color: var(--amber-ink); }
+    .status.completed { background: var(--green); color: #fff; }
+    .status.missed, .status.failed { background: var(--red); color: #fff; }
+    .status.cooking { background: #d4cbaa; color: #5a5334; }
+    .status.validating { background: var(--teal); color: #fff; }
+
+    .empty-rail {
+      color: var(--ink-faint);
+      font-family: var(--font-mono);
       font-size: 12px;
-      padding: 12px 0;
-    }
-    .connection-status {
-      padding: 8px 16px;
-      border-radius: 20px;
-      background: rgba(0,0,0,0.3);
-      font-size: 12px;
-      font-family: 'Courier Prime', monospace;
-      display: inline-block;
-    }
-    .connection-status.connected { border-left: 3px solid #4a9d6e; }
-    .connection-status.disconnected { border-left: 3px solid #d9463c; }
-    .connection-status.syncing { border-left: 3px solid #dfa62e; }
-    .nav-link {
-      color: #b5aea0;
-      text-decoration: none;
-      font-size: 13px;
-      padding: 6px 14px;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 20px;
-      transition: 0.15s;
-    }
-    .nav-link:hover {
-      background: rgba(255,255,255,0.05);
-      color: #f5f2ea;
+      padding: var(--space-3) 0;
     }
 
-    /* Logs Section */
-    .logs-container {
-      max-height: 300px;
-      overflow-y: auto;
-      background: rgba(0,0,0,0.3);
-      border-radius: 8px;
-      padding: 12px;
-      font-family: 'Courier Prime', monospace;
+    .order-count {
+      background: var(--green);
+      color: #fff;
+      padding: 2px 10px;
+      border-radius: var(--radius-pill);
       font-size: 12px;
-      border: 1px solid rgba(255,255,255,0.06);
+      font-weight: 700;
     }
-    .logs-container::-webkit-scrollbar {
-      width: 6px;
-    }
-    .logs-container::-webkit-scrollbar-thumb {
-      background: #4a5054;
-      border-radius: 3px;
+
+    /* =========================================================
+       LOGS
+       ========================================================= */
+    .logs-container {
+      max-height: 280px;
+      overflow-y: auto;
+      background: var(--bg-well);
+      border-radius: var(--radius-md);
+      padding: var(--space-3);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      border: 1px solid var(--border-subtle);
     }
     .log-entry {
       padding: 4px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.04);
+      border-bottom: 1px solid var(--border-subtle);
       display: flex;
-      gap: 12px;
+      gap: var(--space-3);
       align-items: baseline;
     }
     .log-time {
-      color: #6b6558;
+      color: var(--ink-faint);
       font-size: 10px;
-      min-width: 80px;
+      min-width: 70px;
+      flex-shrink: 0;
     }
     .log-type {
-      font-size: 10px;
+      font-size: 9px;
       padding: 1px 8px;
-      border-radius: 10px;
-      font-weight: 600;
-      min-width: 70px;
+      border-radius: var(--radius-pill);
+      font-weight: 700;
+      min-width: 60px;
       text-align: center;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
     }
-    .log-type.info { background: #1a3a5c; color: #6cb4ee; }
-    .log-type.success { background: #1a4a2a; color: #4a9d6e; }
-    .log-type.error { background: #4a1a1a; color: #d9463c; }
-    .log-type.esp { background: #4a3a1a; color: #dfa62e; }
-    .log-type.match { background: #1a3a3a; color: #4ad6d6; }
-    .log-type.submit { background: #3a1a4a; color: #c96ad6; }
-    .log-type.order { background: #1a2a4a; color: #6cb4ee; }
-    .log-type.db { background: #1a4a1a; color: #4a9d6e; }
-    .log-message { color: #e9e6de; word-break: break-all; }
+    .log-type.info { background: #1a2a4a; color: var(--blue); }
+    .log-type.success { background: #1a4a2a; color: var(--green); }
+    .log-type.error { background: #4a1a1a; color: var(--red); }
+    .log-type.esp { background: #4a3a1a; color: var(--amber); }
+    .log-type.submit { background: #3a1a4a; color: var(--violet); }
+    .log-type.order { background: #1a2a4a; color: var(--blue); }
+    .log-type.peak { background: #4a1a1a; color: #ff8a70; }
+    .log-type.db { background: #1a4a1a; color: var(--green); }
+    .log-type.match { background: #1a3a3a; color: var(--teal); }
+    .log-message { color: var(--ink); word-break: break-word; }
 
-    .esp-status-indicator {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 12px;
+    .logs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-3);
+      flex-wrap: wrap;
+      gap: var(--space-2);
+    }
+    .logs-actions {
+      display: flex;
+      gap: var(--space-2);
+    }
+
+    /* =========================================================
+       ESP Status
+       ========================================================= */
+    .esp-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      flex-wrap: wrap;
+      margin-top: var(--space-4);
+      padding-top: var(--space-4);
+      border-top: 1px solid var(--border-subtle);
+    }
+    .esp-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      border-radius: var(--radius-pill);
       font-size: 11px;
       font-weight: 600;
     }
-    .esp-status-indicator.online { background: #1a4a2a; color: #4a9d6e; }
-    .esp-status-indicator.offline { background: #4a1a1a; color: #d9463c; }
-    .esp-status-indicator.waiting { background: #4a3a1a; color: #dfa62e; }
+    .esp-status.online { background: var(--green-bg); color: var(--green); }
+    .esp-status.offline { background: var(--red-bg); color: var(--red); }
+    .esp-status.waiting { background: var(--amber-bg); color: var(--amber); }
 
-    .clear-logs-btn {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: #b5aea0;
-      padding: 4px 16px;
-      border-radius: 20px;
-      font-size: 11px;
-      cursor: pointer;
-      transition: 0.15s;
-      font-family: 'Inter', sans-serif;
-    }
-    .clear-logs-btn:hover {
-      background: rgba(255,255,255,0.08);
-      color: #f5f2ea;
+    /* =========================================================
+       RESPONSIVE
+       ========================================================= */
+    @media (max-width: 768px) {
+      body { padding: var(--space-4); }
+      .header { flex-direction: column; align-items: stretch; }
+      .brand h1 { font-size: 24px; }
+      .header-actions { justify-content: flex-start; }
+      .card { padding: var(--space-4); }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+      .control-item { min-width: 140px; }
+      .service-clock .time { font-size: 22px; min-width: 56px; }
     }
 
-    .order-count-badge {
-      background: #4a9d6e;
-      color: #12241a;
-      padding: 2px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-      margin-left: 8px;
+    @media (max-width: 480px) {
+      .control-item { min-width: 100%; }
+      .btn-row .btn { flex: 1; justify-content: center; }
+      .stat-grid { grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+      .stat-item .num { font-size: 22px; }
     }
   </style>
 </head>
 <body>
 
-<div class="brand">
-  <h1>Ticket Rail</h1>
-  <span class="sub">Control Dashboard</span>
-  <span style="margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-    <a href="/game" class="nav-link">🎮 Go to Game</a>
-    <span class="connection-status connected" id="connectionStatus">✅ Game connected</span>
-    <span style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: #b5aea0;">
-      <span class="live-indicator off" id="liveDot"></span>
+<header class="header">
+  <div class="brand">
+    <h1>Ticket Rail</h1>
+    <span class="sub">Control Dashboard</span>
+  </div>
+  <div class="header-actions">
+    <a href="/game" class="btn btn-secondary">🎮 Game View</a>
+    <span class="status-badge">
+      <span class="dot online" id="headerDot"></span>
+      <span id="headerStatus">Connected</span>
+    </span>
+    <span class="status-badge">
+      <span class="dot idle" id="liveDot"></span>
       <span id="liveLabel">idle</span>
     </span>
-  </span>
-</div>
+  </div>
+</header>
 
-<div class="panel-grid">
-  <!-- TIMING & FREQUENCY -->
+<div class="dashboard-grid">
+  <!-- LEFT COLUMN: Timing & Frequency -->
   <div class="card">
-    <h2>⏱ Timing & frequency</h2>
+    <div class="card-header">
+      <h2>⏱ Timing & Frequency</h2>
+    </div>
+
     <div class="control-group">
       <div class="control-item">
-        <label>Order min</label>
-        <input type="range" id="spawnMin" min="1" max="60" value="6" step="0.5">
+        <label>Min Spawn</label>
+        <input type="range" id="spawnMin" min="1" max="60" value="6" step="0.5" class="accent-green">
         <span class="value-badge" id="spawnMinVal">6s</span>
       </div>
       <div class="control-item">
-        <label>Order max</label>
-        <input type="range" id="spawnMax" min="2" max="120" value="11" step="0.5">
+        <label>Max Spawn</label>
+        <input type="range" id="spawnMax" min="2" max="120" value="11" step="0.5" class="accent-green">
         <span class="value-badge" id="spawnMaxVal">11s</span>
       </div>
     </div>
-    <div class="control-group" style="margin-top: 12px;">
+
+    <div class="control-group">
       <div class="control-item">
-        <label>Prep time</label>
-        <input type="range" id="prepTime" min="5" max="300" value="22" step="1">
+        <label>Prep Time</label>
+        <input type="range" id="prepTime" min="5" max="300" value="22" step="1" class="accent-amber">
         <span class="value-badge" id="prepTimeVal">22s</span>
       </div>
       <div class="control-item">
-        <label>Ramp factor</label>
-        <input type="range" id="rampFactor" min="0.5" max="1.0" value="0.92" step="0.02">
+        <label>Ramp</label>
+        <input type="range" id="rampFactor" min="0.5" max="1.0" value="0.92" step="0.02" class="accent-amber">
         <span class="value-badge" id="rampFactorVal">0.92</span>
       </div>
     </div>
-    <div class="control-group" style="margin-top: 12px;">
-      <div class="control-item" style="flex: 1;">
-        <label style="min-width: 100px;">Total service time</label>
-        <input type="range" id="totalTime" min="60" max="3600" value="300" step="30">
+
+    <div class="control-group">
+      <div class="control-item">
+        <label>Service Time</label>
+        <input type="range" id="totalTime" min="60" max="3600" value="300" step="30" class="accent-violet">
         <span class="value-badge" id="totalTimeVal">5:00</span>
       </div>
     </div>
-    <div class="preset-row">
-      <button class="preset-btn" data-preset="quick">Quick (2 min)</button>
-      <button class="preset-btn" data-preset="normal">Normal (5 min)</button>
-      <button class="preset-btn" data-preset="long">Long (15 min)</button>
-      <button class="preset-btn" data-preset="marathon">Marathon (30 min)</button>
-      <button class="preset-btn" data-preset="endurance">Endurance (60 min)</button>
-    </div>
-    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
-      <button class="toggle-btn" id="sendParamsBtn" style="width:100%;">📤 Send Parameters to Game</button>
-    </div>
+
+    <button class="btn btn-primary btn-full" id="sendParamsBtn" style="margin-top: var(--space-4);">
+      📤 Apply Settings
+    </button>
   </div>
 
-  <!-- SERVICE CONTROLS + STATS -->
+  <!-- RIGHT COLUMN: Service Controls -->
   <div class="card">
-    <h2>🎛 Service controls</h2>
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
-      <button class="toggle-btn" id="startBtn">▶ Start</button>
-      <button class="toggle-btn" id="pauseBtn" disabled>⏸ Pause</button>
-      <button class="toggle-btn" id="resetBtn">⟳ Reset</button>
+    <div class="card-header">
+      <h2>🎛 Service Controls</h2>
     </div>
-    <div class="stat-row">
-      <div class="stat-item"><span class="num" id="statScore">0</span> score</div>
-      <div class="stat-item"><span class="num" id="statServed">0</span> served</div>
-      <div class="stat-item"><span class="num" id="statMissed">0</span> missed</div>
-      <div class="stat-item"><span class="num" id="statFailed">0</span> failed</div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="startBtn">▶ Start</button>
+      <button class="btn btn-secondary" id="pauseBtn" disabled>⏸ Pause</button>
+      <button class="btn btn-secondary" id="resetBtn">⟳ Reset</button>
+      <button class="btn btn-secondary" id="instantOrderBtn">⚡ Add Order</button>
     </div>
-    <div style="margin-top: 16px; display: flex; align-items: center; gap: 16px;">
-      <span style="font-size:13px; color:#b5aea0;">Service clock</span>
-      <span style="font-family:'Bebas Neue',sans-serif; font-size:24px;" id="serviceTime">05:00</span>
-      <div style="flex:1; height:6px; background:rgba(255,255,255,0.08); border-radius:3px; overflow:hidden;">
-        <div id="serviceFill" style="height:100%; width:100%; background:linear-gradient(90deg,#4a9d6e,#dfa62e 70%,#d9463c); transition:width 0.5s;"></div>
+
+    <div class="stat-grid">
+      <div class="stat-item">
+        <span class="num score" id="statScore">0</span>
+        <span class="label">Score</span>
+      </div>
+      <div class="stat-item">
+        <span class="num served" id="statServed">0</span>
+        <span class="label">Served</span>
+      </div>
+      <div class="stat-item">
+        <span class="num missed" id="statMissed">0</span>
+        <span class="label">Missed</span>
+      </div>
+      <div class="stat-item">
+        <span class="num failed" id="statFailed">0</span>
+        <span class="label">Failed</span>
       </div>
     </div>
-    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);">
-      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-        <span style="font-size:12px; color:#b5aea0;">ESP Status:</span>
-        <span class="esp-status-indicator waiting" id="espStatus">⏳ Waiting</span>
-        <button class="clear-logs-btn" id="refreshEspBtn">🔄 Refresh</button>
+
+    <div class="service-clock">
+      <span class="label">⏱ Service</span>
+      <span class="time" id="serviceTime">05:00</span>
+      <div class="track">
+        <div class="fill" id="serviceFill"></div>
       </div>
+    </div>
+
+    <div class="esp-row">
+      <span style="font-size: 12px; color: var(--ink-dim); font-weight: 600;">ESP:</span>
+      <span class="esp-status waiting" id="espStatus">⏳ Waiting</span>
+      <button class="btn btn-secondary" id="refreshEspBtn" style="padding: 4px 12px; font-size: 11px;">🔄 Refresh</button>
     </div>
   </div>
 </div>
 
-<!-- RAIL PREVIEW (mini) -->
-<div class="card" style="margin-bottom: 24px;">
-  <h2>🚄 Active orders (preview) <span class="order-count-badge" id="orderCountBadge">0</span></h2>
+<!-- CONCURRENCY & CHAOS -->
+<div class="card" style="margin-bottom: var(--space-5);">
+  <div class="card-header">
+    <h2>🎲 Concurrency &amp; Chaos</h2>
+    <span class="badge badge-green" id="chaosBadge">CALM</span>
+  </div>
+
+  <div class="control-group">
+    <div class="control-item">
+      <label>Min on Rail</label>
+      <input type="range" id="concurrencyMin" min="0" max="8" value="2" step="1" class="accent-green">
+      <span class="value-badge" id="concurrencyMinVal">2</span>
+    </div>
+    <div class="control-item">
+      <label>Max on Rail</label>
+      <input type="range" id="concurrencyMax" min="1" max="12" value="5" step="1" class="accent-red">
+      <span class="value-badge" id="concurrencyMaxVal">5</span>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-item">
+      <label>Min Orders Always</label>
+      <input type="range" id="minOrdersAlways" min="0" max="8" value="1" step="1" class="accent-amber">
+      <span class="value-badge" id="minOrdersAlwaysVal">1</span>
+    </div>
+    <div class="control-item">
+      <label>Chaos</label>
+      <input type="range" id="chaosSlider" min="0" max="1" value="0.3" step="0.05" class="accent-violet">
+      <span class="value-badge" id="chaosVal">0.30</span>
+    </div>
+  </div>
+</div>
+
+<!-- PEAK HOURS -->
+<div class="card" style="margin-bottom: var(--space-5);">
+  <div class="card-header">
+    <h2>🔥 Peak Hours</h2>
+    <span class="badge badge-dim" id="peakBadge">OFF</span>
+  </div>
+
+  <div class="switch-row">
+    <div class="switch-label">
+      Enable Peak Hours
+      <span class="desc">Random bursts of high-frequency orders during service</span>
+    </div>
+    <label class="switch">
+      <input type="checkbox" id="peakEnabled">
+      <span class="slider-toggle"></span>
+    </label>
+  </div>
+
+  <div id="peakControls">
+    <div class="control-group">
+      <div class="control-item">
+        <label>Frequency</label>
+        <input type="range" id="peakInterval" min="15" max="180" value="45" step="5" class="accent-red">
+        <span class="value-badge" id="peakIntervalVal">~45s</span>
+      </div>
+      <div class="control-item">
+        <label>Duration</label>
+        <input type="range" id="peakDuration" min="5" max="60" value="12" step="1" class="accent-red">
+        <span class="value-badge" id="peakDurationVal">12s</span>
+      </div>
+    </div>
+    <div class="control-group">
+      <div class="control-item">
+        <label>Intensity</label>
+        <input type="range" id="peakIntensity" min="0.1" max="0.9" value="0.4" step="0.05" class="accent-red">
+        <span class="value-badge" id="peakIntensityVal">0.40</span>
+      </div>
+      <div class="control-item">
+        <label>Burst Size</label>
+        <input type="range" id="peakBurstSize" min="0" max="6" value="2" step="1" class="accent-red">
+        <span class="value-badge" id="peakBurstSizeVal">2</span>
+      </div>
+    </div>
+
+    <div class="preset-row">
+      <button class="preset-btn" data-peak-preset="mild">🌤 Mild</button>
+      <button class="preset-btn" data-peak-preset="standard">⚡ Standard</button>
+      <button class="preset-btn" data-peak-preset="chaotic">🌀 Chaotic</button>
+      <button class="preset-btn" data-peak-preset="slammed">🔥 Slammed</button>
+    </div>
+  </div>
+
+  <!-- Start Peak Now Button - MOVED UNDER PEAK HOURS -->
+  <button class="btn btn-danger btn-peak btn-full" id="startPeakBtn" style="margin-top: var(--space-4);">
+    🔥 Start Peak Now
+  </button>
+
+  <div class="peak-status idle" id="peakStatus">
+    <span class="dot idle" id="peakDot"></span>
+    <span id="peakStatusText">Peak hours disabled — normal spawn rate</span>
+  </div>
+</div>
+
+<!-- RAIL PREVIEW -->
+<div class="card" style="margin-bottom: var(--space-5);">
+  <div class="card-header">
+    <h2>🚄 Active Orders</h2>
+    <span class="order-count" id="orderCountBadge">0</span>
+  </div>
   <div class="mini-rail" id="miniRail">
-    <div class="empty-rail-mini">No orders — start service to see them appear.</div>
+    <div class="empty-rail">No orders — start service to begin</div>
   </div>
 </div>
 
-<!-- LOGS SECTION -->
-<div class="card" style="margin-bottom: 24px;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
-    <h2 style="margin:0;">📋 System Logs</h2>
-    <div style="display: flex; gap: 8px;">
-      <button class="clear-logs-btn" id="clearLogsBtn">🗑 Clear</button>
-      <button class="clear-logs-btn" id="toggleLogsBtn">⬇ Auto-scroll</button>
+<!-- LOGS -->
+<div class="card">
+  <div class="logs-header">
+    <h2 style="font-family: var(--font-display); font-size: 20px; margin: 0; color: var(--ink-bright);">📋 System Logs</h2>
+    <div class="logs-actions">
+      <button class="btn btn-secondary" id="clearLogsBtn" style="padding: 4px 12px; font-size: 11px;">🗑 Clear</button>
+      <button class="btn btn-secondary" id="toggleLogsBtn" style="padding: 4px 12px; font-size: 11px;">⬇ Auto</button>
     </div>
   </div>
   <div class="logs-container" id="logsContainer">
     <div class="log-entry">
       <span class="log-time">System</span>
       <span class="log-type info">info</span>
-      <span class="log-message">🔄 Dashboard initialized. Waiting for game connection...</span>
+      <span class="log-message">🚀 Dashboard initialized — waiting for game connection...</span>
     </div>
   </div>
 </div>
 
-<div class="footnote">
-  This dashboard controls timing & frequency. Use the "Send Parameters" button to update the game.
-  The game page shows the full ticket rail. ESP messages and order validation are logged here.
+<div style="text-align: center; margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--border-subtle); font-size: 11px; color: var(--ink-faint);">
+  Ticket Rail Control Dashboard — All settings apply live. Use "Apply Settings" to push changes to the game.
 </div>
 
 <script>
-  /* =========================================================
-     CONTROL DASHBOARD — Extended timing controls with Logs
-     ========================================================= */
+  // =========================================================
+  // CONTROL DASHBOARD — Full Implementation
+  // =========================================================
 
   // ----- state -----
   let running = false;
@@ -492,108 +1030,158 @@
   let score = 0, served = 0, missed = 0, failed = 0;
   let serviceRemaining = 300;
   let totalServiceTime = 300;
-  let orderCounter = 0;
   let autoScroll = true;
   let activeOrders = [];
 
-  // timing parameters
   let params = {
     spawnMin: 6,
     spawnMax: 11,
     prepTime: 22,
     rampFactor: 0.92,
     totalTime: 300,
+    peakEnabled: false,
+    peakInterval: 45,
+    peakDuration: 12,
+    peakIntensity: 0.4,
+    peakBurstSize: 2,
+    concurrencyMin: 2,
+    concurrencyMax: 5,
+    chaos: 0.3,
+    minOrdersAlways: 1,
   };
 
   // DOM refs
-  const startBtn = document.getElementById('startBtn');
-  const pauseBtn = document.getElementById('pauseBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const sendParamsBtn = document.getElementById('sendParamsBtn');
-  const liveDot = document.getElementById('liveDot');
-  const liveLabel = document.getElementById('liveLabel');
-  const connectionStatus = document.getElementById('connectionStatus');
-  const espStatus = document.getElementById('espStatus');
-  const orderCountBadge = document.getElementById('orderCountBadge');
+  const $ = id => document.getElementById(id);
+  const startBtn = $('startBtn');
+  const pauseBtn = $('pauseBtn');
+  const resetBtn = $('resetBtn');
+  const instantOrderBtn = $('instantOrderBtn');
+  const startPeakBtn = $('startPeakBtn');
+  const sendParamsBtn = $('sendParamsBtn');
+  const headerDot = $('headerDot');
+  const headerStatus = $('headerStatus');
+  const liveDot = $('liveDot');
+  const liveLabel = $('liveLabel');
+  const espStatus = $('espStatus');
+  const orderCountBadge = $('orderCountBadge');
 
-  const spawnMinInput = document.getElementById('spawnMin');
-  const spawnMaxInput = document.getElementById('spawnMax');
-  const prepTimeInput = document.getElementById('prepTime');
-  const rampFactorInput = document.getElementById('rampFactor');
-  const totalTimeInput = document.getElementById('totalTime');
-  const spawnMinVal = document.getElementById('spawnMinVal');
-  const spawnMaxVal = document.getElementById('spawnMaxVal');
-  const prepTimeVal = document.getElementById('prepTimeVal');
-  const rampFactorVal = document.getElementById('rampFactorVal');
-  const totalTimeVal = document.getElementById('totalTimeVal');
+  const spawnMinInput = $('spawnMin');
+  const spawnMaxInput = $('spawnMax');
+  const prepTimeInput = $('prepTime');
+  const rampFactorInput = $('rampFactor');
+  const totalTimeInput = $('totalTime');
+  const spawnMinVal = $('spawnMinVal');
+  const spawnMaxVal = $('spawnMaxVal');
+  const prepTimeVal = $('prepTimeVal');
+  const rampFactorVal = $('rampFactorVal');
+  const totalTimeVal = $('totalTimeVal');
 
-  const statScore = document.getElementById('statScore');
-  const statServed = document.getElementById('statServed');
-  const statMissed = document.getElementById('statMissed');
-  const statFailed = document.getElementById('statFailed');
-  const serviceTimeEl = document.getElementById('serviceTime');
-  const serviceFillEl = document.getElementById('serviceFill');
-  const miniRail = document.getElementById('miniRail');
-  const logsContainer = document.getElementById('logsContainer');
+  const concurrencyMinInput = $('concurrencyMin');
+  const concurrencyMaxInput = $('concurrencyMax');
+  const concurrencyMinVal = $('concurrencyMinVal');
+  const concurrencyMaxVal = $('concurrencyMaxVal');
+  const minOrdersAlwaysInput = $('minOrdersAlways');
+  const minOrdersAlwaysVal = $('minOrdersAlwaysVal');
+  const chaosSliderInput = $('chaosSlider');
+  const chaosVal = $('chaosVal');
+  const chaosBadge = $('chaosBadge');
+
+  const peakEnabledInput = $('peakEnabled');
+  const peakControls = $('peakControls');
+  const peakBadge = $('peakBadge');
+  const peakIntervalInput = $('peakInterval');
+  const peakDurationInput = $('peakDuration');
+  const peakIntensityInput = $('peakIntensity');
+  const peakBurstSizeInput = $('peakBurstSize');
+  const peakIntervalVal = $('peakIntervalVal');
+  const peakDurationVal = $('peakDurationVal');
+  const peakIntensityVal = $('peakIntensityVal');
+  const peakBurstSizeVal = $('peakBurstSizeVal');
+  const peakStatus = $('peakStatus');
+  const peakDot = $('peakDot');
+  const peakStatusText = $('peakStatusText');
+
+  const statScore = $('statScore');
+  const statServed = $('statServed');
+  const statMissed = $('statMissed');
+  const statFailed = $('statFailed');
+  const serviceTimeEl = $('serviceTime');
+  const serviceFillEl = $('serviceFill');
+  const miniRail = $('miniRail');
+  const logsContainer = $('logsContainer');
 
   // ----- Logging -----
   function addLog(type, message, data) {
     const time = new Date().toLocaleTimeString();
     const entry = document.createElement('div');
     entry.className = 'log-entry';
-    
-    let typeClass = 'info';
-    switch(type) {
-      case 'ESP Received': typeClass = 'esp'; break;
-      case 'ESP Submit': typeClass = 'submit'; break;
-      case 'Match Check': typeClass = 'match'; break;
-      case '✅ Success': typeClass = 'success'; break;
-      case '❌ Error': typeClass = 'error'; break;
-      case '📋 Order': typeClass = 'order'; break;
-      case '💾 DB': typeClass = 'db'; break;
-      default: typeClass = 'info';
-    }
-    
+
+    const typeMap = {
+      'ESP Received': 'esp',
+      'ESP Submit': 'submit',
+      'Match Check': 'match',
+      '✅ Success': 'success',
+      '❌ Error': 'error',
+      '📋 Order': 'order',
+      '💾 DB': 'db',
+      '🔥 Peak': 'peak',
+    };
+    const typeClass = typeMap[type] || 'info';
+
     let displayMessage = message;
     if (data) {
       try {
         displayMessage += ' ' + JSON.stringify(data, null, 0);
-      } catch(e) {
-        displayMessage += ' [data]';
-      }
+      } catch(e) { /* ignore */ }
     }
-    
+
     entry.innerHTML = `
       <span class="log-time">${time}</span>
       <span class="log-type ${typeClass}">${type}</span>
       <span class="log-message">${displayMessage}</span>
     `;
     logsContainer.appendChild(entry);
-    
+
     if (autoScroll) {
       logsContainer.scrollTop = logsContainer.scrollHeight;
     }
-    
-    // Keep last 500 logs
+
     while (logsContainer.children.length > 500) {
       logsContainer.removeChild(logsContainer.firstChild);
     }
   }
 
-  // ----- BroadcastChannel for communication -----
+  // ----- Update Chaos Badge -----
+  function updateChaosBadge(value) {
+    const badge = chaosBadge;
+    if (value < 0.15) {
+      badge.textContent = 'CALM';
+      badge.className = 'badge badge-green';
+    } else if (value < 0.4) {
+      badge.textContent = 'STEADY';
+      badge.className = 'badge badge-amber';
+    } else if (value < 0.7) {
+      badge.textContent = 'WILD';
+      badge.className = 'badge badge-red';
+    } else {
+      badge.textContent = 'MAYHEM';
+      badge.className = 'badge badge-red';
+      badge.style.background = 'rgba(217,70,60,0.25)';
+      badge.style.color = '#ff6b4a';
+    }
+  }
+
+  // ----- BroadcastChannel -----
   const channel = new BroadcastChannel('ticket-rail-control');
 
-  // Listen for messages from the game
   channel.onmessage = (event) => {
     const msg = event.data;
     if (!msg) return;
 
-    console.log('📨 Dashboard received:', msg);
-
     switch (msg.type) {
       case 'game-ready':
-        connectionStatus.textContent = '✅ Game connected';
-        connectionStatus.className = 'connection-status connected';
+        headerDot.className = 'dot online';
+        headerStatus.textContent = 'Connected';
         addLog('info', '✅ Game connected');
         break;
 
@@ -616,6 +1204,7 @@
         score = 0; served = 0; missed = 0; failed = 0;
         serviceRemaining = totalServiceTime;
         activeOrders = [];
+        setPeakStatus(false);
         addLog('info', '⟳ Game reset');
         updateUI();
         renderMiniRail();
@@ -639,133 +1228,112 @@
         break;
 
       case 'order-spawned':
-        // New order spawned in game
         const newOrder = msg.payload;
-        const exists = activeOrders.some(o => o.orderNo === newOrder.orderNo);
-        if (!exists) {
+        if (!activeOrders.some(o => o.orderNo === newOrder.orderNo)) {
           activeOrders.push(newOrder);
-          addLog('📋 Order', `🆕 Order ${newOrder.orderNo} spawned - ${newOrder.dish}`, {
-            prepTime: newOrder.duration,
+          addLog('📋 Order', `🆕 Order ${newOrder.orderNo} - ${newOrder.dish}`, {
+            prep: newOrder.duration + 's',
             points: newOrder.points
           });
           renderMiniRail();
         }
         break;
 
-      case 'order-complete':
-        const completePayload = msg.payload;
-        const orderIndex = activeOrders.findIndex(o => o.orderNo === completePayload.orderNo || o.orderNo === completePayload.order_number);
-        if (orderIndex !== -1) {
-          const order = activeOrders[orderIndex];
-          order.status = completePayload.status || 'completed';
-          if (completePayload.success !== undefined) {
-            order.success = completePayload.success;
+      case 'orders-snapshot':
+        const snapshot = msg.payload || [];
+        snapshot.forEach(s => {
+          const existing = activeOrders.find(o => o.orderNo === s.orderNo);
+          if (existing) {
+            existing.remaining = s.remaining;
+            existing.status = s.status;
+          } else {
+            activeOrders.push({ orderNo: s.orderNo, dish: s.dish, remaining: s.remaining, status: s.status });
           }
-          if (completePayload.score_earned !== undefined) {
-            order.scoreEarned = completePayload.score_earned;
-          }
-          addLog('📋 Order', `📦 Order ${order.orderNo} ${order.status}`, {
-            food: order.dish,
-            score: order.scoreEarned || 0
-          });
-          
-          setTimeout(() => {
-            activeOrders = activeOrders.filter(o => o.orderNo !== order.orderNo);
-            renderMiniRail();
-          }, 2000);
-          
-          renderMiniRail();
-        }
-        break;
-
-      case 'esp-action':
-        addLog('ESP Received', `📡 ${msg.payload.tag_mac} → ${msg.payload.action_name}`, {
-          tagger: msg.payload.tagger_mac,
-          order: msg.payload.order_number || 'no order'
         });
-        break;
-
-      case 'esp-submit':
-        addLog('ESP Submit', `📤 Order ${msg.payload.order_number} submitted`, {
-          device: msg.payload.device_mac,
-          result: msg.payload.result
-        });
-        break;
-
-      case 'esp-match-check':
-        addLog('Match Check', `🔍 ${msg.payload.ingredient}: expected "${msg.payload.expected}" got "${msg.payload.got}"`, {
-          pass: msg.payload.pass
-        });
+        const liveNos = new Set(snapshot.map(s => s.orderNo));
+        activeOrders = activeOrders.filter(o => liveNos.has(o.orderNo) || ['completed','failed','missed'].includes(o.status));
+        renderMiniRail();
         break;
 
       case 'esp-submit-result':
         if (msg.payload.success) {
-          addLog('✅ Success', `🎉 Order ${msg.payload.order_number} COMPLETED!`, {
+          addLog('✅ Success', `🎉 Order ${msg.payload.order_number} completed!`, {
             score: msg.payload.score_earned,
             food: msg.payload.food
           });
-          const orderIdx = activeOrders.findIndex(o => o.orderNo === msg.payload.order_number || o.orderNo === msg.payload.display_order_number);
-          if (orderIdx !== -1) {
-            activeOrders[orderIdx].status = 'completed';
-            activeOrders[orderIdx].success = true;
-            activeOrders[orderIdx].scoreEarned = msg.payload.score_earned;
+          const idx = activeOrders.findIndex(o => o.orderNo === msg.payload.order_number || o.orderNo === msg.payload.display_order_number);
+          if (idx !== -1) {
+            activeOrders[idx].status = 'completed';
+            activeOrders[idx].success = true;
             renderMiniRail();
           }
         } else {
-          addLog('❌ Error', `❌ Order ${msg.payload.order_number} FAILED`, {
+          addLog('❌ Error', `❌ Order ${msg.payload.order_number} failed`, {
             reason: msg.payload.reason || 'Validation failed'
           });
-          const orderIdx = activeOrders.findIndex(o => o.orderNo === msg.payload.order_number || o.orderNo === msg.payload.display_order_number);
-          if (orderIdx !== -1) {
-            activeOrders[orderIdx].status = 'failed';
-            activeOrders[orderIdx].success = false;
+          const idx = activeOrders.findIndex(o => o.orderNo === msg.payload.order_number || o.orderNo === msg.payload.display_order_number);
+          if (idx !== -1) {
+            activeOrders[idx].status = 'failed';
+            activeOrders[idx].success = false;
             renderMiniRail();
           }
         }
-        break;
-
-      case 'orders-cleared':
-        addLog('💾 DB', `🗑 Database cleared: ${msg.payload.orders_cleared || 0} orders removed, tags reset`);
         break;
 
       case 'esp-status':
         const status = msg.payload;
         if (status.online) {
-          espStatus.textContent = '✅ ESP Online';
-          espStatus.className = 'esp-status-indicator online';
-          addLog('info', '✅ ESP device is online');
+          espStatus.textContent = '✅ Online';
+          espStatus.className = 'esp-status online';
+          addLog('info', '✅ ESP device online');
         } else {
-          espStatus.textContent = '❌ ESP Offline';
-          espStatus.className = 'esp-status-indicator offline';
-          addLog('info', '❌ No ESP devices online');
+          espStatus.textContent = '❌ Offline';
+          espStatus.className = 'esp-status offline';
+          addLog('info', '❌ ESP device offline');
         }
         break;
 
+      case 'peak-hour':
+        addLog('🔥 Peak', `🔥 Peak started — ${msg.payload.duration}s`);
+        setPeakStatus(true, msg.payload.duration);
+        break;
+
+      case 'peak-ended':
+        addLog('🔥 Peak', '⏹ Peak ended');
+        setPeakStatus(false);
+        break;
+
       default:
-        console.log('📨 unknown message:', msg);
+        console.log('📨 Unknown message:', msg);
     }
   };
 
-  // ----- UI updates -----
+  // ----- UI Updates -----
   function updateUI() {
     if (running && !paused) {
-      liveDot.className = 'live-indicator';
+      liveDot.className = 'dot online';
       liveLabel.textContent = 'running';
       startBtn.disabled = true;
       pauseBtn.disabled = false;
       pauseBtn.textContent = '⏸ Pause';
+      headerDot.className = 'dot online';
+      headerStatus.textContent = 'Running';
     } else if (running && paused) {
-      liveDot.className = 'live-indicator paused';
+      liveDot.className = 'dot idle';
       liveLabel.textContent = 'paused';
       startBtn.disabled = true;
       pauseBtn.disabled = false;
       pauseBtn.textContent = '▶ Resume';
+      headerDot.className = 'dot idle';
+      headerStatus.textContent = 'Paused';
     } else {
-      liveDot.className = 'live-indicator off';
+      liveDot.className = 'dot idle';
       liveLabel.textContent = 'idle';
       startBtn.disabled = false;
       pauseBtn.disabled = true;
       pauseBtn.textContent = '⏸ Pause';
+      headerDot.className = 'dot idle';
+      headerStatus.textContent = 'Idle';
     }
 
     statScore.textContent = score;
@@ -781,51 +1349,99 @@
 
   function renderMiniRail() {
     orderCountBadge.textContent = activeOrders.length;
-    
+
     if (!activeOrders.length) {
-      miniRail.innerHTML = `<div class="empty-rail-mini">No orders — start service to see them appear.</div>`;
+      miniRail.innerHTML = `<div class="empty-rail">No orders — start service to begin</div>`;
       return;
     }
-    
-    miniRail.innerHTML = activeOrders.map((o, i) => {
+
+    miniRail.innerHTML = activeOrders.map(o => {
       const tilt = (Math.random() * 3 - 1.5).toFixed(1) + 'deg';
       const statusClass = o.status || 'waiting';
-      const statusLabel = statusClass.charAt(0).toUpperCase() + statusClass.slice(1);
       const timeLeft = o.remaining !== undefined ? Math.ceil(o.remaining) : '?';
-      
       return `<div class="mini-ticket" style="--tilt:${tilt}">
         <span class="dish">${o.dish}</span>
         <span class="time">${timeLeft}s</span>
-        <span class="status-badge-mini ${statusClass}">${statusLabel}</span>
+        <span class="status ${statusClass}">${statusClass}</span>
       </div>`;
     }).join('');
   }
 
-  // ----- Read params from UI -----
+  // ----- Peak Status -----
+  let peakClearTimeout = null;
+
+  function setPeakStatus(active, duration, manual) {
+    if (peakClearTimeout) clearTimeout(peakClearTimeout);
+
+    if (!params.peakEnabled && !manual) {
+      peakStatus.className = 'peak-status idle';
+      peakDot.className = 'dot idle';
+      peakStatusText.textContent = 'Peak hours disabled — normal spawn rate';
+      return;
+    }
+
+    if (active) {
+      peakStatus.className = manual ? 'peak-status manual' : 'peak-status active';
+      peakDot.className = manual ? 'dot manual' : 'dot active';
+      peakStatusText.textContent = `🔥 Peak active${duration ? ` (${duration}s)` : ''}${manual ? ' — manual trigger' : ''}`;
+      if (duration) {
+        peakClearTimeout = setTimeout(() => {
+          setPeakStatus(false);
+          channel.postMessage({ type: 'peak-ended' });
+        }, duration * 1000);
+      }
+    } else {
+      peakStatus.className = 'peak-status idle';
+      peakDot.className = 'dot idle';
+      peakStatusText.textContent = params.peakEnabled ? 'Waiting for next peak window' : 'Peak hours disabled — normal spawn rate';
+    }
+  }
+
+  // ----- Read Params -----
   function readParamsFromUI() {
     params.spawnMin = parseFloat(spawnMinInput.value);
     params.spawnMax = parseFloat(spawnMaxInput.value);
     params.prepTime = parseFloat(prepTimeInput.value);
     params.rampFactor = parseFloat(rampFactorInput.value);
     params.totalTime = parseFloat(totalTimeInput.value);
-    
+    params.concurrencyMin = parseInt(concurrencyMinInput.value, 10);
+    params.concurrencyMax = parseInt(concurrencyMaxInput.value, 10);
+    params.minOrdersAlways = parseInt(minOrdersAlwaysInput.value, 10);
+    params.chaos = parseFloat(chaosSliderInput.value);
+    params.peakEnabled = peakEnabledInput.checked;
+    params.peakInterval = parseFloat(peakIntervalInput.value);
+    params.peakDuration = parseFloat(peakDurationInput.value);
+    params.peakIntensity = parseFloat(peakIntensityInput.value);
+    params.peakBurstSize = parseInt(peakBurstSizeInput.value, 10);
+
     spawnMinVal.textContent = params.spawnMin + 's';
     spawnMaxVal.textContent = params.spawnMax + 's';
     prepTimeVal.textContent = params.prepTime + 's';
     rampFactorVal.textContent = params.rampFactor.toFixed(2);
-    
+    concurrencyMinVal.textContent = params.concurrencyMin;
+    concurrencyMaxVal.textContent = params.concurrencyMax;
+    minOrdersAlwaysVal.textContent = params.minOrdersAlways;
+    chaosVal.textContent = params.chaos.toFixed(2);
+    updateChaosBadge(params.chaos);
+
     const mins = Math.floor(params.totalTime / 60);
     const secs = Math.floor(params.totalTime % 60);
     totalTimeVal.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+    peakIntervalVal.textContent = '~' + params.peakInterval + 's';
+    peakDurationVal.textContent = params.peakDuration + 's';
+    peakIntensityVal.textContent = params.peakIntensity.toFixed(2);
+    peakBurstSizeVal.textContent = params.peakBurstSize;
+
+    peakBadge.textContent = params.peakEnabled ? 'ON' : 'OFF';
+    peakBadge.className = params.peakEnabled ? 'badge badge-red' : 'badge badge-dim';
+    peakControls.style.opacity = params.peakEnabled ? '1' : '0.4';
+    peakControls.style.pointerEvents = params.peakEnabled ? 'auto' : 'none';
+
+    setPeakStatus(false);
   }
 
-  spawnMinInput.addEventListener('input', readParamsFromUI);
-  spawnMaxInput.addEventListener('input', readParamsFromUI);
-  prepTimeInput.addEventListener('input', readParamsFromUI);
-  rampFactorInput.addEventListener('input', readParamsFromUI);
-  totalTimeInput.addEventListener('input', readParamsFromUI);
-
-  // ----- Send params to game -----
+  // ----- Send Params -----
   function sendParamsToGame() {
     readParamsFromUI();
     channel.postMessage({
@@ -837,137 +1453,129 @@
       serviceRemaining = totalServiceTime;
     }
     updateUI();
-    connectionStatus.textContent = '📤 Params sent!';
-    connectionStatus.className = 'connection-status syncing';
     addLog('info', '📤 Parameters sent to game', params);
-    setTimeout(() => {
-      connectionStatus.textContent = '✅ Game connected';
-      connectionStatus.className = 'connection-status connected';
-    }, 2000);
   }
 
+  // ----- Event Listeners -----
   sendParamsBtn.addEventListener('click', sendParamsToGame);
 
-  // ----- Presets -----
-  document.querySelectorAll('[data-preset]').forEach(btn => {
+  // Start Peak Now - MOVED under Peak Hours
+  startPeakBtn.addEventListener('click', () => {
+    const duration = parseFloat(peakDurationInput.value) || 12;
+    const burstSize = parseInt(peakBurstSizeInput.value, 10) || 2;
+    const intensity = parseFloat(peakIntensityInput.value) || 0.4;
+    
+    // Send manual peak trigger to game via BroadcastChannel
+    channel.postMessage({
+      type: 'manual-peak',
+      payload: { 
+        duration: duration, 
+        burstSize: burstSize, 
+        intensity: intensity 
+      }
+    });
+    
+    // Also send force-peak for compatibility
+    channel.postMessage({ 
+      type: 'force-peak' 
+    });
+    
+    // Update UI
+    setPeakStatus(true, duration, true);
+    addLog('🔥 Peak', `🔥 Manual peak triggered — ${duration}s, ${burstSize} burst, intensity ${intensity}`);
+    
+    // Show visual feedback
+    startPeakBtn.textContent = '🔥 Peak Active!';
+    startPeakBtn.style.background = '#ff6b4a';
+    setTimeout(() => {
+      startPeakBtn.textContent = '🔥 Start Peak Now';
+      startPeakBtn.style.background = '';
+    }, duration * 1000 + 1000);
+  });
+
+  // Peak Presets
+  document.querySelectorAll('[data-peak-preset]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const preset = btn.dataset.preset;
-      let min, max, prep, ramp, total;
+      const preset = btn.dataset.peakPreset;
+      let interval, duration, intensity, burst;
       switch (preset) {
-        case 'quick':    min=3; max=8; prep=15; ramp=0.95; total=120; break;
-        case 'normal':   min=6; max=11; prep=22; ramp=0.92; total=300; break;
-        case 'long':     min=8; max=15; prep=25; ramp=0.88; total=900; break;
-        case 'marathon': min=10; max=20; prep=30; ramp=0.85; total=1800; break;
-        case 'endurance': min=12; max=25; prep=35; ramp=0.80; total=3600; break;
+        case 'mild': interval=70; duration=8; intensity=0.6; burst=1; break;
+        case 'standard': interval=45; duration=12; intensity=0.4; burst=2; break;
+        case 'chaotic': interval=30; duration=15; intensity=0.25; burst=3; break;
+        case 'slammed': interval=20; duration=20; intensity=0.15; burst=4; break;
         default: return;
       }
-      spawnMinInput.value = min;
-      spawnMaxInput.value = max;
-      prepTimeInput.value = prep;
-      rampFactorInput.value = ramp;
-      totalTimeInput.value = total;
+      peakEnabledInput.checked = true;
+      peakIntervalInput.value = interval;
+      peakDurationInput.value = duration;
+      peakIntensityInput.value = intensity;
+      peakBurstSizeInput.value = burst;
       readParamsFromUI();
       sendParamsToGame();
-      addLog('info', `📋 Preset loaded: ${preset}`, { min, max, prep, ramp, total });
+      addLog('🔥 Peak', `🔥 Peak preset: ${preset}`, { interval, duration, intensity, burst });
     });
   });
 
-  // ----- Service controls -----
-  function startService() {
+  // Service Controls
+  startBtn.addEventListener('click', () => {
     channel.postMessage({ type: 'start' });
-    startBtn.disabled = true;
     addLog('info', '▶ Start command sent');
-  }
+  });
 
-  function togglePause() {
+  pauseBtn.addEventListener('click', () => {
     channel.postMessage({ type: 'pause' });
-  }
+  });
+
+  resetBtn.addEventListener('click', resetService);
 
   async function resetService() {
     addLog('info', '⟳ Reset command sent');
-    
-    // First, clear the database orders
     try {
-      const response = await fetch('/api/orders/clear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset' })
-      });
-      
+      const response = await fetch('/api/orders/clear', { method: 'POST' });
       const data = await response.json();
-      
       if (data.success) {
-        addLog('💾 DB', `✅ Database cleared: ${data.orders_cleared} orders removed, tags reset`);
-        connectionStatus.textContent = '🗑 Database cleared';
-        connectionStatus.className = 'connection-status syncing';
-        setTimeout(() => {
-          connectionStatus.textContent = '✅ Game connected';
-          connectionStatus.className = 'connection-status connected';
-        }, 2000);
-      } else {
-        addLog('❌ Error', `Failed to clear database: ${data.message || 'Unknown error'}`);
+        addLog('💾 DB', `✅ Database cleared: ${data.orders_cleared} orders`);
       }
     } catch (err) {
-      addLog('❌ Error', `Error clearing database: ${err.message}`);
+      addLog('❌ Error', `Database clear failed: ${err.message}`);
     }
-    
-    // Then send reset command to game
     channel.postMessage({ type: 'reset' });
-    
-    // Clear local state
-    running = false;
-    paused = false;
-    score = 0;
-    served = 0;
-    missed = 0;
-    failed = 0;
+    running = false; paused = false;
+    score = 0; served = 0; missed = 0; failed = 0;
     serviceRemaining = totalServiceTime;
     activeOrders = [];
-    
+    setPeakStatus(false);
     updateUI();
     renderMiniRail();
-    
-    // Update UI buttons
-    startBtn.disabled = false;
-    pauseBtn.disabled = true;
-    pauseBtn.textContent = '⏸ Pause';
   }
 
-  startBtn.addEventListener('click', startService);
-  pauseBtn.addEventListener('click', togglePause);
-  resetBtn.addEventListener('click', resetService);
+  instantOrderBtn.addEventListener('click', () => {
+    channel.postMessage({ type: 'force-spawn' });
+    addLog('📋 Order', '⚡ Instant order requested');
+  });
 
-  // ----- ESP Status Check -----
-  async function checkESPStatus() {
+  // ESP Status
+  document.getElementById('refreshEspBtn').addEventListener('click', async () => {
     try {
       const response = await fetch('/api/esp/status');
       const data = await response.json();
-      
       if (data.online) {
-        espStatus.textContent = '✅ ESP Online';
-        espStatus.className = 'esp-status-indicator online';
-        addLog('info', '✅ ESP device is online');
+        espStatus.textContent = '✅ Online';
+        espStatus.className = 'esp-status online';
+        addLog('info', '✅ ESP device online');
       } else {
-        espStatus.textContent = '⚠️ ESP Offline';
-        espStatus.className = 'esp-status-indicator offline';
-        addLog('info', '⚠️ No ESP devices online');
+        espStatus.textContent = '❌ Offline';
+        espStatus.className = 'esp-status offline';
+        addLog('info', '❌ ESP device offline');
       }
-      
-      channel.postMessage({
-        type: 'esp-status',
-        payload: { online: data.online }
-      });
-      
     } catch (error) {
-      espStatus.textContent = '❌ ESP Error';
-      espStatus.className = 'esp-status-indicator offline';
-      addLog('❌ Error', `ESP status check failed: ${error.message}`);
+      espStatus.textContent = '⚠️ Error';
+      espStatus.className = 'esp-status offline';
+      addLog('❌ Error', `ESP check failed: ${error.message}`);
     }
-  }
+  });
 
-  document.getElementById('refreshEspBtn').addEventListener('click', checkESPStatus);
-
-  // ----- Log controls -----
+  // Log controls
   document.getElementById('clearLogsBtn').addEventListener('click', () => {
     logsContainer.innerHTML = '';
     addLog('info', '🗑 Logs cleared');
@@ -975,37 +1583,52 @@
 
   document.getElementById('toggleLogsBtn').addEventListener('click', () => {
     autoScroll = !autoScroll;
-    document.getElementById('toggleLogsBtn').textContent = autoScroll ? '⬇ Auto-scroll' : '⬆ Manual';
+    document.getElementById('toggleLogsBtn').textContent = autoScroll ? '⬇ Auto' : '⬆ Manual';
     addLog('info', autoScroll ? '⬇ Auto-scroll enabled' : '⬆ Auto-scroll disabled');
   });
 
-  // ----- Request state from game on load -----
-  setTimeout(() => {
-    channel.postMessage({ type: 'state' });
-    addLog('info', '🔄 Requesting game state...');
-  }, 500);
+  // Input listeners
+  [spawnMinInput, spawnMaxInput, prepTimeInput, rampFactorInput, totalTimeInput,
+   peakIntervalInput, peakDurationInput, peakIntensityInput, peakBurstSizeInput,
+   concurrencyMinInput, concurrencyMaxInput, minOrdersAlwaysInput
+  ].forEach(input => {
+    input.addEventListener('input', readParamsFromUI);
+  });
 
-  // Also request state every 5 seconds to keep sync
-  setInterval(() => {
-    channel.postMessage({ type: 'state' });
-  }, 5000);
+  chaosSliderInput.addEventListener('input', () => {
+    const val = parseFloat(chaosSliderInput.value);
+    chaosVal.textContent = val.toFixed(2);
+    updateChaosBadge(val);
+    readParamsFromUI();
+  });
+
+  peakEnabledInput.addEventListener('change', () => {
+    readParamsFromUI();
+    addLog('🔥 Peak', peakEnabledInput.checked ? '🔥 Peak hours enabled' : '⏹ Peak hours disabled');
+    sendParamsToGame();
+  });
 
   // ----- Init -----
   readParamsFromUI();
   updateUI();
   renderMiniRail();
 
-  // Send initial params
   setTimeout(() => {
     sendParamsToGame();
-    checkESPStatus();
-  }, 1000);
+    channel.postMessage({ type: 'state' });
+    addLog('info', '🔄 Requesting game state...');
+  }, 500);
 
-  // Refresh ESP status every 30 seconds
-  setInterval(checkESPStatus, 30000);
+  setInterval(() => {
+    channel.postMessage({ type: 'state' });
+  }, 5000);
 
-  console.log('🎛 Ticket Rail Controller ready with extended controls and logging.');
+  setInterval(() => {
+    document.getElementById('refreshEspBtn').click();
+  }, 30000);
+
   addLog('info', '🚀 Dashboard initialized');
+  console.log('🎛 Ticket Rail Controller ready');
 </script>
 </body>
 </html>

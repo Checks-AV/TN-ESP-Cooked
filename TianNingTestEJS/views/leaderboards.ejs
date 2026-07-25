@@ -4,42 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" type="text/css" href="/main.css" />
-    <title><%= title%></title>
+    <title><%= title %></title>
     <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: 'Nunito', sans-serif;
+            background: radial-gradient(circle at 20% 30%, #0f6564, #0a4443 70%, #052625 100%);
+            color: #e9e6de;
+            padding: 20px;
+        }
+
         .leaderboard-container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 30px 20px;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 8px;
         }
         .leaderboard-container h1 {
+            font-family: 'Baloo 2', cursive;
             font-size: 48px;
-            margin-bottom: 4px;
+            margin: 0;
             color: #f5f2ea;
+            letter-spacing: 2px;
+            text-shadow: 3px 3px 0 #241609;
         }
         .leaderboard-container .subtitle {
-            color: #6b6558;
+            color: #a89f8f;
             font-size: 16px;
             margin-bottom: 30px;
+            margin-top: -4px;
+        }
+
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
         }
 
         .tabs {
             display: flex;
             gap: 8px;
-            margin-bottom: 24px;
             flex-wrap: wrap;
         }
         .tab-btn {
             padding: 10px 24px;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.08);
             border-radius: 30px;
-            background: transparent;
-            color: #b5aea0;
+            background: rgba(255,255,255,0.03);
+            color: #a89f8f;
             cursor: pointer;
-            font-size: 14px;
-            transition: 0.15s;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s;
+            font-family: 'Nunito', sans-serif;
         }
         .tab-btn:hover {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.08);
+            color: #e9e6de;
         }
         .tab-btn.active {
             background: #4a9d6e;
@@ -47,81 +81,167 @@
             color: #12241a;
         }
 
+        .action-btn {
+            padding: 10px 24px;
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 30px;
+            background: rgba(255,255,255,0.03);
+            color: #a89f8f;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 700;
+            transition: all 0.2s;
+            font-family: 'Nunito', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .action-btn:hover {
+            background: rgba(255,255,255,0.08);
+            color: #e9e6de;
+            border-color: rgba(255,255,255,0.15);
+        }
+        .action-btn.danger {
+            border-color: #d9463c;
+            color: #d9463c;
+        }
+        .action-btn.danger:hover {
+            background: rgba(217,70,60,0.15);
+            border-color: #d9463c;
+        }
+
         .leaderboard-table {
             width: 100%;
             border-collapse: collapse;
             background: rgba(255,255,255,0.03);
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.06);
         }
         .leaderboard-table th {
-            background: rgba(255,255,255,0.06);
-            padding: 12px 16px;
+            background: rgba(0,0,0,0.25);
+            padding: 14px 16px;
             text-align: left;
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #6b6558;
+            letter-spacing: 0.8px;
+            color: #a89f8f;
             border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-weight: 800;
         }
         .leaderboard-table td {
-            padding: 12px 16px;
+            padding: 14px 16px;
             border-bottom: 1px solid rgba(255,255,255,0.04);
             font-size: 14px;
             color: #e9e6de;
+            vertical-align: middle;
+        }
+        .leaderboard-table tr:last-child td {
+            border-bottom: none;
         }
         .leaderboard-table tr:hover td {
-            background: rgba(255,255,255,0.03);
+            background: rgba(255,255,255,0.04);
         }
         .leaderboard-table .rank {
-            font-weight: 700;
+            font-weight: 800;
             font-size: 18px;
+            font-family: 'Baloo 2', cursive;
         }
         .leaderboard-table .rank.gold { color: #ffd700; }
         .leaderboard-table .rank.silver { color: #c0c0c0; }
         .leaderboard-table .rank.bronze { color: #cd7f32; }
 
+        .player-name {
+            font-weight: 700;
+            font-size: 15px;
+        }
+
         .score-highlight {
             font-weight: 700;
-            color: #4a9d6e;
+            color: #ffc94d;
+            font-size: 20px;
+            font-family: 'Baloo 2', cursive;
+        }
+
+        .accuracy-bar {
+            display: inline-block;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.06);
+            width: 80px;
+            overflow: hidden;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .accuracy-bar .fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .accuracy-bar .fill.high { background: #4a9d6e; }
+        .accuracy-bar .fill.medium { background: #ffc94d; }
+        .accuracy-bar .fill.low { background: #d9463c; }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #6b6558;
+            cursor: pointer;
             font-size: 18px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            opacity: 0.3;
+        }
+        .delete-btn:hover {
+            color: #d9463c;
+            background: rgba(217,70,60,0.15);
+            opacity: 1;
+            transform: scale(1.1);
         }
 
         .empty-state {
             text-align: center;
-            padding: 40px;
-            color: #6b6558;
+            padding: 60px 20px;
+            color: #a89f8f;
             font-family: 'Courier Prime', monospace;
         }
-
-        .refresh-btn {
-            padding: 8px 20px;
-            border: none;
-            border-radius: 6px;
-            background: #2196F3;
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            transition: 0.15s;
+        .empty-state .icon {
+            font-size: 48px;
+            display: block;
             margin-bottom: 16px;
         }
-        .refresh-btn:hover {
-            background: #1976D2;
+        .empty-state h3 {
+            font-family: 'Baloo 2', cursive;
+            font-size: 24px;
+            margin: 0 0 8px;
+            color: #e9e6de;
+        }
+        .empty-state p {
+            margin: 0;
+            opacity: 0.7;
         }
 
         .back-btn {
-            margin-top: 20px;
+            margin-top: 24px;
             padding: 12px 30px;
-            border: none;
-            border-radius: 6px;
-            background: #666;
-            color: white;
+            border: 2px solid rgba(255,255,255,0.08);
+            border-radius: 30px;
+            background: rgba(255,255,255,0.03);
+            color: #a89f8f;
             cursor: pointer;
             font-size: 14px;
-            transition: 0.15s;
+            font-weight: 700;
+            transition: all 0.2s;
+            font-family: 'Nunito', sans-serif;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
         .back-btn:hover {
-            background: #555;
+            background: rgba(255,255,255,0.08);
+            color: #e9e6de;
+            border-color: rgba(255,255,255,0.15);
         }
 
         .footer-text {
@@ -132,20 +252,111 @@
             padding-top: 20px;
             text-align: center;
         }
+
+        .last-updated {
+            color: #6b6558;
+            font-size: 12px;
+            margin-top: 12px;
+            text-align: right;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-weight: 700;
+            z-index: 1000;
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            max-width: 400px;
+        }
+        .toast.show {
+            transform: translateX(0);
+        }
+        .toast.success {
+            background: #1a4a2a;
+            color: #4a9d6e;
+            border: 2px solid #4a9d6e;
+        }
+        .toast.error {
+            background: #4a1a1a;
+            color: #d9463c;
+            border: 2px solid #d9463c;
+        }
+        .toast.info {
+            background: #1a2a4a;
+            color: #6cb4ee;
+            border: 2px solid #6cb4ee;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.show {
+            display: flex;
+        }
+        .modal {
+            background: #1a1d20;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .modal h3 {
+            margin: 0 0 8px 0;
+            color: #f5f2ea;
+        }
+        .modal p {
+            color: #a89f8f;
+            margin-bottom: 24px;
+        }
+        .modal .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        @media (max-width: 768px) {
+            .leaderboard-container h1 { font-size: 32px; }
+            .leaderboard-table th, .leaderboard-table td { padding: 10px 12px; font-size: 12px; }
+            .score-highlight { font-size: 16px; }
+            .controls-row { flex-direction: column; align-items: stretch; }
+            .tabs { justify-content: center; }
+            .delete-btn { font-size: 16px; }
+        }
     </style>
 </head>
 <body>
     <div class="leaderboard-container">
-        <h1>🏆 Leaderboards</h1>
-        <p class="subtitle">Top performers in the kitchen</p>
-
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div class="tabs">
-                <button class="tab-btn active" data-tab="score">Top Scores</button>
-                <button class="tab-btn" data-tab="served">Most Served</button>
-                <button class="tab-btn" data-tab="accuracy">Best Accuracy</button>
+        <div class="header-section">
+            <div>
+                <h1>🏆 Leaderboard</h1>
+                <p class="subtitle">Top performers in the kitchen</p>
             </div>
-            <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button class="action-btn danger" onclick="clearAllEntries()">🗑️ Clear All</button>
+                <a href="/game" class="action-btn" style="text-decoration: none;">🎮 Back to Game</a>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="score">⭐ Top Scores</button>
+                <button class="tab-btn" data-tab="served">📋 Most Served</button>
+                <button class="tab-btn" data-tab="accuracy">🎯 Best Accuracy</button>
+            </div>
+            <button class="action-btn" onclick="refreshData()">🔄 Refresh</button>
         </div>
 
         <table class="leaderboard-table">
@@ -153,28 +364,123 @@
                 <tr>
                     <th>Rank</th>
                     <th>Player</th>
-                    <th>Orders Served</th>
+                    <th>Served</th>
+                    <th>Missed</th>
                     <th>Failed</th>
                     <th>Score</th>
                     <th>Accuracy</th>
+                    <th style="width: 50px;"></th>
                 </tr>
             </thead>
             <tbody id="leaderboardBody">
                 <tr>
-                    <td colspan="6" class="empty-state">⏳ Loading leaderboard...</td>
+                    <td colspan="8" class="empty-state">
+                        <span class="icon">⏳</span>
+                        <h3>Loading...</h3>
+                        <p>Fetching the latest rankings</p>
+                    </td>
                 </tr>
             </tbody>
         </table>
 
-        <button class="back-btn" onclick="window.location.href='/'">⬅ Back to Home</button>
+        <div class="last-updated" id="lastUpdated">Last updated: Just now</div>
 
         <div class="footer-text">
             &copy; <%= new Date().getFullYear() %> Ticket Rail — Rankings update in real-time
         </div>
     </div>
 
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Confirmation Modal -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <h3>⚠️ Confirm Delete</h3>
+            <p id="modalMessage">Are you sure you want to delete this entry?</p>
+            <div class="modal-actions">
+                <button class="action-btn" onclick="closeModal()">Cancel</button>
+                <button class="action-btn danger" id="confirmDeleteBtn" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentTab = 'score';
+        let lastUpdateTime = new Date();
+        let pendingDeleteId = null;
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function showModal(message, deleteId) {
+            document.getElementById('modalMessage').textContent = message;
+            pendingDeleteId = deleteId;
+            document.getElementById('modalOverlay').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('show');
+            pendingDeleteId = null;
+        }
+
+        function confirmDelete() {
+            if (pendingDeleteId) {
+                deleteEntry(pendingDeleteId);
+            }
+            closeModal();
+        }
+
+        async function deleteEntry(id) {
+            try {
+                const response = await fetch(`/api/leaderboard/${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`✅ ${data.message}`, 'success');
+                    refreshData();
+                } else {
+                    showToast(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error deleting entry:', error);
+                showToast('❌ Failed to delete entry', 'error');
+            }
+        }
+
+        async function clearAllEntries() {
+            if (!confirm('⚠️ Are you sure you want to clear ALL leaderboard entries?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/leaderboard', {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast(`✅ ${data.message}`, 'success');
+                    refreshData();
+                } else {
+                    showToast(`❌ ${data.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error clearing leaderboard:', error);
+                showToast('❌ Failed to clear leaderboard', 'error');
+            }
+        }
 
         async function refreshData() {
             try {
@@ -182,12 +488,19 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    renderLeaderboard(data.players);
+                    renderLeaderboard(data.entries);
+                    lastUpdateTime = new Date();
+                    document.getElementById('lastUpdated').textContent = 
+                        `Last updated: ${lastUpdateTime.toLocaleTimeString()}`;
                 } else {
-                    console.error('Error loading leaderboard:', data.error);
+                    console.error('Error loading leaderboard:', data.message);
                     document.getElementById('leaderboardBody').innerHTML = `
                         <tr>
-                            <td colspan="6" class="empty-state">❌ Error loading leaderboard</td>
+                            <td colspan="8" class="empty-state">
+                                <span class="icon">❌</span>
+                                <h3>Error Loading Data</h3>
+                                <p>${data.message || 'Please try again later'}</p>
+                            </td>
                         </tr>
                     `;
                 }
@@ -195,26 +508,34 @@
                 console.error('Error:', error);
                 document.getElementById('leaderboardBody').innerHTML = `
                     <tr>
-                        <td colspan="6" class="empty-state">❌ Error loading leaderboard</td>
+                        <td colspan="8" class="empty-state">
+                            <span class="icon">❌</span>
+                            <h3>Connection Error</h3>
+                            <p>Failed to fetch leaderboard data</p>
+                        </td>
                     </tr>
                 `;
             }
         }
 
-        function renderLeaderboard(players) {
+        function renderLeaderboard(entries) {
             const tbody = document.getElementById('leaderboardBody');
             
-            if (!players || players.length === 0) {
+            if (!entries || entries.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" class="empty-state">📭 No players yet. Start cooking!</td>
+                        <td colspan="8" class="empty-state">
+                            <span class="icon">🍽️</span>
+                            <h3>No Scores Yet</h3>
+                            <p>Complete a service to see your name here!</p>
+                        </td>
                     </tr>
                 `;
                 return;
             }
 
             // Sort based on current tab
-            let sorted = [...players];
+            let sorted = [...entries];
             switch(currentTab) {
                 case 'score':
                     sorted.sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -224,34 +545,57 @@
                     break;
                 case 'accuracy':
                     sorted.sort((a, b) => {
-                        const accA = (a.served || 0) / Math.max(1, (a.served || 0) + (a.failed || 0));
-                        const accB = (b.served || 0) / Math.max(1, (b.served || 0) + (b.failed || 0));
+                        const accA = (a.served || 0) / Math.max(1, (a.served || 0) + (a.failed || 0) + (a.missed || 0));
+                        const accB = (b.served || 0) / Math.max(1, (b.served || 0) + (b.failed || 0) + (b.missed || 0));
                         return accB - accA;
                     });
                     break;
             }
 
-            tbody.innerHTML = sorted.map((player, index) => {
+            tbody.innerHTML = sorted.map((entry, index) => {
                 const rank = index + 1;
                 let rankClass = '';
-                let rankEmoji = '';
-                if (rank === 1) { rankClass = 'gold'; rankEmoji = '🥇'; }
-                else if (rank === 2) { rankClass = 'silver'; rankEmoji = '🥈'; }
-                else if (rank === 3) { rankClass = 'bronze'; rankEmoji = '🥉'; }
+                let rankDisplay = '#' + rank;
+                if (rank === 1) { rankClass = 'gold'; rankDisplay = '🥇'; }
+                else if (rank === 2) { rankClass = 'silver'; rankDisplay = '🥈'; }
+                else if (rank === 3) { rankClass = 'bronze'; rankDisplay = '🥉'; }
                 
-                const accuracy = ((player.served || 0) / Math.max(1, (player.served || 0) + (player.failed || 0)) * 100).toFixed(1);
+                const total = (entry.served || 0) + (entry.failed || 0) + (entry.missed || 0);
+                const accuracy = total > 0 ? ((entry.served || 0) / total * 100).toFixed(1) : 0;
+                
+                let barClass = 'high';
+                if (accuracy < 50) barClass = 'low';
+                else if (accuracy < 70) barClass = 'medium';
 
                 return `
                     <tr>
-                        <td><span class="rank ${rankClass}">${rankEmoji || '#' + rank}</span></td>
-                        <td><strong>${player.name || 'Player ' + rank}</strong></td>
-                        <td>${player.served || 0}</td>
-                        <td style="color: #d9463c;">${player.failed || 0}</td>
-                        <td><span class="score-highlight">${player.score || 0}</span></td>
-                        <td>${accuracy}%</td>
+                        <td><span class="rank ${rankClass}">${rankDisplay}</span></td>
+                        <td class="player-name">${escapeHtml(entry.name || 'Anonymous')}</td>
+                        <td style="color: #4a9d6e; font-weight: 700;">${entry.served || 0}</td>
+                        <td style="color: #ffc94d;">${entry.missed || 0}</td>
+                        <td style="color: #d9463c;">${entry.failed || 0}</td>
+                        <td><span class="score-highlight">${entry.score || 0}</span></td>
+                        <td>
+                            <span class="accuracy-bar">
+                                <span class="fill ${barClass}" style="width: ${Math.min(100, accuracy)}%;"></span>
+                            </span>
+                            ${accuracy}%
+                        </td>
+                        <td>
+                            <button class="delete-btn" onclick="showModal('Delete entry for ${escapeHtml(entry.name)}?', ${entry.id})" title="Delete entry">
+                                ✕
+                            </button>
+                        </td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        // Simple escape function to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // Tab switching
@@ -262,6 +606,13 @@
                 currentTab = this.dataset.tab;
                 refreshData();
             });
+        });
+
+        // Close modal on overlay click
+        document.getElementById('modalOverlay').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
         });
 
         // Auto-refresh every 15 seconds
@@ -278,6 +629,8 @@
 
         // Initial load
         refreshData();
+
+        console.log('🏆 Leaderboard loaded with delete functionality');
     </script>
 </body>
 </html>

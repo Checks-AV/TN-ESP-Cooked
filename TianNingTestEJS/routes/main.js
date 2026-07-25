@@ -12,15 +12,9 @@ router.get('/', (req, res, next) => {
     res.render("index.ejs", {title: "HOME"});
 });
 
-// NEW ROUTES - Add these after the home page route
 // ESP Dashboard page
 router.get('/espdashboard', (req, res) => {
     res.render("espdashboard.ejs", { title: "ESP Dashboard" });
-});
-
-// Leaderboards page
-router.get('/leaderboards', (req, res) => {
-    res.render("leaderboards.ejs", { title: "Leaderboards" });
 });
 
 // Credits page

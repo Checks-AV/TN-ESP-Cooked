@@ -4,6 +4,9 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 
+// Import leaderboard routes
+const leaderboardRoutes = require('./leaderboards');
+
 console.log('📦 Loading ticketrail routes...');
 
 // ============================================
@@ -53,6 +56,25 @@ function broadcastToClients(type, payload) {
     sseClients = aliveClients;
     console.log(`📤 Broadcast sent to ${sseClients.length} clients`);
 }
+
+// Register broadcast functions with leaderboard routes
+leaderboardRoutes.setBroadcastFunctions(
+    // Update function
+    (entry) => {
+        broadcastToClients('leaderboard-update', { entry });
+    },
+    // Delete function
+    (id) => {
+        broadcastToClients('leaderboard-deleted', { id });
+    },
+    // Clear function
+    () => {
+        broadcastToClients('leaderboard-cleared', {});
+    }
+);
+
+// Use leaderboard routes
+router.use(leaderboardRoutes);
 
 // ============================================
 // HELPER: Logging function with SSE broadcast
@@ -1184,5 +1206,6 @@ router.get('/game/settings', (req, res) => {
 console.log('✅ Ticketrail routes loaded successfully');
 console.log(`📡 SSE endpoint available at /api/events`);
 console.log(`📤 SSE broadcasting to ${sseClients.length} clients`);
+console.log(`🏆 Leaderboard endpoints available via /api/leaderboard`);
 
 module.exports = router;

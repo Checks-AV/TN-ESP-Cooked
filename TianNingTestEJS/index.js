@@ -1,30 +1,28 @@
 // setup express, body parser and EJS 
 const express = require('express');
-const path = require('path'); // <-- ADD THIS LINE - fixes the "path is not defined" error
+const path = require('path');
 const app = express();
 const port = 4000;
 var bodyParser = require("body-parser");
-app.use(bodyParser.urlencoded({ extended: true })); // parse the body before route handling happens
-app.use(express.json()); // IMPORTANT for JSON bodies
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.set('view engine', 'ejs'); // Tells Express to use EJS [11, 12]
-app.use(express.static(__dirname + '/public')); // set location of static files
-
+app.set('view engine', 'ejs');
+app.use(express.static(path.join(__dirname, 'public')));
 
 // SETUP SQLITE
 const sqlite3 = require('sqlite3').verbose();
-global.db = new sqlite3.Database('./database.db',function(err){
+global.db = new sqlite3.Database('./database.db', function(err){
     if(err){
-        console.error(err); // log error
-        process.exit(1); // bail out when we can't connect to the DB, so wont have resource hogging or death here
+        console.error(err);
+        process.exit(1);
     } else {
-        console.log("Database connected");
-        global.db.run("PRAGMA foreign_keys=ON"); // tell SQLite to pay attention to foreign key constraints
+        console.log("✅ Database connected");
+        global.db.run("PRAGMA foreign_keys=ON");
     }
 });
 
-
-// ROUTES HANDLERS BELOW <-- FOR ALL 
+// ROUTES HANDLERS
 // Handle requests to the home page 
 const appRoutes = require('./routes/main');
 app.use('/', appRoutes);
@@ -32,79 +30,28 @@ app.use('/', appRoutes);
 const settingsRoutes = require('./routes/settings');
 app.use('/settings', settingsRoutes);
 
-// esplisten MUST be mounted before esp32comms/ticketrail so it can see
-// each request first and wrap res.json (and res.redirect) before the
-// real route handler responds — that's how it captures both the
-// "received" and "result" side of every ESP message without needing
-// any changes to esp32comms.js or ticketrail.js themselves.
+// esplisten MUST be mounted before esp32comms/ticketrail
 const esplistenRoutes = require('./routes/esplisten');
 app.use(esplistenRoutes);
 
 const esp32Routes = require('./routes/esp32comms');
 app.use('/esp32comms', esp32Routes);
 
-// NOTE: this was missing entirely in the previous version of this file.
-// Without it, every route defined in routes/ticketrail.js — /api/recipes,
-// /api/orders, /api/orders/clear, /api/esp/status, /api/esp/missed,
-// /api/esp/submit, /api/events (SSE for the game), /game, and
-// /game/settings — would all 404, since Express never knew this router
-// existed.
+// Ticketrail routes - handles /game, /game/settings, /api/*, /leaderboards, etc.
 const ticketrailRoutes = require('./routes/ticketrail');
 app.use(ticketrailRoutes);
 
 app.use(express.text());
-/* app.post('/', (req, res) => {
 
-    console.log("========== ESP32 REQUEST ==========");
-    console.log("Headers:");
-    console.log(req.headers);
-
-    console.log("Body:");
-    console.log(req.body);
-
-    console.log("IP Address:");
-    console.log(req.ip);
-
-    console.log("Raw Remote Address:");
-    console.log(req.socket.remoteAddress);
-
-    console.log("===================================");
-    res.json({
-        success: true
-    });
-});
-*/
-
-
-app.listen(port, () => console.log('Server running on port 4000'));
-
-// app.use(express.json()); // IMPORTANT for JSON bodies
-
-// app.post('/esp32-data', (req, res) => {
-
-//     console.log("ESP32 Data Received:");
-//     console.log(req.body);
-
-//     res.json({
-//         success: true
-//     });
-// });
-
-
-
-// This is just for TianNing's ngrok thing for his other project (to remove)
-/* app.listen(port, '0.0.0.0', () => {
+app.listen(port, () => {
     console.log('\n==================================================');
-    console.log('🚀 nRF9160 GPS TRACKER RUNNING');
+    console.log('🚀 OVERCOOKED TICKET RAIL SERVER');
     console.log('==================================================');
-    console.log(`📡 Local: http://localhost:${port}`);
-    console.log('🌍 Public: http://unlit-dander-halt.ngrok-free.dev');
+    console.log(`📡 Server running on http://localhost:${port}`);
+    console.log(`🎮 Game: http://localhost:${port}/game`);
+    console.log(`🎛 Control: http://localhost:${port}/game/settings`);
+    console.log(`🏆 Leaderboard: http://localhost:${port}/leaderboards`);
+    console.log(`📊 ESP Dashboard: http://localhost:${port}/espdashboard`);
+    console.log(`👨‍🍳 Credits: http://localhost:${port}/credits`);
     console.log('==================================================\n');
-});*/
-
-// Route removed since esp-test-console.html is now in the public folder
-// and served by express.static
-// Access it at: http://localhost:4000/esp-test-console.html
-
-// const stagesRoutes = require('./routes/stages');
-// app.use('/stages', stagesRoutes);
+});
