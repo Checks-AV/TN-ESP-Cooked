@@ -76,5 +76,4 @@ node inspect-db.js
 cd C:\Users\CTN\Documents\GitHub\TN-ESP-Cooked\TianNingTestEJS
 npm start
 
-npm run clean-db
-npm run build-db
+npm run rebuild-db
