@@ -15,6 +15,8 @@
       --teal-deep:  #0a4443;
       --teal-mid:   #0f6564;
       --teal-glow:  #1a8f8c;
+      --teal-pale:  #eaf7f6;
+      --teal-pale2: #d3ede9;
       --flame:      #ff7a3d;
       --flame-dark: #e05a1f;
       --tomato:     #ef4444;
@@ -38,15 +40,15 @@
       margin: 0;
       min-height: 100vh;
       font-family: 'Nunito', sans-serif;
-      color: var(--paper);
+      color: var(--ink);
       padding-bottom: 40px;
       overflow-x: hidden;
       position: relative;
       background:
-        radial-gradient(circle at 15% -10%, rgba(255,201,77,0.18), transparent 45%),
-        radial-gradient(circle at 90% 10%, rgba(255,122,61,0.14), transparent 40%),
-        repeating-linear-gradient(45deg, rgba(255,255,255,0.028) 0 2px, transparent 2px 28px),
-        linear-gradient(180deg, var(--teal-mid), var(--teal-deep) 55%, #052625 100%);
+        radial-gradient(circle at 15% -10%, rgba(255,201,77,0.22), transparent 45%),
+        radial-gradient(circle at 90% 10%, rgba(255,122,61,0.16), transparent 40%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.35) 0 2px, transparent 2px 28px),
+        linear-gradient(180deg, var(--teal-pale), var(--teal-pale2) 55%, #bfe4df 100%);
     }
 
     ::selection { background: var(--butter); color: var(--ink); }
@@ -61,7 +63,7 @@
       padding: 14px 32px;
       background: linear-gradient(180deg, var(--wood), var(--wood-dark));
       border-bottom: 5px solid var(--ink);
-      box-shadow: 0 6px 0 rgba(0,0,0,0.22), 0 10px 24px rgba(0,0,0,0.35);
+      box-shadow: 0 4px 0 rgba(0,0,0,0.12), 0 6px 14px rgba(0,0,0,0.15);
       flex-wrap: wrap;
       gap: 12px;
       position: sticky;
@@ -160,7 +162,7 @@
       font-family: 'Nunito', sans-serif;
       font-size: 12px;
       font-weight: 800;
-      color: rgba(255,246,226,0.65);
+      color: rgba(36,22,9,0.65);
       margin-bottom: 6px;
       text-transform: uppercase;
       letter-spacing: 1.5px;
@@ -170,13 +172,13 @@
       font-family: 'Baloo 2', cursive;
       font-weight: 800;
       font-size: 30px;
-      color: var(--butter);
+      color: var(--butter-dark);
       letter-spacing: 1px;
-      text-shadow: 2px 2px 0 var(--ink);
+      text-shadow: 2px 2px 0 rgba(255,255,255,0.6);
     }
     .service-track {
       height: 16px;
-      background: rgba(0,0,0,0.35);
+      background: rgba(0,0,0,0.15);
       border-radius: 8px;
       overflow: hidden;
       border: 3px solid var(--ink);
@@ -249,7 +251,7 @@
       background: linear-gradient(180deg, var(--wood), var(--wood-dark));
       border: 3px solid var(--ink);
       border-radius: 6px;
-      box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+      box-shadow: 0 5px 14px rgba(0,0,0,0.25);
     }
     .rail-bar::before, .rail-bar::after {
       content: '';
@@ -274,14 +276,14 @@
       align-items: flex-start;
     }
     .rail::-webkit-scrollbar { height: 10px; }
-    .rail::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 4px; }
+    .rail::-webkit-scrollbar-track { background: rgba(0,0,0,0.08); border-radius: 4px; }
     .rail::-webkit-scrollbar-thumb { background: var(--butter); border-radius: 4px; border: 2px solid var(--ink); }
 
     /* ============================================================
        EMPTY RAIL STATE
        ============================================================ */
     .empty-rail {
-      color: rgba(255,246,226,0.85);
+      color: rgba(36,22,9,0.85);
       padding: 50px 10px;
       text-align: center;
       width: 100%;
@@ -298,10 +300,10 @@
       color: var(--ink);
     }
     .empty-rail .glyph svg { width: 30px; height: 30px; }
-    .empty-rail .title { font-size: 21px; font-weight: 800; font-family: 'Baloo 2', cursive; color: var(--paper); text-shadow: 2px 2px 0 var(--ink); }
-    .empty-rail .sub { font-size: 13.5px; color: rgba(255,246,226,0.6); margin-top: 6px; max-width: 480px; margin-left: auto; margin-right: auto; }
+    .empty-rail .title { font-size: 21px; font-weight: 800; font-family: 'Baloo 2', cursive; color: var(--ink); text-shadow: 2px 2px 0 rgba(255,255,255,0.5); }
+    .empty-rail .sub { font-size: 13.5px; color: rgba(36,22,9,0.6); margin-top: 6px; max-width: 480px; margin-left: auto; margin-right: auto; }
     .empty-rail.error .glyph { background: var(--tomato); color: #fff; }
-    .empty-rail.error .title { color: var(--tomato); text-shadow: 2px 2px 0 var(--ink); }
+    .empty-rail.error .title { color: var(--tomato-dark); text-shadow: none; }
     .empty-rail.loading .glyph { background: var(--butter); }
     .empty-rail.success .glyph { background: var(--herb); color: #fff; }
     .empty-rail .retry-btn {
@@ -345,8 +347,9 @@
       80% { transform: translateX(5px) rotate(var(--tilt)); }
     }
     .ticket.missed .ticket-body { animation: shake 0.4s; filter: saturate(0.6); }
-    .ticket.completed .ticket-body { filter: saturate(0.6); opacity: 0.75; transform: scale(0.98); }
-    .ticket.failed .ticket-body { filter: saturate(0.6); opacity: 0.55; transform: scale(0.95); }
+    /* FIX: preserve the ticket's rotate(var(--tilt)) tilt instead of clobbering it with a bare scale() */
+    .ticket.completed .ticket-body { filter: saturate(0.6); opacity: 0.75; transform: rotate(var(--tilt)) scale(0.98); }
+    .ticket.failed .ticket-body { filter: saturate(0.6); opacity: 0.55; transform: rotate(var(--tilt)) scale(0.95); }
 
     .clip {
       position: absolute;
@@ -377,7 +380,7 @@
       color: var(--ink);
       border-radius: 12px;
       border: 3px solid var(--ink);
-      box-shadow: 6px 6px 0 rgba(0,0,0,0.35);
+      box-shadow: 6px 6px 0 rgba(0,0,0,0.25);
       transform: rotate(var(--tilt));
       position: relative;
       overflow: hidden;
@@ -710,13 +713,13 @@
       font-family: 'Nunito', sans-serif;
       font-weight: 700;
       font-size: 12px;
-      color: rgba(255,246,226,0.55);
+      color: rgba(36,22,9,0.55);
       padding: 10px 20px;
       text-align: center;
     }
     .status-msg .icon { width: 12px; height: 12px; }
-    .status-msg.error { color: var(--tomato); }
-    .status-msg.success { color: var(--herb); }
+    .status-msg.error { color: var(--tomato-dark); }
+    .status-msg.success { color: var(--herb-dark); }
 
     /* ============================================================
        RESPONSIVE

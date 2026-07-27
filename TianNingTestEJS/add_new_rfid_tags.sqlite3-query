@@ -1,0 +1,176 @@
+-- Adds new RFID tags to their matching ingredients.
+-- Run this AFTER your main recipe.sqlite3-query has already created
+-- the tables (station, ingredients, food, RFIDTags, etc).
+--
+-- Japanese-name mapping used below (matches your existing ingredients table):
+--   Gohan   -> Rice
+--   Jagaimo -> Potato
+--   Tamago  -> Egg
+
+PRAGMA foreign_keys = ON;
+
+BEGIN TRANSACTION;
+
+-- FISH
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Fish'), 'Default'
+FROM (
+    SELECT '67;7F;E9;03' AS tag_rfid
+    UNION ALL SELECT '47;83;E1;03'
+    UNION ALL SELECT 'AC;35;E3;03'
+    UNION ALL SELECT '11;06;E0;03'
+    UNION ALL SELECT 'B6;C1;E0;03'
+    UNION ALL SELECT '83;16;E4;03'
+    UNION ALL SELECT 'FA;E8;E3;03'
+    UNION ALL SELECT '96;55;E1;03'
+    UNION ALL SELECT '46;B5;E3;03'
+    UNION ALL SELECT 'D7;A5;E2;03'
+    UNION ALL SELECT '82;8F;E0;03'
+    UNION ALL SELECT 'CC;2E;E1;03'
+) v;
+
+-- GOHAN (Rice)
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Rice'), 'Default'
+FROM (
+    SELECT '7E;91;E2;03' AS tag_rfid
+    UNION ALL SELECT 'A7;3A;E3;03'
+    UNION ALL SELECT 'AD;6F;E4;03'
+    UNION ALL SELECT 'C2;1D;E3;03'
+    UNION ALL SELECT '3A;7D;E3;03'
+    UNION ALL SELECT 'FA;E0;E3;03'
+    UNION ALL SELECT '5D;70;E4;03'
+    UNION ALL SELECT 'EE;69;E3;03'
+    UNION ALL SELECT '64;2C;E0;03'
+    UNION ALL SELECT '22;64;E4;03'
+    UNION ALL SELECT 'FB;07;E2;03'
+    UNION ALL SELECT 'FE;77;E0;03'
+) v;
+
+-- JAGAIMO (Potato)
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Potato'), 'Default'
+FROM (
+    SELECT 'E6;88;E7;03' AS tag_rfid
+    UNION ALL SELECT '82;21;E9;03'
+    UNION ALL SELECT '64;38;E7;03'
+    UNION ALL SELECT '86;46;E7;03'
+    UNION ALL SELECT 'D5;1D;E8;03'
+    UNION ALL SELECT 'BA;C0;E9;03'
+    UNION ALL SELECT '3A;C6;E9;03'
+    UNION ALL SELECT 'F3;6D;46;03'
+    UNION ALL SELECT 'A4;24;E8;03'
+    UNION ALL SELECT '23;B1;E7;03'
+    UNION ALL SELECT '27;64;C3;03'
+    UNION ALL SELECT '6A;6F;E8;03'
+    UNION ALL SELECT 'F4;67;B4;03'
+) v;
+
+-- BEEF
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Beef'), 'Default'
+FROM (
+    SELECT '54;A3;E9;03' AS tag_rfid
+    UNION ALL SELECT 'D5;BE;E7;03'
+    UNION ALL SELECT '7E;4D;E9;03'
+    UNION ALL SELECT '71;70;E7;03'
+    UNION ALL SELECT '9E;73;E9;03'
+    UNION ALL SELECT 'DD;A2;C4;03'
+    UNION ALL SELECT 'E1;59;E9;03'
+    UNION ALL SELECT '19;D4;E7;03'
+    UNION ALL SELECT 'D2;CF;E8;03'
+    UNION ALL SELECT '43;96;E7;03'
+    UNION ALL SELECT '41;B1;E9;03'
+    UNION ALL SELECT '31;81;CA;01'
+    UNION ALL SELECT '51;44;B4;03'
+) v;
+
+-- MUSHROOM
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Mushroom'), 'Default'
+FROM (
+    SELECT 'DD;20;E9;03' AS tag_rfid
+    UNION ALL SELECT 'E4;76;C3;03'
+    UNION ALL SELECT 'FC;0A;E8;03'
+    UNION ALL SELECT '92;9D;E7;03'
+    UNION ALL SELECT '07;97;E8;03'
+    UNION ALL SELECT '25;38;E9;03'
+    UNION ALL SELECT '5E;A0;C4;03'
+    UNION ALL SELECT '02;10;C3;03'
+    UNION ALL SELECT '31;57;E7;03'
+    UNION ALL SELECT 'ED;B6;E8;03'
+    UNION ALL SELECT 'A1;F3;E7;03'
+    UNION ALL SELECT '57;D7;50;06'
+) v;
+
+-- LETTUCE
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Lettuce'), 'Default'
+FROM (
+    SELECT 'CE;85;E9;03' AS tag_rfid
+    UNION ALL SELECT 'EB;69;E9;03'
+    UNION ALL SELECT 'A2;37;E9;03'
+    UNION ALL SELECT '81;49;E9;03'
+    UNION ALL SELECT '71;27;C4;03'
+    UNION ALL SELECT '1C;36;E9;03'
+    UNION ALL SELECT 'EA;0B;E8;03'
+    UNION ALL SELECT '39;02;E8;03'
+    UNION ALL SELECT 'FE;61;C3;03'
+    UNION ALL SELECT '87;A8;E7;03'
+    UNION ALL SELECT '7C;CD;C4;03'
+    UNION ALL SELECT '2C;86;E9;03'
+) v;
+
+-- TAMAGO (Egg)
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Egg'), 'Default'
+FROM (
+    SELECT '24;7F;E4;03' AS tag_rfid
+    UNION ALL SELECT '15;E1;E3;03'
+    UNION ALL SELECT '3A;8F;E0;03'
+    UNION ALL SELECT '02;C3;E0;03'
+    UNION ALL SELECT 'A7;A8;E0;03'
+    UNION ALL SELECT '47;FC;E3;03'
+    UNION ALL SELECT 'FD;50;E4;03'
+    UNION ALL SELECT '06;0E;E4;03'
+    UNION ALL SELECT 'E7;33;E3;03'
+    UNION ALL SELECT '62;4D;E2;03'
+    UNION ALL SELECT '07;61;E2;03'
+    UNION ALL SELECT 'AA;46;E0;03'
+    UNION ALL SELECT 'FA;51;E4;03'
+) v;
+
+-- CHICKEN
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Chicken'), 'Default'
+FROM (
+    SELECT 'F1;3C;B3;03' AS tag_rfid
+    UNION ALL SELECT '31;9C;59;03'
+    UNION ALL SELECT '65;88;B3;03'
+    UNION ALL SELECT '55;31;B3;03'
+    UNION ALL SELECT 'AB;6B;B3;03'
+    UNION ALL SELECT 'FC;6A;B5;03'
+    UNION ALL SELECT '49;81;B3;03'
+    UNION ALL SELECT 'AA;75;B3;03'
+    UNION ALL SELECT 'C3;2F;B5;03'
+    UNION ALL SELECT '82;20;B5;03'
+    UNION ALL SELECT '69;A6;B6;03'
+    UNION ALL SELECT '24;4C;B5;03'
+) v;
+
+-- CHEESE
+INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
+SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Cheese'), 'Default'
+FROM (
+    SELECT '0B;73;E8;03' AS tag_rfid
+    UNION ALL SELECT 'AB;73;E8;03'
+    UNION ALL SELECT '16;76;E9;03'
+    UNION ALL SELECT '6C;7F;E7;03'
+    UNION ALL SELECT '0A;3F;E4;03'
+    UNION ALL SELECT 'BD;97;E3;03'
+    UNION ALL SELECT 'EA;51;E4;03'
+    UNION ALL SELECT 'B1;09;E3;03'
+    UNION ALL SELECT '61;3D;E0;03'
+) v;
+
+COMMIT;
