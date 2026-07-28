@@ -791,39 +791,28 @@ router.post('/api/esp/missed', (req, res) => {
                     });
                 }
 
-                // Reset tags
-                global.db.run(
-                    `UPDATE RFIDTags SET current_status = 'Default'`,
-                    function(err) {
-                        if (err) {
-                            logMessage('error', 'Error resetting tags', { error: err.message });
-                            global.db.run("ROLLBACK");
-                            return res.status(500).json({ error: 'Database error' });
-                        }
-
-                        global.db.run("COMMIT", (err) => {
-                            if (err) {
-                                logMessage('error', 'Error committing transaction', { error: err.message });
-                                global.db.run("ROLLBACK");
-                                return res.status(500).json({ error: 'Database error' });
-                            }
-
-                            logMessage('success', `Order ${formattedOrder} marked as missed`);
-                            
-                            // Broadcast missed order via SSE
-                            broadcastToClients('order-missed', {
-                                order_number: formattedOrder,
-                                display_order_number: '#' + String(formattedOrder).padStart(2, '0')
-                            });
-                            
-                            return res.json({
-                                success: true,
-                                order_number: formattedOrder,
-                                order_status: 'missed'
-                            });
-                        });
+                // Commit transaction - no tag reset for missed orders
+                global.db.run("COMMIT", (err) => {
+                    if (err) {
+                        logMessage('error', 'Error committing transaction', { error: err.message });
+                        global.db.run("ROLLBACK");
+                        return res.status(500).json({ error: 'Database error' });
                     }
-                );
+
+                    logMessage('success', `Order ${formattedOrder} marked as missed`);
+                    
+                    // Broadcast missed order via SSE
+                    broadcastToClients('order-missed', {
+                        order_number: formattedOrder,
+                        display_order_number: '#' + String(formattedOrder).padStart(2, '0')
+                    });
+                    
+                    return res.json({
+                        success: true,
+                        order_number: formattedOrder,
+                        order_status: 'missed'
+                    });
+                });
             }
         );
     });
@@ -1255,7 +1244,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                 }
 
                                 // ============================================
-                                // STEP 5: Update order + reset tags
+                                // STEP 5: Update order + reset ONLY submitted tags
                                 // ============================================
                                 global.db.run("BEGIN TRANSACTION", (err) => {
                                     if (err) {
@@ -1267,6 +1256,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                     const newStatus = allPass ? 'completed' : 'failed';
                                     const statusMessage = allPass ? 'COMPLETED' : 'FAILED';
 
+                                    // Update order status
                                     global.db.run(
                                         `UPDATE Orders SET order_status = ? WHERE orders_id = ?`,
                                         [newStatus, pendingOrder.orders_id],
@@ -1278,15 +1268,26 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                                 return res.status(500).json({ error: 'Database error' });
                                             }
 
+                                            // Reset ONLY the submitted tags to 'Default'
+                                            const placeholders = tag_macs.map(() => '?').join(',');
+                                            const resetTagsSql = `
+                                                UPDATE RFIDTags 
+                                                SET current_status = 'Default' 
+                                                WHERE tag_rfid IN (${placeholders})
+                                            `;
+
                                             global.db.run(
-                                                `UPDATE RFIDTags SET current_status = 'Default'`,
+                                                resetTagsSql,
+                                                tag_macs,
                                                 function (err) {
                                                     if (err) {
-                                                        logMessage('error', 'Error clearing tag statuses', { error: err.message });
+                                                        logMessage('error', 'Error resetting submitted tags', { error: err.message });
                                                         global.db.run("ROLLBACK");
                                                         if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                                         return res.status(500).json({ error: 'Database error' });
                                                     }
+
+                                                    logMessage('database', `Reset ${this.changes || 0} submitted tags to 'Default'`);
 
                                                     global.db.run("COMMIT", (err) => {
                                                         if (err) {
@@ -1364,9 +1365,22 @@ router.get('/game/settings', (req, res) => {
     });
 });
 
+// ============================================
+// LOG VIEWER ROUTES
+// ============================================
+
+router.get('/logviewer', (req, res) => {
+    logMessage('system', 'Rendering log viewer page');
+    res.render('logviewer', {
+        title: 'Ticket Rail - Log Viewer'
+    });
+});
+
+
 console.log('✅ Ticketrail routes loaded successfully');
 console.log(`📡 SSE endpoint available at /api/events`);
 console.log(`📤 SSE broadcasting to ${sseClients.length} clients`);
 console.log(`🏆 Leaderboard endpoints available via /api/leaderboard`);
+console.log(`📊 Log viewer available at /logviewer and /settings/logs`);
 
 module.exports = router;

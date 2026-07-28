@@ -196,14 +196,14 @@ router.post("/listen", (req, res, next) => {
             if (!existingDevice) {
                 // Device doesn't exist - auto-register it
                 console.log(`[LISTEN] Auto-registering new device: ${device_mac}`);
-                
+
                 global.db.run(
                     `INSERT INTO ESP32Devices (device_mac, ip_address, last_seen)
                      VALUES (?, ?, ?)`,
                     [device_mac, null, now],
                     function(err) {
                         if (err) return next(err);
-                        
+
                         // Get the new device_id
                         global.db.get(
                             `SELECT device_id FROM ESP32Devices WHERE device_mac = ?`,
@@ -213,14 +213,14 @@ router.post("/listen", (req, res, next) => {
                                 if (!newDevice) {
                                     return res.status(500).json({ error: "Failed to create device" });
                                 }
-                                
+
                                 // Assign to "General" station by default
                                 global.db.get(
                                     `SELECT station_id FROM station WHERE station_name = 'General'`,
                                     [],
                                     (err, generalStation) => {
                                         if (err) return next(err);
-                                        
+
                                         if (generalStation) {
                                             global.db.run(
                                                 `INSERT INTO ESP32Tagger (device_id, station_id)
@@ -284,12 +284,52 @@ router.post("/listen", (req, res, next) => {
 // Either way, the canonical name is resolved and stored in the chain,
 // so RFIDTags.current_status always matches the string format the
 // recipe validator (ticketrail.js) expects.
+//
+// LOCKING: This function reads a tag's current_status, computes a new
+// chain string, then writes it back (read-then-write). If the ESP
+// resends the same action — e.g. it didn't get an ack in time and
+// retried, or a message got duplicated in transit — two requests for
+// the same tag_rfid can end up in-flight at once. Without a lock, both
+// can read the same stale current_status before either write commits,
+// so both compute the same "appended" chain and whichever UPDATE
+// commits last silently overwrites the other. That's what produces the
+// symptom of a tag's chain jumping (e.g. "Cook → Cook → Cook") and then
+// snapping back down to a shorter chain on the very next message.
+//
+// global.tagLocks acts the same way global.orderLocks already does for
+// order submission in ticketrail.js: one in-flight action per tag_rfid
+// at a time. A resend that arrives while the first is still processing
+// gets a 409 instead of racing it.
 function handleAction(req, res, next, device_mac, payload) {
     const { tag_rfid, action_name } = payload || {};
 
     if (!tag_rfid || action_name === undefined || action_name === null || action_name === '') {
         return res.status(400).json({ error: "action needs tag_rfid and action_name in payload" });
     }
+
+    const lockKey = `tag_${tag_rfid}`;
+    if (!global.tagLocks) global.tagLocks = {};
+
+    if (global.tagLocks[lockKey]) {
+        console.log(`[ACTION] Ignoring overlapping action for tag ${tag_rfid} (already processing) — likely a resend`);
+        return res.status(409).json({
+            error: "Tag action already in progress",
+            message: `Tag ${tag_rfid} is currently being processed — likely a duplicate/resend`
+        });
+    }
+
+    global.tagLocks[lockKey] = true;
+
+    // Safety valve: if something throws or a callback path is missed,
+    // don't leave the tag permanently locked out.
+    const safetyTimeout = setTimeout(() => {
+        delete global.tagLocks[lockKey];
+    }, 5000);
+
+    const release = () => {
+        clearTimeout(safetyTimeout);
+        delete global.tagLocks[lockKey];
+    };
 
     // Resolve action_name to a canonical preparation_method row,
     // whether it arrived as an id or a name.
@@ -300,8 +340,12 @@ function handleAction(req, res, next, device_mac, payload) {
     const methodLookupParam = isNumeric ? Number(action_name) : String(action_name).trim();
 
     global.db.get(methodLookupSql, [methodLookupParam], (err, method) => {
-        if (err) return next(err);
+        if (err) {
+            release();
+            return next(err);
+        }
         if (!method) {
+            release();
             return res.status(400).json({
                 error: `Unknown preparation method: "${action_name}"`
             });
@@ -316,8 +360,12 @@ function handleAction(req, res, next, device_mac, payload) {
              WHERE ed.device_mac = ?`,
             [device_mac],
             (err, station) => {
-                if (err) return next(err);
+                if (err) {
+                    release();
+                    return next(err);
+                }
                 if (!station) {
+                    release();
                     return res.status(404).json({
                         error: `Device ${device_mac} is not registered or has no station assigned`
                     });
@@ -327,12 +375,14 @@ function handleAction(req, res, next, device_mac, payload) {
                 // and Reset only clears a single tag's status (message_type
                 // "reset") — neither ever performs prep actions on tags.
                 if (station.station_name === 'Counter') {
+                    release();
                     return res.status(403).json({
                         error: `Station "Counter" cannot perform prep actions. ` +
                                `Counter only submits finished orders via /api/esp/submit.`
                     });
                 }
                 if (station.station_name === 'Reset') {
+                    release();
                     return res.status(403).json({
                         error: `Station "Reset" cannot perform prep actions. ` +
                                `Reset only clears tag status via message_type "reset".`
@@ -346,8 +396,12 @@ function handleAction(req, res, next, device_mac, payload) {
                      WHERE station_id = ? AND preparation_method_id = ?`,
                     [station.station_id, method.preparation_method_id],
                     (err, allowed) => {
-                        if (err) return next(err);
+                        if (err) {
+                            release();
+                            return next(err);
+                        }
                         if (!allowed) {
+                            release();
                             return res.status(403).json({
                                 error: `Station "${station.station_name}" cannot perform "${method.preparation_method_name}"`
                             });
@@ -358,8 +412,12 @@ function handleAction(req, res, next, device_mac, payload) {
                             `SELECT tag_id, ingredients_id, current_status FROM RFIDTags WHERE tag_rfid = ?`,
                             [tag_rfid],
                             (err, tag) => {
-                                if (err) return next(err);
+                                if (err) {
+                                    release();
+                                    return next(err);
+                                }
                                 if (!tag) {
+                                    release();
                                     return res.status(404).json({
                                         error: `Tag ${tag_rfid} is not assigned to any ingredient`
                                     });
@@ -375,6 +433,8 @@ function handleAction(req, res, next, device_mac, payload) {
                                     `UPDATE RFIDTags SET current_status = ? WHERE tag_id = ?`,
                                     [newStatus, tag.tag_id],
                                     function (err) {
+                                        release();
+
                                         if (err) return next(err);
 
                                         console.log(
@@ -726,7 +786,7 @@ router.delete("/device/:device_id", (req, res, next) => {
 
                         global.db.run("COMMIT");
                         console.log(`[DELETE] Device ${device_id} removed`);
-                        
+
                         res.json({
                             success: true,
                             message: "Device removed successfully",
@@ -786,7 +846,7 @@ router.post("/update-tag-assignment", (req, res, next) => {
     }
 
     global.db.run(
-        `UPDATE RFIDTags 
+        `UPDATE RFIDTags
          SET tag_rfid = ?, ingredients_id = ?, current_status = 'Default'
          WHERE tag_id = ?`,
         [tag_rfid, ingredients_id, tag_id],
