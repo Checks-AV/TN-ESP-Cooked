@@ -1,6 +1,12 @@
 const express = require("express");
 const router = express.Router();
 
+// Pull in the shared logger used by ticketrail.js so tag status changes
+// show up in the same log stream (and the "tag" log panel on the
+// frontend) as everything else — same function, same SSE broadcast,
+// no duplicated logic.
+const { logIngredientStatusChange } = require("./ticketrail");
+
 // ─── POST /esp32comms/register ────────────────────────────────
 // ESP32 calls this on boot to announce itself
 // Body: { device_mac, station_id, ip_address }
@@ -442,6 +448,11 @@ function handleAction(req, res, next, device_mac, payload) {
                                             `→ ${newStatus}`
                                         );
 
+                                        // Log the tag status change into the shared log stream
+                                        // (this is what feeds the "tag" log panel on the frontend).
+                                        // Purely additive — does not affect the response below.
+                                        logIngredientStatusChange(tag_rfid, base, newStatus);
+
                                         res.json({
                                             success: true,
                                             tag_rfid,
@@ -520,6 +531,9 @@ function handleResetTag(req, res, next, device_mac, payload) {
                                 `[RESET] Tag ${tag_rfid} cleared: ` +
                                 `"${tag.current_status}" → "Default"`
                             );
+
+                            // Log the tag status change into the shared log stream
+                            logIngredientStatusChange(tag_rfid, tag.current_status, 'Default');
 
                             res.json({
                                 success: true,
@@ -726,6 +740,9 @@ router.post("/reset", (req, res, next) => {
                         `[RESET] Tag ${tag_rfid} reset: ` +
                         `"${tag.current_status}" → "Default"`
                     );
+
+                    // Log the tag status change into the shared log stream
+                    logIngredientStatusChange(tag_rfid, tag.current_status, 'Default');
 
                     res.json({
                         success: true,

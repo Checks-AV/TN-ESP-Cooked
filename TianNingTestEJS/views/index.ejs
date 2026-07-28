@@ -106,6 +106,12 @@
             color: #1a1a1a !important;
             border-color: #c4905e !important;
         }
+        /* NEW: Log Viewer button — warm teal / sea-green, friendly & distinct */
+        .btn-logviewer {
+            background: #2a9d8f !important;    /* deep teal */
+            color: #ffffff !important;
+            border-color: #21867a !important;
+        }
         
         .label-text {
             color: #6b6558 !important;
@@ -138,6 +144,10 @@
     <!-- For Monitor -->
     <p class="label-text">For Monitor</p>
     <button class="btn-monitor" onclick="window.location.href='/esp-monitor.html'">ESP32 Monitor</button> <br>
+    
+    <!-- NEW: For Checking (inserted right after Monitor, before Setup) -->
+    <p class="label-text">For Checking</p>
+    <button class="btn-logviewer" onclick="window.location.href='/logviewer'">Log Viewer</button> <br>
     
     <!-- For Setup -->
     <p class="label-text">For Setup</p>

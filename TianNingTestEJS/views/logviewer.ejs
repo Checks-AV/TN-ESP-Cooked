@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title><%= title || 'Ticket Rail - Log Viewer' %></title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel-bg: #11161d;
+    --border: #2a313c;
+    --text: #c9d1d9;
+    --text-dim: #6e7681;
+    --tag-accent: #58a6ff;
+    --order-accent: #d29922;
+    --other-accent: #8b949e;
+
+    --c-info: #6e9bd6;
+    --c-success: #3fb950;
+    --c-warning: #d29922;
+    --c-error: #f85149;
+    --c-database: #a371f7;
+    --c-esp: #39c5cf;
+    --c-match: #56d364;
+    --c-order: #d29922;
+    --c-system: #6e7681;
+    --c-debug: #8b949e;
+    --c-tag: #58a6ff;
+    --c-submit: #39c5cf;
+    --c-peak: #f778ba;
+    --c-game: #56d364;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 13px;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-bg);
+    flex-shrink: 0;
+  }
+
+  header h1 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text);
+    letter-spacing: 0.02em;
+  }
+
+  #status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  #status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--c-error);
+    transition: background 0.2s ease;
+  }
+
+  #status.connected .dot {
+    background: var(--c-success);
+  }
+
+  #clear-all {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  #clear-all:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
+
+  #top-row {
+    display: flex;
+    flex: 1 1 65%;
+    min-height: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  #top-row .panel:first-child {
+    flex: 1 1 50%;
+    border-right: 1px solid var(--border);
+  }
+  #top-row .panel:last-child {
+    flex: 1 1 50%;
+  }
+
+  #bottom-row {
+    flex: 1 1 35%;
+    min-height: 0;
+    display: flex;
+  }
+  #bottom-row .panel {
+    flex: 1 1 100%;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--panel-bg);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .panel[data-group="tag"] .panel-title { color: var(--tag-accent); }
+  .panel[data-group="order"] .panel-title { color: var(--order-accent); }
+  .panel[data-group="other"] .panel-title { color: var(--other-accent); }
+
+  .panel-count {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1px 8px;
+    min-width: 22px;
+    text-align: center;
+  }
+
+  .panel-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .panel-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-family: inherit;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .panel-btn:hover {
+    color: var(--text);
+    border-color: var(--text-dim);
+  }
+  .panel-btn.active {
+    color: var(--c-success);
+    border-color: var(--c-success);
+  }
+
+  .log-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 0;
+  }
+
+  .log-list::-webkit-scrollbar { width: 8px; }
+  .log-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .log-list::-webkit-scrollbar-track { background: transparent; }
+
+  .log-empty {
+    padding: 16px 12px;
+    color: var(--text-dim);
+    font-style: italic;
+  }
+
+  .log-entry {
+    display: flex;
+    gap: 8px;
+    padding: 4px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    align-items: baseline;
+    animation: fadein 0.15s ease-in;
+  }
+
+  @keyframes fadein {
+    from { background: rgba(255,255,255,0.06); }
+    to { background: transparent; }
+  }
+
+  .log-time {
+    flex-shrink: 0;
+    color: var(--text-dim);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .log-cat {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+
+  .log-msg {
+    color: var(--text);
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  /* category color coding, background tint for the badge only */
+  .cat-info     { color: var(--c-info); background: rgba(110,155,214,0.12); }
+  .cat-success  { color: var(--c-success); background: rgba(63,185,80,0.12); }
+  .cat-warning  { color: var(--c-warning); background: rgba(210,153,34,0.12); }
+  .cat-error    { color: var(--c-error); background: rgba(248,81,73,0.12); }
+  .cat-database { color: var(--c-database); background: rgba(163,113,247,0.12); }
+  .cat-esp      { color: var(--c-esp); background: rgba(57,197,207,0.12); }
+  .cat-match    { color: var(--c-match); background: rgba(86,211,100,0.12); }
+  .cat-order    { color: var(--c-order); background: rgba(210,153,34,0.12); }
+  .cat-system   { color: var(--c-system); background: rgba(110,118,129,0.12); }
+  .cat-debug    { color: var(--c-debug); background: rgba(139,148,158,0.12); }
+  .cat-tag      { color: var(--c-tag); background: rgba(88,166,255,0.12); }
+  .cat-submit   { color: var(--c-submit); background: rgba(57,197,207,0.12); }
+  .cat-peak     { color: var(--c-peak); background: rgba(247,120,186,0.12); }
+  .cat-game     { color: var(--c-game); background: rgba(86,211,100,0.12); }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <h1>Ticket Rail — Log Viewer</h1>
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div id="status"><span class="dot"></span><span id="status-text">Connecting…</span></div>
+      <button id="clear-all">Clear all</button>
+    </div>
+  </header>
+
+  <div id="top-row">
+    <div class="panel" data-group="tag">
+      <div class="panel-header">
+        <span class="panel-title">RFID Tag Status</span>
+        <div class="panel-controls">
+          <span class="panel-count" id="count-tag">0</span>
+          <button class="panel-btn active" data-autoscroll-toggle="tag">Auto-scroll</button>
+          <button class="panel-btn" data-clear="tag">Clear</button>
+        </div>
+      </div>
+      <div class="log-list" id="list-tag">
+        <div class="log-empty">Waiting for tag status changes…</div>
+      </div>
+    </div>
+
+    <div class="panel" data-group="order">
+      <div class="panel-header">
+        <span class="panel-title">Orders</span>
+        <div class="panel-controls">
+          <span class="panel-count" id="count-order">0</span>
+          <button class="panel-btn active" data-autoscroll-toggle="order">Auto-scroll</button>
+          <button class="panel-btn" data-clear="order">Clear</button>
+        </div>
+      </div>
+      <div class="log-list" id="list-order">
+        <div class="log-empty">Waiting for order activity…</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bottom-row">
+    <div class="panel" data-group="other">
+      <div class="panel-header">
+        <span class="panel-title">Everything Else</span>
+        <div class="panel-controls">
+          <span class="panel-count" id="count-other">0</span>
+          <button class="panel-btn active" data-autoscroll-toggle="other">Auto-scroll</button>
+          <button class="panel-btn" data-clear="other">Clear</button>
+        </div>
+      </div>
+      <div class="log-list" id="list-other">
+        <div class="log-empty">Waiting for system logs…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var MAX_ENTRIES = 500; // per-panel cap so the DOM doesn't grow unbounded on a long-running session
+
+  var lists = {
+    tag: document.getElementById('list-tag'),
+    order: document.getElementById('list-order'),
+    other: document.getElementById('list-other')
+  };
+  var counts = {
+    tag: document.getElementById('count-tag'),
+    order: document.getElementById('count-order'),
+    other: document.getElementById('count-other')
+  };
+  var entryCounts = { tag: 0, order: 0, other: 0 };
+  var autoScroll = { tag: true, order: true, other: true };
+
+  var statusEl = document.getElementById('status');
+  var statusText = document.getElementById('status-text');
+
+  function setConnected(isConnected) {
+    statusEl.classList.toggle('connected', isConnected);
+    statusText.textContent = isConnected ? 'Live' : 'Disconnected — retrying…';
+  }
+
+  function formatTime(iso) {
+    try {
+      var d = new Date(iso);
+      return d.toLocaleTimeString(undefined, { hour12: false }) +
+        '.' + String(d.getMilliseconds()).padStart(3, '0');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function appendEntry(group, entry) {
+    var list = lists[group];
+    if (!list) return;
+
+    // remove the "waiting for..." placeholder on first real entry
+    var placeholder = list.querySelector('.log-empty');
+    if (placeholder) placeholder.remove();
+
+    var row = document.createElement('div');
+    row.className = 'log-entry';
+
+    var time = document.createElement('span');
+    time.className = 'log-time';
+    time.textContent = formatTime(entry.timestamp);
+
+    var cat = document.createElement('span');
+    cat.className = 'log-cat cat-' + (entry.category || 'info');
+    cat.textContent = entry.category || 'info';
+
+    var msg = document.createElement('span');
+    msg.className = 'log-msg';
+    msg.textContent = entry.message || '';
+
+    row.appendChild(time);
+    row.appendChild(cat);
+    row.appendChild(msg);
+    list.appendChild(row);
+
+    // Every entry's message text already carries what's needed (ingredient
+    // + tag + status for tag entries, order/food/result for order entries,
+    // per-ingredient PASS/FAIL lines logged individually for validation).
+    // Dumping the raw structured payload on top of that is just noise, so
+    // it's intentionally never rendered here.
+
+    entryCounts[group]++;
+    counts[group].textContent = entryCounts[group];
+
+    // trim old entries once we're over the cap
+    while (list.children.length > MAX_ENTRIES) {
+      list.removeChild(list.firstChild);
+    }
+
+    if (autoScroll[group]) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }
+
+  function handleServerLog(payload) {
+    var group = payload.logGroup;
+    if (group !== 'tag' && group !== 'order') group = 'other';
+    appendEntry(group, payload);
+  }
+
+  function connect() {
+    var es = new EventSource('/api/events');
+
+    es.onopen = function () {
+      setConnected(true);
+    };
+
+    es.onerror = function () {
+      setConnected(false);
+      // EventSource retries automatically; nothing else to do here.
+    };
+
+    es.onmessage = function (evt) {
+      var msg;
+      try {
+        msg = JSON.parse(evt.data);
+      } catch (e) {
+        return;
+      }
+      if (!msg || !msg.type) return;
+
+      if (msg.type === 'connected') {
+        setConnected(true);
+        return;
+      }
+
+      if (msg.type === 'server-log') {
+        handleServerLog(msg.payload || {});
+      }
+
+      // 'initial-state', 'order-created', 'esp-order-complete', etc. are
+      // already mirrored into 'server-log' entries by logMessage() calls
+      // on the backend, so this viewer only needs to listen for that one
+      // event type to reflect everything happening in the three panels.
+    };
+  }
+
+  function clearPanel(group) {
+    lists[group].innerHTML = '<div class="log-empty">Cleared. Waiting for new logs…</div>';
+    entryCounts[group] = 0;
+    counts[group].textContent = '0';
+  }
+
+  document.getElementById('clear-all').addEventListener('click', function () {
+    ['tag', 'order', 'other'].forEach(clearPanel);
+  });
+
+  // Per-panel "Clear" buttons — clear just the one log the user picked,
+  // instead of being limited to clearing everything at once.
+  document.querySelectorAll('[data-clear]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      clearPanel(btn.getAttribute('data-clear'));
+    });
+  });
+
+  // Per-panel auto-scroll toggle — on by default (new entries jump the
+  // panel to the bottom). Turning it off lets you scroll up and read
+  // older entries without the panel yanking you back down.
+  document.querySelectorAll('[data-autoscroll-toggle]').forEach(function (btn) {
+    var group = btn.getAttribute('data-autoscroll-toggle');
+    btn.addEventListener('click', function () {
+      autoScroll[group] = !autoScroll[group];
+      btn.classList.toggle('active', autoScroll[group]);
+      if (autoScroll[group]) {
+        lists[group].scrollTop = lists[group].scrollHeight;
+      }
+    });
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>

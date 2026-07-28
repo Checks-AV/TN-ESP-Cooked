@@ -80,7 +80,7 @@ router.use(leaderboardRoutes);
 // HELPER: Logging function with SSE broadcast
 // ============================================
 
-function logMessage(category, message, data = null) {
+function logMessage(category, message, data = null, logGroup = 'other') {
     const timestamp = new Date().toISOString();
     
     // Clean category names for frontend compatibility
@@ -98,21 +98,31 @@ function logMessage(category, message, data = null) {
         'peak': 'peak',
         'game': 'game',
         'system': 'system',
-        'debug': 'debug'
+        'debug': 'debug',
+        'tag': 'tag'
     };
     
     // Use mapped category or fallback to 'info'
     const mappedCategory = categoryMap[category] || 'info';
+
+    // logGroup is separate from category — it tells the frontend which of
+    // the 3 log panels this entry belongs to: 'tag' (RFID status changes),
+    // 'order' (order lifecycle: created/missed/submitted/passed/failed),
+    // or 'other' (everything else). category is still used for icons/colors
+    // within a panel; logGroup is what the panel filter is based on.
+    const validGroups = ['tag', 'order', 'other'];
+    const mappedGroup = validGroups.includes(logGroup) ? logGroup : 'other';
     
     const logEntry = {
         timestamp,
         category: mappedCategory,
+        logGroup: mappedGroup,
         message: message,
         data: data || null
     };
     
     // Console log with clean format
-    console.log(`[${timestamp}] [${mappedCategory.toUpperCase()}] ${message}`, data || '');
+    console.log(`[${timestamp}] [${mappedGroup.toUpperCase()}/${mappedCategory.toUpperCase()}] ${message}`, data || '');
 
     // Only broadcast server logs via SSE (avoid infinite loops)
     if (category !== 'sse-broadcast') {
@@ -135,7 +145,7 @@ function logIngredientStatusChange(tag_mac, oldStatus, newStatus) {
         [tag_mac],
         (err, row) => {
             if (err || !row) {
-                logMessage('error', `Could not resolve ingredient for tag ${tag_mac}`, { error: err?.message });
+                logMessage('error', `Could not resolve ingredient for tag ${tag_mac}`, { error: err?.message }, 'tag');
                 return;
             }
 
@@ -158,9 +168,10 @@ function logIngredientStatusChange(tag_mac, oldStatus, newStatus) {
                     };
 
                     logMessage(
-                        'database',
+                        'tag',
                         `Ingredient status change: ${row.ingredients_name} (tag ${tag_mac}) changed from ${oldStatus} to ${newStatus}`,
-                        logData
+                        logData,
+                        'tag'
                     );
 
                     // Also push a dedicated event
@@ -171,7 +182,10 @@ function logIngredientStatusChange(tag_mac, oldStatus, newStatus) {
     );
 }
 
-module.exports.logIngredientStatusChange = logIngredientStatusChange;
+// Attach to `router` (not `module.exports`) because this file does
+// `module.exports = router` at the bottom, which would otherwise
+// overwrite/discard a property set directly on module.exports here.
+router.logIngredientStatusChange = logIngredientStatusChange;
 
 // ============================================
 // HELPER: Format order number
@@ -462,7 +476,7 @@ router.post('/api/orders', (req, res, next) => {
     const { order_number, food_id } = req.body;
 
     if (!order_number || !food_id) {
-        logMessage('error', 'Missing fields in order creation', { order_number, food_id });
+        logMessage('error', 'Missing fields in order creation', { order_number, food_id }, 'order');
         return res.status(400).json({
             error: 'Missing fields',
             message: 'order_number and food_id are required'
@@ -472,7 +486,7 @@ router.post('/api/orders', (req, res, next) => {
     const formattedOrder = formatOrderNumber(order_number);
 
     if (!/^\d{2}$/.test(formattedOrder)) {
-        logMessage('error', `Invalid order number format: ${order_number}`);
+        logMessage('error', `Invalid order number format: ${order_number}`, null, 'order');
         return res.status(400).json({
             error: 'Invalid order_number',
             message: 'order_number must be a 2-digit number (e.g. "01")'
@@ -480,18 +494,19 @@ router.post('/api/orders', (req, res, next) => {
     }
 
     if (!global.db) {
-        logMessage('error', 'Database not available');
+        logMessage('error', 'Database not available', null, 'order');
         return res.status(500).json({ error: 'Database not available' });
     }
 
-    // Check if food exists
-    global.db.get('SELECT food_id FROM food WHERE food_id = ?', [food_id], (err, food) => {
+    // Check if food exists (also grab food_name so the created log/broadcast
+    // can say what the order actually is, not just its numeric food_id)
+    global.db.get('SELECT food_id, food_name FROM food WHERE food_id = ?', [food_id], (err, food) => {
         if (err) {
-            logMessage('error', 'Error checking food', { error: err.message });
+            logMessage('error', 'Error checking food', { error: err.message }, 'order');
             return res.status(500).json({ error: 'Database error' });
         }
         if (!food) {
-            logMessage('error', `Food with ID ${food_id} not found`);
+            logMessage('error', `Food with ID ${food_id} not found`, null, 'order');
             return res.status(404).json({
                 error: 'Food not found',
                 message: `Food with ID ${food_id} does not exist`
@@ -504,11 +519,11 @@ router.post('/api/orders', (req, res, next) => {
             [formattedOrder],
             (err, existing) => {
                 if (err) {
-                    logMessage('error', 'Error checking existing order', { error: err.message });
+                    logMessage('error', 'Error checking existing order', { error: err.message }, 'order');
                     return res.status(500).json({ error: 'Database error' });
                 }
                 if (existing) {
-                    logMessage('warning', `Order number ${formattedOrder} is already pending`);
+                    logMessage('warning', `Order number ${formattedOrder} is already pending`, null, 'order');
                     return res.status(409).json({
                         error: 'Duplicate order_number',
                         message: `Order ${formattedOrder} is already pending. Wait for it to resolve first.`
@@ -520,12 +535,12 @@ router.post('/api/orders', (req, res, next) => {
                     `SELECT COUNT(*) as count FROM Orders WHERE order_status = 'pending'`,
                     (err, result) => {
                         if (err) {
-                            logMessage('error', 'Error checking pending count', { error: err.message });
+                            logMessage('error', 'Error checking pending count', { error: err.message }, 'order');
                             return res.status(500).json({ error: 'Database error' });
                         }
                         
                         if (result.count >= 10) {
-                            logMessage('warning', `Too many pending orders (${result.count})`);
+                            logMessage('warning', `Too many pending orders (${result.count})`, null, 'order');
                             return res.status(429).json({
                                 error: 'Too many pending orders',
                                 message: 'Maximum 10 pending orders allowed'
@@ -538,17 +553,18 @@ router.post('/api/orders', (req, res, next) => {
                             [food_id, formattedOrder],
                             function (err) {
                                 if (err) {
-                                    logMessage('error', 'Error creating order', { error: err.message });
+                                    logMessage('error', 'Error creating order', { error: err.message }, 'order');
                                     return res.status(500).json({ error: 'Database error' });
                                 }
 
-                                logMessage('success', `Order ${formattedOrder} created for food_id ${food_id}`);
+                                logMessage('order', `Order ${formattedOrder} created: "${food.food_name}" (food_id ${food_id})`, null, 'order');
                                 
                                 // Broadcast new order via SSE
                                 broadcastToClients('order-created', {
                                     order_number: formattedOrder,
                                     display_order_number: '#' + formattedOrder,
                                     food_id: food_id,
+                                    food_name: food.food_name,
                                     orders_id: this.lastID
                                 });
                                 
@@ -556,7 +572,8 @@ router.post('/api/orders', (req, res, next) => {
                                     success: true,
                                     orders_id: this.lastID,
                                     order_number: formattedOrder,
-                                    food_id
+                                    food_id,
+                                    food_name: food.food_name
                                 });
                             }
                         );
@@ -621,14 +638,14 @@ router.post('/api/orders/clear', (req, res) => {
                             });
                         }
                         
-                        logMessage('database', `Reset ${this.changes || 0} tag statuses to 'Default'`);
+                        logMessage('tag', `Reset ${this.changes || 0} tag statuses to 'Default'`, null, 'tag');
                         
                         // Delete all orders
                         global.db.run(
                             `DELETE FROM Orders`,
                             function(err) {
                                 if (err) {
-                                    logMessage('error', 'Error clearing orders', { error: err.message });
+                                    logMessage('error', 'Error clearing orders', { error: err.message }, 'order');
                                     global.db.run("ROLLBACK");
                                     return res.status(500).json({ 
                                         error: 'Database error',
@@ -637,16 +654,16 @@ router.post('/api/orders/clear', (req, res) => {
                                 }
                                 
                                 const ordersCleared = this.changes || 0;
-                                logMessage('database', `Cleared ${ordersCleared} orders from database`);
+                                logMessage('order', `Cleared ${ordersCleared} orders from database`, null, 'order');
                                 
                                 // Clear order actions
                                 global.db.run(
                                     `DELETE FROM OrderActions`,
                                     function(err) {
                                         if (err) {
-                                            logMessage('warning', 'Error clearing order actions', { error: err.message });
+                                            logMessage('warning', 'Error clearing order actions', { error: err.message }, 'order');
                                         } else {
-                                            logMessage('database', `Cleared ${this.changes || 0} order actions`);
+                                            logMessage('order', `Cleared ${this.changes || 0} order actions`, null, 'order');
                                         }
                                         
                                         // Commit transaction
@@ -722,10 +739,10 @@ router.get('/api/esp/status', (req, res) => {
 router.post('/api/esp/missed', (req, res) => {
     const { order_number } = req.body;
 
-    logMessage('order', `Marking order ${order_number} as missed`);
+    logMessage('order', `Marking order ${order_number} as missed`, null, 'order');
 
     if (order_number === undefined || order_number === null || order_number === '') {
-        logMessage('error', 'Missing order_number in missed request');
+        logMessage('error', 'Missing order_number in missed request', null, 'order');
         return res.status(400).json({
             success: false,
             error: 'Missing order_number',
@@ -734,7 +751,7 @@ router.post('/api/esp/missed', (req, res) => {
     }
 
     if (!global.db) {
-        logMessage('error', 'Database not available');
+        logMessage('error', 'Database not available', null, 'order');
         return res.status(500).json({
             success: false,
             error: 'Database not available',
@@ -745,7 +762,7 @@ router.post('/api/esp/missed', (req, res) => {
     const formattedOrder = formatOrderNumber(order_number);
 
     if (!/^\d{2}$/.test(formattedOrder)) {
-        logMessage('error', `Invalid order number format: ${order_number}`);
+        logMessage('error', `Invalid order number format: ${order_number}`, null, 'order');
         return res.status(400).json({
             success: false,
             error: 'Invalid order_number',
@@ -753,69 +770,88 @@ router.post('/api/esp/missed', (req, res) => {
         });
     }
 
-    // Use transaction to ensure consistency
-    global.db.run("BEGIN TRANSACTION", (err) => {
-        if (err) {
-            logMessage('error', 'Error starting transaction', { error: err.message });
-            return res.status(500).json({ error: 'Database error' });
-        }
+    // Look up which food this pending order is for, purely so the final
+    // log/broadcast can say what was missed instead of just the number.
+    // If this lookup fails or finds nothing, foodName just stays null and
+    // the rest of the flow below proceeds exactly as before.
+    global.db.get(
+        `SELECT f.food_name
+         FROM Orders o
+         JOIN food f ON o.food_id = f.food_id
+         WHERE o.order_number = ? AND o.order_status = 'pending'
+         ORDER BY o.orders_id DESC
+         LIMIT 1`,
+        [formattedOrder],
+        (lookupErr, orderInfo) => {
+            const foodName = (!lookupErr && orderInfo) ? orderInfo.food_name : null;
 
-        const sql = `
-            UPDATE Orders
-            SET order_status = 'missed'
-            WHERE order_number = ?
-              AND order_status = 'pending'
-        `;
-
-        global.db.run(
-            sql,
-            [formattedOrder],
-            function (err) {
+            // Use transaction to ensure consistency
+            global.db.run("BEGIN TRANSACTION", (err) => {
                 if (err) {
-                    logMessage('error', `Failed to mark order ${formattedOrder} as missed`, { error: err.message });
-                    global.db.run("ROLLBACK");
-                    return res.status(500).json({
-                        success: false,
-                        error: 'Database error',
-                        message: err.message
-                    });
+                    logMessage('error', 'Error starting transaction', { error: err.message }, 'order');
+                    return res.status(500).json({ error: 'Database error' });
                 }
 
-                if (this.changes === 0) {
-                    logMessage('warning', `Order ${formattedOrder} was not found or was no longer pending`);
-                    global.db.run("ROLLBACK");
-                    return res.status(409).json({
-                        success: false,
-                        error: 'Order not updated',
-                        message: `Order ${formattedOrder} was not found or is no longer pending`
-                    });
-                }
+                const sql = `
+                    UPDATE Orders
+                    SET order_status = 'missed'
+                    WHERE order_number = ?
+                      AND order_status = 'pending'
+                `;
 
-                // Commit transaction - no tag reset for missed orders
-                global.db.run("COMMIT", (err) => {
-                    if (err) {
-                        logMessage('error', 'Error committing transaction', { error: err.message });
-                        global.db.run("ROLLBACK");
-                        return res.status(500).json({ error: 'Database error' });
+                global.db.run(
+                    sql,
+                    [formattedOrder],
+                    function (err) {
+                        if (err) {
+                            logMessage('error', `Failed to mark order ${formattedOrder} as missed`, { error: err.message }, 'order');
+                            global.db.run("ROLLBACK");
+                            return res.status(500).json({
+                                success: false,
+                                error: 'Database error',
+                                message: err.message
+                            });
+                        }
+
+                        if (this.changes === 0) {
+                            logMessage('warning', `Order ${formattedOrder} was not found or was no longer pending`, null, 'order');
+                            global.db.run("ROLLBACK");
+                            return res.status(409).json({
+                                success: false,
+                                error: 'Order not updated',
+                                message: `Order ${formattedOrder} was not found or is no longer pending`
+                            });
+                        }
+
+                        // Commit transaction - no tag reset for missed orders
+                        global.db.run("COMMIT", (err) => {
+                            if (err) {
+                                logMessage('error', 'Error committing transaction', { error: err.message }, 'order');
+                                global.db.run("ROLLBACK");
+                                return res.status(500).json({ error: 'Database error' });
+                            }
+
+                            logMessage('order', `Order ${formattedOrder}${foodName ? ` (${foodName})` : ''} marked as missed`, null, 'order');
+                            
+                            // Broadcast missed order via SSE
+                            broadcastToClients('order-missed', {
+                                order_number: formattedOrder,
+                                display_order_number: '#' + String(formattedOrder).padStart(2, '0'),
+                                food_name: foodName
+                            });
+                            
+                            return res.json({
+                                success: true,
+                                order_number: formattedOrder,
+                                order_status: 'missed',
+                                food_name: foodName
+                            });
+                        });
                     }
-
-                    logMessage('success', `Order ${formattedOrder} marked as missed`);
-                    
-                    // Broadcast missed order via SSE
-                    broadcastToClients('order-missed', {
-                        order_number: formattedOrder,
-                        display_order_number: '#' + String(formattedOrder).padStart(2, '0')
-                    });
-                    
-                    return res.json({
-                        success: true,
-                        order_number: formattedOrder,
-                        order_status: 'missed'
-                    });
-                });
-            }
-        );
-    });
+                );
+            });
+        }
+    );
 });
 
 // ============================================
@@ -825,15 +861,15 @@ router.post('/api/esp/missed', (req, res) => {
 router.post('/api/esp/submit', (req, res, next) => {
     const { order_number, device_mac, tag_macs } = req.body;
     
-    logMessage('esp', 'ESP submit request received', {
-        order_number,
-        device_mac: device_mac || 'GAME_CLIENT',
-        tag_count: tag_macs ? tag_macs.length : 0,
-        tags: tag_macs || []
-    });
+    logMessage(
+        'esp',
+        `ESP submit request received: order ${order_number}, device ${device_mac || 'GAME_CLIENT'}, ${tag_macs ? tag_macs.length : 0} tag(s): ${tag_macs && tag_macs.length ? tag_macs.join(', ') : 'none'}`,
+        null,
+        'order'
+    );
     
     if (!order_number) {
-        logMessage('error', 'Missing order_number in ESP submit');
+        logMessage('error', 'Missing order_number in ESP submit', null, 'order');
         return res.status(400).json({ 
             error: 'Missing order_number',
             message: 'order_number is required'
@@ -841,7 +877,7 @@ router.post('/api/esp/submit', (req, res, next) => {
     }
     
     if (!tag_macs || !Array.isArray(tag_macs)) {
-        logMessage('error', 'Missing or invalid tag_macs in ESP submit');
+        logMessage('error', 'Missing or invalid tag_macs in ESP submit', null, 'order');
         return res.status(400).json({ 
             error: 'Missing tag_macs',
             message: 'tag_macs array is required'
@@ -849,7 +885,7 @@ router.post('/api/esp/submit', (req, res, next) => {
     }
     
     if (tag_macs.length === 0) {
-        logMessage('error', 'Empty tag_macs array in ESP submit');
+        logMessage('error', 'Empty tag_macs array in ESP submit', null, 'order');
         return res.status(400).json({ 
             error: 'Empty tag_macs',
             message: 'At least one tag MAC is required'
@@ -859,7 +895,7 @@ router.post('/api/esp/submit', (req, res, next) => {
     // Use a lock to prevent race conditions
     const lockKey = `order_${formatOrderNumber(order_number)}`;
     if (global.orderLocks && global.orderLocks[lockKey]) {
-        logMessage('warning', `Order ${order_number} is already being processed`);
+        logMessage('warning', `Order ${order_number} is already being processed`, null, 'order');
         return res.status(409).json({
             error: 'Order processing in progress',
             message: `Order ${order_number} is currently being processed`
@@ -884,7 +920,7 @@ router.post('/api/esp/submit', (req, res, next) => {
     
     if (!global.db) {
         delete global.orderLocks[lockKey];
-        logMessage('error', 'Database not available');
+        logMessage('error', 'Database not available', null, 'order');
         return res.status(500).json({ 
             error: 'Database not available',
             message: 'The database connection is not initialized.'
@@ -892,7 +928,7 @@ router.post('/api/esp/submit', (req, res, next) => {
     }
     
     if (device_mac) {
-        logMessage('esp', `Verifying device: ${device_mac}`);
+        logMessage('esp', `Verifying device: ${device_mac}`, null, 'order');
         global.db.get(
             `SELECT ed.device_id, s.station_name
              FROM ESP32Devices ed
@@ -903,12 +939,12 @@ router.post('/api/esp/submit', (req, res, next) => {
             (err, device) => {
                 if (err) {
                     delete global.orderLocks[lockKey];
-                    logMessage('error', 'Error finding device', { error: err.message });
+                    logMessage('error', 'Error finding device', { error: err.message }, 'order');
                     return res.status(500).json({ error: 'Database error' });
                 }
                 if (!device) {
                     delete global.orderLocks[lockKey];
-                    logMessage('error', `Device ${device_mac} not found or has no station assigned`);
+                    logMessage('error', `Device ${device_mac} not found or has no station assigned`, null, 'order');
                     return res.status(404).json({ 
                         error: 'Device not found',
                         message: 'This ESP32 is not registered or has no station assigned.'
@@ -916,18 +952,18 @@ router.post('/api/esp/submit', (req, res, next) => {
                 }
                 if (device.station_name !== 'Counter') {
                     delete global.orderLocks[lockKey];
-                    logMessage('error', `Device ${device_mac} is at station "${device.station_name}", not Counter`);
+                    logMessage('error', `Device ${device_mac} is at station "${device.station_name}", not Counter`, null, 'order');
                     return res.status(403).json({ 
                         error: 'Invalid device type',
                         message: 'Only devices assigned to the Counter station can submit orders'
                     });
                 }
-                logMessage('success', `Device ${device_mac} verified as Counter`);
+                logMessage('success', `Device ${device_mac} verified as Counter`, null, 'order');
                 findOrderAndValidate(order_number, tag_macs, res, next, lockKey);
             }
         );
     } else {
-        logMessage('warning', 'No device_mac provided - allowing game client submission');
+        logMessage('warning', 'No device_mac provided - allowing game client submission', null, 'order');
         findOrderAndValidate(order_number, tag_macs, res, next, lockKey);
     }
 });
@@ -941,14 +977,14 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
 
     if (!/^\d{2}$/.test(formattedOrder)) {
         if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-        logMessage('error', `Invalid order number format: ${order_number}`);
+        logMessage('error', `Invalid order number format: ${order_number}`, null, 'order');
         return res.status(400).json({
             error: 'Invalid order_number',
             message: 'order_number must be a 2-digit number (e.g. "01")'
         });
     }
 
-    logMessage('order', `Looking for order: ${formattedOrder}`);
+    logMessage('order', `Looking for order: ${formattedOrder}`, null, 'order');
 
     global.db.all(
         `SELECT orders_id, order_number, order_status, food_id, order_time_started 
@@ -959,15 +995,15 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
         (err, allOrdersWithThisNumber) => {
             if (err) {
                 if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                logMessage('error', 'Error fetching orders', { error: err.message });
+                logMessage('error', 'Error fetching orders', { error: err.message }, 'order');
                 return res.status(500).json({ error: 'Database error' });
             }
 
             if (allOrdersWithThisNumber && allOrdersWithThisNumber.length > 0) {
-                logMessage('info', `Found ${allOrdersWithThisNumber.length} order(s) with number ${formattedOrder}`);
+                logMessage('info', `Found ${allOrdersWithThisNumber.length} order(s) with number ${formattedOrder}`, null, 'order');
             } else {
                 if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                logMessage('error', `No orders with number ${formattedOrder} found in database`);
+                logMessage('error', `No orders with number ${formattedOrder} found in database`, null, 'order');
                 return res.status(404).json({
                     error: 'Order not found',
                     message: `Order number ${formattedOrder} does not exist in the database.`
@@ -985,7 +1021,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                 (err, pendingOrder) => {
                     if (err) {
                         if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                        logMessage('error', 'Error finding pending order', { error: err.message });
+                        logMessage('error', 'Error finding pending order', { error: err.message }, 'order');
                         return res.status(500).json({ error: 'Database error' });
                     }
 
@@ -1001,10 +1037,10 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                             (err2, nonPendingOrder) => {
                                 if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                 if (err2) {
-                                    logMessage('error', 'Error checking non-pending order', { error: err2.message });
+                                    logMessage('error', 'Error checking non-pending order', { error: err2.message }, 'order');
                                     return res.status(500).json({ error: 'Database error' });
                                 } else if (nonPendingOrder) {
-                                    logMessage('warning', `Order ${formattedOrder} exists but is "${nonPendingOrder.order_status}" (not pending)`);
+                                    logMessage('warning', `Order ${formattedOrder} exists but is "${nonPendingOrder.order_status}" (not pending)`, null, 'order');
                                     return res.status(409).json({
                                         error: 'Order already processed',
                                         message: `Order ${formattedOrder} is already ${nonPendingOrder.order_status}`,
@@ -1012,7 +1048,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                         food: nonPendingOrder.food_name
                                     });
                                 } else {
-                                    logMessage('error', `Order ${formattedOrder} not found in database`);
+                                    logMessage('error', `Order ${formattedOrder} not found in database`, null, 'order');
                                     return res.status(404).json({
                                         error: 'Order not found',
                                         message: `Order number ${formattedOrder} does not exist in the database.`
@@ -1023,7 +1059,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                         return;
                     }
 
-                    logMessage('order', `Found pending order: ${formattedOrder} (${pendingOrder.food_name})`);
+                    logMessage('order', `Found pending order: ${formattedOrder} (${pendingOrder.food_name})`, null, 'order');
 
                     // ============================================
                     // STEP 1: Get the ingredients required by this food
@@ -1038,20 +1074,20 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                     global.db.all(ingredientsSql, [pendingOrder.food_id], (err, ingredientRows) => {
                         if (err) {
                             if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                            logMessage('error', 'Error getting ingredients', { error: err.message });
+                            logMessage('error', 'Error getting ingredients', { error: err.message }, 'order');
                             return res.status(500).json({ error: 'Database error' });
                         }
 
                         if (!ingredientRows || ingredientRows.length === 0) {
                             if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                            logMessage('error', `${pendingOrder.food_name} has no ingredients defined`);
+                            logMessage('error', `${pendingOrder.food_name} has no ingredients defined`, null, 'order');
                             return res.status(400).json({
                                 error: 'Invalid recipe',
                                 message: 'This food has no ingredients defined'
                             });
                         }
 
-                        logMessage('order', `Recipe ${pendingOrder.food_name} requires ${ingredientRows.length} ingredient(s): ${ingredientRows.map(r => r.ingredients_name).join(', ')}`);
+                        logMessage('order', `Recipe ${pendingOrder.food_name} requires ${ingredientRows.length} ingredient(s): ${ingredientRows.map(r => r.ingredients_name).join(', ')}`, null, 'order');
 
                         // ============================================
                         // STEP 2: Get required prep chain per ingredient
@@ -1070,7 +1106,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                         global.db.all(stepsSql, [pendingOrder.food_id], (err, stepRows) => {
                             if (err) {
                                 if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                                logMessage('error', 'Error getting prep steps', { error: err.message });
+                                logMessage('error', 'Error getting prep steps', { error: err.message }, 'order');
                                 return res.status(500).json({ error: 'Database error' });
                             }
 
@@ -1089,12 +1125,12 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
 
                             Object.values(expectedByIngredient).forEach(ing => {
                                 ing.expectedStatus = ['Default', ...ing.required_actions].join(' → ');
-                                logMessage('match', `${ing.name}: expected status "${ing.expectedStatus}"`);
+                                logMessage('match', `${ing.name}: expected status "${ing.expectedStatus}"`, null, 'order');
                             });
 
                             if (tag_macs.length === 0) {
                                 if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                                logMessage('error', 'No tags submitted');
+                                logMessage('error', 'No tags submitted', null, 'order');
                                 return res.status(400).json({
                                     error: 'No tags submitted',
                                     message: 'At least one tag is required'
@@ -1114,7 +1150,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                             global.db.all(submittedTagSql, tag_macs, (err, submittedTagRows) => {
                                 if (err) {
                                     if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                                    logMessage('error', 'Error looking up submitted tags', { error: err.message });
+                                    logMessage('error', 'Error looking up submitted tags', { error: err.message }, 'order');
                                     return res.status(500).json({ error: 'Database error' });
                                 }
 
@@ -1130,7 +1166,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                 // Any submitted MAC not found in RFIDTags at all = unregistered tag
                                 const unregisteredTags = tag_macs.filter(mac => !tagInfoByMac.has(mac));
                                 if (unregisteredTags.length > 0) {
-                                    logMessage('warning', `Unregistered tags scanned: ${unregisteredTags.join(', ')}`);
+                                    logMessage('warning', `Unregistered tags scanned: ${unregisteredTags.join(', ')}`, null, 'order');
                                 }
 
                                 // ============================================
@@ -1153,7 +1189,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                             pass: false,
                                             tag_mac: null
                                         });
-                                        logMessage('match', `${ing.name}: no tag for this ingredient was scanned`);
+                                        logMessage('match', `${ing.name}: no tag for this ingredient was scanned`, null, 'order');
                                         return;
                                     }
 
@@ -1186,11 +1222,12 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                             submitted_status: chosenInfo.current_status,
                                             submitted_tag: chosenMac,
                                             pass: pass
-                                        }
+                                        },
+                                        'order'
                                     );
 
                                     if (matchingMacs.length > 1) {
-                                        logMessage('warning', `${ing.name}: ${matchingMacs.length} tags for this ingredient were scanned, expected only 1`);
+                                        logMessage('warning', `${ing.name}: ${matchingMacs.length} tags for this ingredient were scanned, expected only 1`, null, 'order');
                                     }
                                 });
 
@@ -1205,7 +1242,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                         pass: false,
                                         reason: 'Tags not part of this recipe (unregistered or wrong ingredient)'
                                     });
-                                    logMessage('error', `Extra/unexpected tags scanned: ${extraMacs.join(', ')}`);
+                                    logMessage('error', `Extra/unexpected tags scanned: ${extraMacs.join(', ')}`, null, 'order');
                                 }
 
                                 // ============================================
@@ -1231,16 +1268,17 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                                 submitted_status: r.got,
                                                 submitted_tag: r.tag_mac || null,
                                                 pass: r.pass
-                                            }
+                                            },
+                                            'order'
                                         );
                                     }
                                 });
 
                                 // Final validation result
                                 if (allPass) {
-                                    logMessage('success', `Order ${formattedOrder} (${pendingOrder.food_name}) PASSED validation`, validationSummary);
+                                    logMessage('success', `Order ${formattedOrder} (${pendingOrder.food_name}) PASSED validation`, validationSummary, 'order');
                                 } else {
-                                    logMessage('error', `Order ${formattedOrder} (${pendingOrder.food_name}) FAILED validation`, validationSummary);
+                                    logMessage('error', `Order ${formattedOrder} (${pendingOrder.food_name}) FAILED validation`, validationSummary, 'order');
                                 }
 
                                 // ============================================
@@ -1249,7 +1287,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                 global.db.run("BEGIN TRANSACTION", (err) => {
                                     if (err) {
                                         if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
-                                        logMessage('error', 'Error starting transaction', { error: err.message });
+                                        logMessage('error', 'Error starting transaction', { error: err.message }, 'order');
                                         return res.status(500).json({ error: 'Database error' });
                                     }
 
@@ -1262,7 +1300,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                         [newStatus, pendingOrder.orders_id],
                                         function (err) {
                                             if (err) {
-                                                logMessage('error', 'Error updating order', { error: err.message });
+                                                logMessage('error', 'Error updating order', { error: err.message }, 'order');
                                                 global.db.run("ROLLBACK");
                                                 if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                                 return res.status(500).json({ error: 'Database error' });
@@ -1281,17 +1319,17 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                                 tag_macs,
                                                 function (err) {
                                                     if (err) {
-                                                        logMessage('error', 'Error resetting submitted tags', { error: err.message });
+                                                        logMessage('error', 'Error resetting submitted tags', { error: err.message }, 'order');
                                                         global.db.run("ROLLBACK");
                                                         if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                                         return res.status(500).json({ error: 'Database error' });
                                                     }
 
-                                                    logMessage('database', `Reset ${this.changes || 0} submitted tags to 'Default'`);
+                                                    logMessage('tag', `Reset tags to 'Default': ${tag_macs.join(', ')}`, null, 'tag');
 
                                                     global.db.run("COMMIT", (err) => {
                                                         if (err) {
-                                                            logMessage('error', 'Error committing transaction', { error: err.message });
+                                                            logMessage('error', 'Error committing transaction', { error: err.message }, 'order');
                                                             global.db.run("ROLLBACK");
                                                             if (lockKey && global.orderLocks) delete global.orderLocks[lockKey];
                                                             return res.status(500).json({ error: 'Database error' });
@@ -1309,7 +1347,7 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
                                                             details: results
                                                         };
 
-                                                        logMessage('success', `Order ${formattedOrder} ${statusMessage}`);
+                                                        logMessage('success', `Order ${formattedOrder} (${pendingOrder.food_name}) ${statusMessage}`, null, 'order');
                                                         
                                                         broadcastToClients('esp-order-complete', {
                                                             order_number: formattedOrder,
