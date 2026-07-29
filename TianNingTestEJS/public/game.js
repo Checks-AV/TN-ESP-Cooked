@@ -69,6 +69,11 @@ let recipesLoading = false;
 let pauseStartedAt = null;
 let isPeakActive = false;
 
+// Combo streak: counts consecutive completed orders (no fail/miss in between).
+// Resets to 0 the moment an order fails or is missed. Feeds the combo
+// multiplier layer of the scoring formula (see completeOrder()).
+let comboStreak = 0;
+
 let params = {
   spawnMin: 6,
   spawnMax: 11,
@@ -84,6 +89,18 @@ let params = {
   concurrencyMax: 5,
   chaos: 0.3,
   minOrdersAlways: 1,
+
+  // Ticket display toggles
+  showIngredients: true,
+  showIngredientSteps: true,
+
+  // Scoring engine weights (see completeOrder() for the full formula)
+  basePointsPerSecond: 4,
+  difficultyIngredientWeight: 0.1,
+  difficultyStepWeight: 0.05,
+  minPayoutFraction: 0.2,
+  comboMultiplierStep: 0.1,
+  comboMaxMultiplier: 2.0,
 };
 
 let peakUntil = 0;
@@ -261,6 +278,36 @@ function getConcurrencyMultiplier() {
 }
 
 // ============================================================
+// SCORING ENGINE
+// ============================================================
+// Four layers, applied in order:
+//   1. Base points     — basePointsPerSecond × prepTimeSeconds (the "floor")
+//   2. Difficulty       — 1 + ingredientCount*ingredientWeight + totalPrepSteps*stepWeight
+//   3. Time factor      — max(minPayoutFraction, 0.4 + 0.6 * (timeRemaining/totalPrepTime))
+//   4. Combo multiplier — min(comboCap, 1 + streak*comboStep), reset to streak=0 on any fail/miss
+//
+// getDifficultyMultiplier() and getBasePoints() are shared between the
+// "potential points" shown on a freshly spawned ticket and the actual
+// payout computed in completeOrder() once it's served, so both numbers
+// come from the same math.
+function getBasePoints(recipe, duration) {
+  return params.basePointsPerSecond * duration;
+}
+
+function getDifficultyMultiplier(recipe) {
+  const ingredientCount = (recipe.ingredients || []).length;
+  const totalPrepSteps = recipe.totalPrepSteps || 0;
+  return 1
+    + ingredientCount * (params.difficultyIngredientWeight || 0)
+    + totalPrepSteps * (params.difficultyStepWeight || 0);
+}
+
+function getComboMultiplier() {
+  const cap = params.comboMaxMultiplier || 1;
+  return Math.min(cap, 1 + comboStreak * (params.comboMultiplierStep || 0));
+}
+
+// ============================================================
 // LOAD RECIPES
 // ============================================================
 async function loadRecipesFromDB() {
@@ -294,7 +341,8 @@ async function loadRecipesFromDB() {
       name: recipe.name,
       prepTimeSeconds: recipe.prepTimeSeconds || 30,
       ingredients: recipe.ingredients || [],
-      prepMethods: recipe.prepMethods || []
+      prepMethods: recipe.prepMethods || [],
+      totalPrepSteps: recipe.totalPrepSteps || 0
     }));
 
     recipesLoaded = true;
@@ -346,24 +394,37 @@ function spawnSingleOrder() {
   const orderNo = nextOrderNumber();
   const duration = params.prepTime || 30;
   const tilt = (Math.random() * 5 - 2.5).toFixed(1) + 'deg';
-  const points = Math.round(duration * 4);
 
-  let ingredientsHtml = '';
+  const basePoints = getBasePoints(recipe, duration);
+  const difficultyMultiplier = getDifficultyMultiplier(recipe);
+  // "Potential" points shown on the ticket — the most this order could pay
+  // out (full time remaining, no combo bonus yet). Actual payout is
+  // computed in completeOrder() once combo + time factor are known.
+  const potentialPoints = Math.round(basePoints * difficultyMultiplier);
+
   const ingredientList = recipe.ingredients || [];
   const prepList = recipe.prepMethods || [];
 
-  if (ingredientList.length > 0) {
-    ingredientList.forEach((ing, idx) => {
-      const step = prepList[idx] || 'Ready';
-      ingredientsHtml += `
-        <div class="ingredient-item">
-          <span><span class="status-dot pending" id="dot-${orderNo}-${idx}"></span><span class="name">${ing}</span></span>
-          <span class="steps">${step}</span>
-        </div>
-      `;
-    });
-  } else {
-    ingredientsHtml = `<div class="ingredient-item"><span class="name">No ingredients listed</span></div>`;
+  let ingredientListBlock = '';
+  if (params.showIngredients) {
+    let ingredientsHtml = '';
+    if (ingredientList.length > 0) {
+      ingredientList.forEach((ing, idx) => {
+        const step = prepList[idx] || 'Ready';
+        const stepHtml = params.showIngredientSteps
+          ? `<span class="steps">${step}</span>`
+          : '';
+        ingredientsHtml += `
+          <div class="ingredient-item">
+            <span><span class="status-dot pending" id="dot-${orderNo}-${idx}"></span><span class="name">${ing}</span></span>
+            ${stepHtml}
+          </div>
+        `;
+      });
+    } else {
+      ingredientsHtml = `<div class="ingredient-item"><span class="name">No ingredients listed</span></div>`;
+    }
+    ingredientListBlock = `<div class="ingredient-list">${ingredientsHtml}</div>`;
   }
 
   const el = document.createElement('div');
@@ -378,10 +439,8 @@ function spawnSingleOrder() {
         <div class="status-badge waiting">${ic('clock')}<span>Waiting</span></div>
       </div>
       <div class="dish-name">${recipe.name}</div>
-      <div class="points-tag">${ic('star')}<span>+${points} pts</span></div>
-      <div class="ingredient-list">
-        ${ingredientsHtml}
-      </div>
+      <div class="points-tag">${ic('star')}<span>Up to +${potentialPoints} pts</span></div>
+      ${ingredientListBlock}
       <div class="timer-zone">
         <div class="timer-row"><span class="label">${ic('clock')}<span>Time left</span></span><span class="time-left">${duration}s</span></div>
         <div class="heat-gauge"><div class="heat-fill"></div></div>
@@ -398,7 +457,9 @@ function spawnSingleOrder() {
     orderNo,
     recipe,
     duration,
-    points,
+    basePoints,
+    difficultyMultiplier,
+    points: potentialPoints,
     endsAt: Date.now() + duration * 1000,
     el,
     late: false,
@@ -442,7 +503,7 @@ function spawnSingleOrder() {
         wireOrderNumber,
         dish: recipe.name,
         duration,
-        points
+        points: potentialPoints
       }
     });
     channel.postMessage({ type: 'state-report', payload: getState() });
@@ -682,10 +743,22 @@ function completeOrder(order, result) {
   if (order.missed || order.completed || order.failed) return;
   order.completed = true;
 
+  // ---- Scoring engine (4 layers) ----
+  // 1. Base points (already computed at spawn time: basePointsPerSecond × prepTime)
+  // 2. Difficulty multiplier (already computed at spawn time from ingredient/step counts)
+  // 3. Time factor — rewards speed, floored at minPayoutFraction so a late-but-successful
+  //    order is never worth next to nothing
   const now = Date.now();
   const remainingMs = Math.max(0, order.endsAt - now);
-  const remainingFrac = remainingMs / (order.duration * 1000);
-  const earned = Math.max(Math.round(order.points * (0.4 + 0.6 * remainingFrac)), Math.round(order.points * 0.2));
+  const remainingFrac = Math.max(0, Math.min(1, remainingMs / (order.duration * 1000)));
+  const timeFactor = Math.max(params.minPayoutFraction, 0.4 + 0.6 * remainingFrac);
+
+  // 4. Combo multiplier — the volatile "hot streak" layer, applied last.
+  //    Increment BEFORE reading so this completion counts toward its own bonus.
+  comboStreak += 1;
+  const comboMultiplier = getComboMultiplier();
+
+  const earned = Math.max(1, Math.round(order.basePoints * order.difficultyMultiplier * timeFactor * comboMultiplier));
   score += earned;
   served += 1;
 
@@ -715,7 +788,11 @@ function completeOrder(order, result) {
 
   order.el.classList.add('completed');
 
-  showToast(`+${earned} pts`, 'good', 'star');
+  showToast(
+    comboStreak > 1 ? `+${earned} pts (🔥 x${comboStreak} streak)` : `+${earned} pts`,
+    'good',
+    'star'
+  );
   updateStats();
 
   try {
@@ -727,6 +804,7 @@ function completeOrder(order, result) {
         order_number: order.orderNo,
         food: order.recipe.name,
         score_earned: earned,
+        combo_streak: comboStreak,
         details: result.details || []
       }
     });
@@ -740,6 +818,7 @@ function failOrder(order, result) {
   if (order.missed || order.completed || order.failed) return;
   order.failed = true;
   failed += 1;
+  comboStreak = 0; // any fail breaks the streak
 
   console.log(`Order ${order.orderNo} failed:`, result.message || 'Validation failed');
 
@@ -770,7 +849,7 @@ function failOrder(order, result) {
 
   order.el.classList.add('failed');
 
-  showToast('Order failed', 'bad', 'x');
+  showToast('Order failed — streak reset', 'bad', 'x');
   updateStats();
 
   try {
@@ -782,6 +861,7 @@ function failOrder(order, result) {
         order_number: order.orderNo,
         food: order.recipe.name,
         reason: result.message || 'Validation failed',
+        combo_streak: comboStreak,
         details: result.details || []
       }
     });
@@ -796,6 +876,7 @@ async function missOrder(order) {
 
   order.missed = true;
   missed += 1;
+  comboStreak = 0; // any miss breaks the streak
 
   console.log(`Order ${order.orderNo} missed (timed out)`);
 
@@ -818,7 +899,7 @@ async function missOrder(order) {
     if (dot) dot.className = 'status-dot failed';
   });
 
-  showToast('Order missed', 'bad', 'clock');
+  showToast('Order missed — streak reset', 'bad', 'clock');
   updateStats();
 
   try {
@@ -849,7 +930,8 @@ async function missOrder(order) {
         order_number: order.wireOrderNumber,
         display_order_number: order.orderNo,
         food: order.recipe.name,
-        reason: 'Order timed out'
+        reason: 'Order timed out',
+        combo_streak: comboStreak
       }
     });
     channel.postMessage({ type: 'state-report', payload: getState() });
@@ -1225,6 +1307,7 @@ async function resetService() {
   paused = false;
   pauseStartedAt = null;
   manualPeakUntil = 0;
+  comboStreak = 0;
   if (manualPeakInterval) {
     clearInterval(manualPeakInterval);
     manualPeakInterval = null;
@@ -1445,6 +1528,18 @@ function handleMessage(msg) {
         }
       }
 
+      // Ticket display toggles
+      if (msg.payload.showIngredients !== undefined) params.showIngredients = msg.payload.showIngredients;
+      if (msg.payload.showIngredientSteps !== undefined) params.showIngredientSteps = msg.payload.showIngredientSteps;
+
+      // Scoring engine weights
+      if (msg.payload.basePointsPerSecond !== undefined) params.basePointsPerSecond = msg.payload.basePointsPerSecond;
+      if (msg.payload.difficultyIngredientWeight !== undefined) params.difficultyIngredientWeight = msg.payload.difficultyIngredientWeight;
+      if (msg.payload.difficultyStepWeight !== undefined) params.difficultyStepWeight = msg.payload.difficultyStepWeight;
+      if (msg.payload.minPayoutFraction !== undefined) params.minPayoutFraction = msg.payload.minPayoutFraction;
+      if (msg.payload.comboMultiplierStep !== undefined) params.comboMultiplierStep = msg.payload.comboMultiplierStep;
+      if (msg.payload.comboMaxMultiplier !== undefined) params.comboMaxMultiplier = msg.payload.comboMaxMultiplier;
+
       const peakWasEnabled = params.peakEnabled;
       if (msg.payload.peakEnabled !== undefined) params.peakEnabled = msg.payload.peakEnabled;
       if (msg.payload.peakInterval !== undefined) params.peakInterval = msg.payload.peakInterval;
@@ -1544,6 +1639,7 @@ function handleMessage(msg) {
         if (orderToRemove && !orderToRemove.missed && !orderToRemove.completed && !orderToRemove.failed) {
           orderToRemove.missed = true;
           missed += 1;
+          comboStreak = 0;
           const badge = orderToRemove.el.querySelector('.status-badge');
           if (badge) {
             badge.innerHTML = withIcon('clock', 'Missed');

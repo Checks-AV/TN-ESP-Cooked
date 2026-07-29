@@ -368,51 +368,114 @@ router.get('/api/recipes', (req, res) => {
             });
         }
         
-        const query = `
-            SELECT 
-                f.food_id as id,
-                f.food_name as name,
-                GROUP_CONCAT(i.ingredients_name, ', ') as ingredients_list
-            FROM food f
-            LEFT JOIN food_ingredients fi ON f.food_id = fi.food_id
-            LEFT JOIN ingredients i ON fi.ingredients_id = i.ingredients_id
-            GROUP BY f.food_id
-            ORDER BY f.food_name
-        `;
-        
-        global.db.all(query, (err, rows) => {
-            if (err) {
-                logMessage('error', 'Database query error', { error: err.message });
-                return res.status(500).json({ 
-                    error: 'Database query error', 
-                    details: err.message 
+        global.db.all(
+            `SELECT food_id as id, food_name as name FROM food ORDER BY food_name`,
+            (err, foods) => {
+                if (err) {
+                    logMessage('error', 'Database query error', { error: err.message });
+                    return res.status(500).json({
+                        error: 'Database query error',
+                        details: err.message
+                    });
+                }
+
+                if (!foods || foods.length === 0) {
+                    logMessage('warning', 'No recipes found in database');
+                    return res.status(404).json({
+                        error: 'No recipes found',
+                        message: 'The database has no food items. Please add some recipes first.'
+                    });
+                }
+
+                // For each food, pull its ingredients AND the ordered prep
+                // chain per ingredient (same shape used by /api/esp/submit),
+                // so ingredients[i] and prepMethods[i] line up by index.
+                const buildRecipe = (food) => new Promise((resolve, reject) => {
+                    const ingredientsSql = `
+                        SELECT i.ingredients_id, i.ingredients_name
+                        FROM food_ingredients fi
+                        JOIN ingredients i ON fi.ingredients_id = i.ingredients_id
+                        WHERE fi.food_id = ?
+                    `;
+
+                    global.db.all(ingredientsSql, [food.id], (err, ingredientRows) => {
+                        if (err) return reject(err);
+
+                        if (!ingredientRows || ingredientRows.length === 0) {
+                            return resolve({
+                                id: food.id,
+                                name: food.name,
+                                prepTimeSeconds: 30,
+                                ingredients: ['No ingredients listed'],
+                                prepMethods: ['Ready'],
+                                totalPrepSteps: 0
+                            });
+                        }
+
+                        const stepsSql = `
+                            SELECT
+                                fi.ingredients_id,
+                                pm.preparation_method_name AS required_action
+                            FROM food_ingredients fi
+                            LEFT JOIN food_ingredient_preparation fip ON fi.food_ingredients_id = fip.food_ingredients_id
+                            LEFT JOIN preparation_method pm ON fip.preparation_method_id = pm.preparation_method_id
+                            WHERE fi.food_id = ?
+                            ORDER BY fip.prep_step_order ASC
+                        `;
+
+                        global.db.all(stepsSql, [food.id], (err, stepRows) => {
+                            if (err) return reject(err);
+
+                            const stepsByIngredient = {};
+                            (stepRows || []).forEach(step => {
+                                if (!step.required_action) return;
+                                if (!stepsByIngredient[step.ingredients_id]) {
+                                    stepsByIngredient[step.ingredients_id] = [];
+                                }
+                                stepsByIngredient[step.ingredients_id].push(step.required_action);
+                            });
+
+                            const ingredients = ingredientRows.map(row => row.ingredients_name);
+                            const prepMethods = ingredientRows.map(row => {
+                                const chain = stepsByIngredient[row.ingredients_id];
+                                return chain && chain.length ? chain.join(' → ') : 'Ready';
+                            });
+
+                            // Sum of required prep actions across every ingredient in this
+                            // recipe — feeds the difficulty multiplier on the client
+                            // (ingredientCount alone doesn't capture a recipe where each
+                            // ingredient needs multiple prep steps).
+                            const totalPrepSteps = ingredientRows.reduce((sum, row) => {
+                                const chain = stepsByIngredient[row.ingredients_id];
+                                return sum + (chain ? chain.length : 0);
+                            }, 0);
+
+                            resolve({
+                                id: food.id,
+                                name: food.name,
+                                prepTimeSeconds: 30,
+                                ingredients,
+                                prepMethods,
+                                totalPrepSteps
+                            });
+                        });
+                    });
                 });
+
+                Promise.all(foods.map(buildRecipe))
+                    .then(recipes => {
+                        logMessage('success', `Returning ${recipes.length} recipes to client`);
+                        res.json(recipes);
+                    })
+                    .catch(err => {
+                        logMessage('error', 'Database query error', { error: err.message });
+                        res.status(500).json({
+                            error: 'Database query error',
+                            details: err.message
+                        });
+                    });
             }
-            
-            logMessage('success', `Found ${rows.length} recipes in database`);
-            
-            if (rows.length === 0) {
-                logMessage('warning', 'No recipes found in database');
-                return res.status(404).json({ 
-                    error: 'No recipes found',
-                    message: 'The database has no food items. Please add some recipes first.'
-                });
-            }
-            
-            const recipes = rows.map(row => {
-                const ingredients = row.ingredients_list ? row.ingredients_list.split(', ') : [];
-                return {
-                    id: row.id,
-                    name: row.name,
-                    prepTimeSeconds: 30,
-                    ingredients: ingredients.length > 0 ? ingredients : ['No ingredients listed'],
-                    prepMethods: []
-                };
-            });
-            
-            logMessage('success', `Returning ${recipes.length} recipes to client`);
-            res.json(recipes);
-        });
+        );
     });
 });
 
