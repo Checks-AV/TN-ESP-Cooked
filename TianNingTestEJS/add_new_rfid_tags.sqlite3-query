@@ -1,12 +1,58 @@
 -- Adds new RFID tags to their matching ingredients.
 -- Run this AFTER your main recipe.sqlite3-query has already created
 -- the tables (station, ingredients, food, RFIDTags, etc).
+--
+-- Japanese-name mapping used below (matches your existing ingredients table):
+--   Gohan   -> Rice
+--   Jagaimo -> Potato
+--   Tamago  -> Egg
 
 PRAGMA foreign_keys = ON;
 
 BEGIN TRANSACTION;
 
--- FISH
+-- Add the ESP32 devices for the stations (if not already added)
+INSERT OR IGNORE INTO ESP32Devices (device_mac, ip_address, last_seen) 
+VALUES ('6C:C8:40:46:73:88', NULL, datetime('now'));
+
+INSERT OR IGNORE INTO ESP32Devices (device_mac, ip_address, last_seen) 
+VALUES ('20:E7:C8:EC:CB:EC', NULL, datetime('now'));
+
+INSERT OR IGNORE INTO ESP32Devices (device_mac, ip_address, last_seen) 
+VALUES ('D8:BC:38:75:39:6C', NULL, datetime('now'));
+
+INSERT OR IGNORE INTO ESP32Devices (device_mac, ip_address, last_seen) 
+VALUES ('1C:DB:D4:40:35:D8', NULL, datetime('now'));
+
+INSERT OR IGNORE INTO ESP32Devices (device_mac, ip_address, last_seen) 
+VALUES ('F4:65:0B:40:14:FC', NULL, datetime('now'));
+
+-- Assign these devices to their respective stations
+-- Counter station (station_name = 'Counter')
+INSERT OR IGNORE INTO ESP32Tagger (device_id, station_id)
+SELECT 
+    (SELECT device_id FROM ESP32Devices WHERE device_mac = '6C:C8:40:46:73:88'),
+    (SELECT station_id FROM station WHERE station_name = 'Counter');
+
+-- General station (station_name = 'General')
+INSERT OR IGNORE INTO ESP32Tagger (device_id, station_id)
+SELECT 
+    (SELECT device_id FROM ESP32Devices WHERE device_mac = '20:E7:C8:EC:CB:EC'),
+    (SELECT station_id FROM station WHERE station_name = 'General')
+UNION ALL
+SELECT 
+    (SELECT device_id FROM ESP32Devices WHERE device_mac = 'D8:BC:38:75:39:6C'),
+    (SELECT station_id FROM station WHERE station_name = 'General')
+UNION ALL
+SELECT 
+    (SELECT device_id FROM ESP32Devices WHERE device_mac = '1C:DB:D4:40:35:D8'),
+    (SELECT station_id FROM station WHERE station_name = 'General')
+UNION ALL
+SELECT 
+    (SELECT device_id FROM ESP32Devices WHERE device_mac = 'F4:65:0B:40:14:FC'),
+    (SELECT station_id FROM station WHERE station_name = 'General');
+
+-- FISH (ingredients_name = 'Fish')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Fish'), 'Default'
 FROM (
@@ -24,7 +70,7 @@ FROM (
     UNION ALL SELECT 'CC:2E:E1:03'
 ) v;
 
--- GOHAN (Rice)
+-- RICE (ingredients_name = 'Rice')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Rice'), 'Default'
 FROM (
@@ -40,9 +86,10 @@ FROM (
     UNION ALL SELECT '22:64:E4:03'
     UNION ALL SELECT 'FB:07:E2:03'
     UNION ALL SELECT 'FE:77:E0:03'
+    UNION ALL SELECT '7C:05:E3:03'
 ) v;
 
--- JAGAIMO (Potato)
+-- POTATO (ingredients_name = 'Potato')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Potato'), 'Default'
 FROM (
@@ -61,7 +108,7 @@ FROM (
     UNION ALL SELECT 'F4:67:B4:03'
 ) v;
 
--- BEEF
+-- BEEF (ingredients_name = 'Beef')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Beef'), 'Default'
 FROM (
@@ -80,7 +127,7 @@ FROM (
     UNION ALL SELECT '51:44:B4:03'
 ) v;
 
--- MUSHROOM
+-- MUSHROOM (ingredients_name = 'Mushroom')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Mushroom'), 'Default'
 FROM (
@@ -96,9 +143,10 @@ FROM (
     UNION ALL SELECT 'ED:B6:E8:03'
     UNION ALL SELECT 'A1:F3:E7:03'
     UNION ALL SELECT '57:D7:50:06'
+    UNION ALL SELECT 'E7:FF:E2:03'
 ) v;
 
--- LETTUCE
+-- LETTUCE (ingredients_name = 'Lettuce')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Lettuce'), 'Default'
 FROM (
@@ -113,9 +161,10 @@ FROM (
     UNION ALL SELECT '87:A8:E7:03'
     UNION ALL SELECT '7C:CD:C4:03'
     UNION ALL SELECT '2C:86:E9:03'
+    UNION ALL SELECT '45:37:B3:03'
 ) v;
 
--- TAMAGO (Egg)
+-- EGG (ingredients_name = 'Egg')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Egg'), 'Default'
 FROM (
@@ -134,7 +183,7 @@ FROM (
     UNION ALL SELECT 'FA:51:E4:03'
 ) v;
 
--- CHICKEN
+-- CHICKEN (ingredients_name = 'Chicken')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Chicken'), 'Default'
 FROM (
@@ -152,7 +201,7 @@ FROM (
     UNION ALL SELECT '24:4C:B5:03'
 ) v;
 
--- CHEESE
+-- CHEESE (ingredients_name = 'Cheese')
 INSERT INTO RFIDTags (tag_rfid, ingredients_id, current_status)
 SELECT v.tag_rfid, (SELECT ingredients_id FROM ingredients WHERE ingredients_name = 'Cheese'), 'Default'
 FROM (
@@ -165,7 +214,7 @@ FROM (
     UNION ALL SELECT 'EA:51:E4:03'
     UNION ALL SELECT 'B1:09:E3:03'
     UNION ALL SELECT '61:3D:E0:03'
-    UNION ALL SELECT 'FE:61:C3:03'  -- Moved from Lettuce to Cheese
+    UNION ALL SELECT 'FE:61:C3:03'
 ) v;
 
 COMMIT;
