@@ -1,11 +1,6 @@
 -- Adds new RFID tags to their matching ingredients.
 -- Run this AFTER your main recipe.sqlite3-query has already created
 -- the tables (station, ingredients, food, RFIDTags, etc).
---
--- Japanese-name mapping used below (matches your existing ingredients table):
---   Gohan   -> Rice
---   Jagaimo -> Potato
---   Tamago  -> Egg
 
 PRAGMA foreign_keys = ON;
 
@@ -50,6 +45,9 @@ SELECT
 UNION ALL
 SELECT 
     (SELECT device_id FROM ESP32Devices WHERE device_mac = 'F4:65:0B:40:14:FC'),
+    (SELECT station_id FROM station WHERE station_name = 'General');
+SELECT 
+    (SELECT device_id FROM ESP32Devices WHERE device_mac = 'F4:65:0B:47:19:F4'),
     (SELECT station_id FROM station WHERE station_name = 'General');
 
 -- FISH (ingredients_name = 'Fish')
