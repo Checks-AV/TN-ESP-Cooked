@@ -1449,6 +1449,38 @@ function findOrderAndValidate(order_number, tag_macs, res, next, lockKey) {
 }
 
 // ============================================
+// CLEAR TAGS STATUS
+// ============================================
+
+router.post('/api/rfid/reset', (req,res) => {
+    logMessage('info', '📡 /api/rfid/reset endpoint called');
+    if (!global.db) {
+        logMessage('error', '❌ global.db is not available');
+        return res.json({ online: false, error: 'Database not available' });
+    }
+    // Edit ALL RFID tags
+    global.db.run(
+    `UPDATE RFIDTags
+     SET current_status = 'Default'`,
+    function (err) {
+        if (err) {
+            console.error("Failed to reset RFID tags:", err);
+            return res.status(500).json({
+                    success: false,
+                    error: 'Failed to reset RFID tags'
+                });
+        } else {
+            console.log(`Reset ${this.changes} RFID tags.`);
+                return res.json({
+                success: true,
+                tags_reset: this.changes
+    });
+        }
+    }
+    );
+})
+
+// ============================================
 // VIEW ROUTES
 // ============================================
 

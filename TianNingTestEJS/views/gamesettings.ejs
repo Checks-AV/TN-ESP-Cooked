@@ -1877,6 +1877,17 @@
     } catch (err) {
       addLog('❌ Error', `Database clear failed: ${err.message}`);
     }
+
+    try {
+      const response = await fetch('/api/rfid/reset', { method: 'POST' });
+      const data = await response.json();
+      if (data.success) {
+        addLog('💾 DB', `✅ RFID Reset`);
+      }
+    } catch (err) {
+      addLog('❌ Error', `RFID Reset failed: ${err.message}`);
+    }
+
     channel.postMessage({ type: 'reset' });
     running = false; paused = false;
     score = 0; served = 0; missed = 0; failed = 0;
