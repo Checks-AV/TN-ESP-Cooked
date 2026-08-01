@@ -160,7 +160,7 @@ INSERT INTO station('station_name') VALUES ('Counter'); --2
 INSERT INTO station('station_name') VALUES ('Reset'); --3
 
 /* Insert your food here */
-INSERT INTO food (food_name) VALUES ('Salad');
+-- INSERT INTO food (food_name) VALUES ('Salad');
 
 
 /* Insert your ingredients here - UPDATED */
@@ -181,7 +181,7 @@ INSERT INTO preparation_method('preparation_method_name') VALUES ('Cook');  --3
 INSERT INTO preparation_method('preparation_method_name') VALUES ('Fry');   --4
 INSERT INTO preparation_method('preparation_method_name') VALUES ('Stew');  --5
 INSERT INTO preparation_method('preparation_method_name') VALUES ('Dice');  --6
-INSERT INTO preparation_method('preparation_method_name') VALUES ('Bake');  --6
+INSERT INTO preparation_method('preparation_method_name') VALUES ('Bake');  --7
 
 /* Station permissions — which station is allowed to perform which
    preparation method. Without rows here, handleAction() in
@@ -197,6 +197,7 @@ INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUE
 INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 4); -- General -> Fry
 INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 5); -- General -> Stew
 INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 6); -- General -> Dice
+INSERT INTO station_preparation_method (station_id, preparation_method_id) VALUES (1, 7); -- General -> Bake
 
 /* Dummy Tag Data here */
 -- Insert the ESP32 device for Reset station
